@@ -1,20 +1,59 @@
-/**
- * Features — self-contained vertical slices of the application.
- *
- * Each feature directory owns its own components, hooks, types, and utils.
- * Nothing inside a feature should be imported by another feature.
- * Shared code belongs in the top-level directories (components, hooks, lib, etc.).
- *
- * Pattern:
- *   features/
- *     orders/
- *       components/   ← order-specific components
- *       hooks/        ← order-specific hooks
- *       types/        ← order-specific types
- *       utils/        ← order-specific utilities
- *       index.ts      ← public API — only export what other layers need
- *     kitchen/
- *     inventory/
- *     customers/
- *     finance/
- */
+export * from "./dashboard/components"
+export * from "./dashboard/hooks"
+export * from "./dashboard/services"
+export * from "./dashboard/types"
+export * from "./dashboard/utils"
+
+export * from "./orders/components"
+export * from "./orders/hooks"
+export * from "./orders/services"
+export * from "./orders/types"
+export * from "./orders/utils"
+
+export * from "./kitchen/components"
+export * from "./kitchen/hooks"
+export * from "./kitchen/services"
+export * from "./kitchen/types"
+export * from "./kitchen/utils"
+
+export * from "./products/components"
+export * from "./products/hooks"
+export * from "./products/services"
+export * from "./products/types"
+export * from "./products/utils"
+
+export * from "./customers/components"
+export * from "./customers/hooks"
+export * from "./customers/services"
+export * from "./customers/types"
+export * from "./customers/utils"
+
+export * from "./crm/components"
+export * from "./crm/hooks"
+export * from "./crm/services"
+export * from "./crm/types"
+export * from "./crm/utils"
+
+export * from "./delivery/components"
+export * from "./delivery/hooks"
+export * from "./delivery/services"
+export * from "./delivery/types"
+export * from "./delivery/utils"
+
+export * from "./finance/components"
+export * from "./finance/hooks"
+export * from "./finance/services"
+export * from "./finance/types"
+export * from "./finance/utils"
+
+export * from "./reports/components"
+export * from "./reports/hooks"
+export * from "./reports/services"
+export * from "./reports/types"
+export * from "./reports/utils"
+
+export * from "./settings/components"
+export * from "./settings/hooks"
+export * from "./settings/services"
+export * from "./settings/types"
+export * from "./settings/utils"
