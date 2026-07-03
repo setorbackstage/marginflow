@@ -1,59 +1,28 @@
-export * from "./dashboard/components"
-export * from "./dashboard/hooks"
-export * from "./dashboard/services"
-export * from "./dashboard/types"
-export * from "./dashboard/utils"
-
-export * from "./orders/components"
-export * from "./orders/hooks"
-export * from "./orders/services"
-export * from "./orders/types"
-export * from "./orders/utils"
-
-export * from "./kitchen/components"
-export * from "./kitchen/hooks"
-export * from "./kitchen/services"
-export * from "./kitchen/types"
-export * from "./kitchen/utils"
-
-export * from "./products/components"
-export * from "./products/hooks"
-export * from "./products/services"
-export * from "./products/types"
-export * from "./products/utils"
-
-export * from "./customers/components"
-export * from "./customers/hooks"
-export * from "./customers/services"
-export * from "./customers/types"
-export * from "./customers/utils"
-
-export * from "./crm/components"
-export * from "./crm/hooks"
-export * from "./crm/services"
-export * from "./crm/types"
-export * from "./crm/utils"
-
-export * from "./delivery/components"
-export * from "./delivery/hooks"
-export * from "./delivery/services"
-export * from "./delivery/types"
-export * from "./delivery/utils"
-
-export * from "./finance/components"
-export * from "./finance/hooks"
-export * from "./finance/services"
-export * from "./finance/types"
-export * from "./finance/utils"
-
-export * from "./reports/components"
-export * from "./reports/hooks"
-export * from "./reports/services"
-export * from "./reports/types"
-export * from "./reports/utils"
-
-export * from "./settings/components"
-export * from "./settings/hooks"
-export * from "./settings/services"
-export * from "./settings/types"
-export * from "./settings/utils"
+/**
+ * Features — vertical slices of the MarginFlow domain.
+ *
+ * Each feature directory owns its own components, hooks, services, types, and utils.
+ * Import directly from the feature's own index to keep dependencies explicit:
+ *
+ *   import type { Order } from "@/features/orders/types"
+ *   import type { Product } from "@/features/products/types"
+ *   import type { Customer } from "@/features/customers/types"
+ *
+ * Never import from another feature's internal files — only from its index.ts.
+ * Never import from this file — it is a directory manifest, not a public API.
+ *
+ * Current features:
+ *   stores      — Store, Account, Organization, StoreSettings
+ *   users       — User, Role, Permission, Membership
+ *   customers   — Customer, Address
+ *   orders      — Order, OrderItem, OrderStatus
+ *   products    — Product, Category, ModifierGroup, Modifier, Menu
+ *   kitchen     — KitchenTicket, KitchenItem
+ *   delivery    — Delivery, Courier
+ *   payments    — Payment, PaymentAttempt
+ *   dashboard   — (UI only — no domain types)
+ *   finance     — (read layer over payments + orders — no domain types yet)
+ *   reports     — (read layer — no domain types yet)
+ *   crm         — (read layer over customers + orders — no domain types yet)
+ *   settings    — (UI only — delegates to StoreSettings)
+ */

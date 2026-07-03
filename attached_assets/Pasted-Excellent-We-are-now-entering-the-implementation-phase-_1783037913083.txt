@@ -1,0 +1,129 @@
+Excellent.
+
+We are now entering the implementation phase.
+
+Before making any changes, read every document inside the /docs folder.
+
+Those documents remain the single source of truth.
+
+Your task is NOT to build backend logic.
+
+Your task is NOT to build React components.
+
+Your task is NOT to create database models.
+
+Your task is to define the TypeScript domain contracts for the entire application.
+
+Create strongly typed interfaces and enums only.
+
+Use modern TypeScript.
+
+Do not use classes.
+
+Do not use any.
+
+Do not use placeholder fields.
+
+Prefer readonly where appropriate.
+
+Use enums for finite state values.
+
+Organize everything by feature.
+
+Create the following structure:
+
+features/
+
+orders/types/
+- order.ts
+- order-item.ts
+- order-status.ts
+- index.ts
+
+products/types/
+- product.ts
+- category.ts
+- modifier.ts
+- modifier-group.ts
+- menu.ts
+- index.ts
+
+customers/types/
+- customer.ts
+- address.ts
+- index.ts
+
+stores/types/
+- account.ts
+- organization.ts
+- store.ts
+- settings.ts
+- index.ts
+
+users/types/
+- user.ts
+- role.ts
+- membership.ts
+- permission.ts
+- index.ts
+
+payments/types/
+- payment.ts
+- payment-attempt.ts
+- payment-method.ts
+- index.ts
+
+delivery/types/
+- delivery.ts
+- courier.ts
+- index.ts
+
+kitchen/types/
+- kitchen-ticket.ts
+- kitchen-item.ts
+- kitchen-status.ts
+- index.ts
+
+Requirements
+
+Each file must contain real production-ready interfaces.
+
+Relationships between entities must be represented using ids instead of nested objects whenever possible.
+
+Money must always be represented as integer cents.
+
+Dates must use ISO string type aliases.
+
+Identifiers must use branded types or explicit aliases when appropriate.
+
+Every interface must include:
+
+id
+
+createdAt
+
+updatedAt
+
+where applicable.
+
+Enums should be centralized inside their respective feature.
+
+Create barrel exports (index.ts) for every folder.
+
+Do not create implementation.
+
+Do not create services.
+
+Do not create hooks.
+
+Do not create React code.
+
+Do not create Prisma models.
+
+Do not create Zod schemas.
+
+Only build the complete TypeScript domain layer.
+
+Think carefully before writing any code.
+
+This code will become the foundation of the entire MarginFlow platform.
