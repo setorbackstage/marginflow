@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { modifierService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok, noContent } from "@/server/lib/http"
 
 interface RouteContext {
@@ -32,7 +32,7 @@ function toModifierResponse(modifier: Awaited<ReturnType<typeof modifierService.
 }
 
 async function handleUpdateModifier(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, groupId, modifierId } = await params
+  const { storeId, groupId, modifierId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:edit")
 
@@ -42,7 +42,7 @@ async function handleUpdateModifier(request: NextRequest, { params }: RouteConte
 }
 
 async function handleDeleteModifier(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, groupId, modifierId } = await params
+  const { storeId, groupId, modifierId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:delete")
 

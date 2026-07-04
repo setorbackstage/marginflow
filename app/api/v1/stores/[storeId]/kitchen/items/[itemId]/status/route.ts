@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { kitchenService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 import { toKitchenItemResponse } from "../../../_ticket-response"
 
@@ -17,7 +17,7 @@ const updateItemStatusSchema = z.object({
 })
 
 async function handleUpdateItemStatus(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, itemId } = await params
+  const { storeId, itemId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "kitchen:update_status")
 

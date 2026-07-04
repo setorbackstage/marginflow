@@ -4,7 +4,7 @@ import { z } from "zod"
 import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { orderService, authorizationService } from "@/server/services"
-import { requireAuth, parseQuery, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseQuery, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, created } from "@/server/lib/http"
 import { getOrderWithDetailsOrThrow, toOrderResponse } from "./_order-response"
 
@@ -73,7 +73,7 @@ function toOrderListItem(order: Awaited<ReturnType<typeof orderService.listBySto
 }
 
 async function handleListOrders(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId } = await params
+  const { storeId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "orders:view")
 
@@ -136,7 +136,7 @@ const createOrderSchema = z.object({
 })
 
 async function handleCreateOrder(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId } = await params
+  const { storeId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "orders:create")
 

@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { deliveryService, orderService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 import { toDeliveryResponse } from "../_delivery-response"
 
@@ -22,7 +22,7 @@ const assignCourierSchema = z.object({
 })
 
 async function handleGetDelivery(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, deliveryId } = await params
+  const { storeId, deliveryId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "delivery:view")
 
@@ -32,7 +32,7 @@ async function handleGetDelivery(request: NextRequest, { params }: RouteContext)
 }
 
 async function handleAssignCourier(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, deliveryId } = await params
+  const { storeId, deliveryId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "delivery:assign_courier")
 

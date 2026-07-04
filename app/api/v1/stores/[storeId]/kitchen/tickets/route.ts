@@ -4,7 +4,7 @@ import { z } from "zod"
 import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { kitchenService, authorizationService } from "@/server/services"
-import { requireAuth, parseQuery } from "@/server/lib"
+import { requireAuth, parseQuery, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 import { toTicketResponse } from "../_ticket-response"
 
@@ -25,7 +25,7 @@ const SORT_FIELD_MAP: Record<string, keyof Prisma.KitchenTicketOrderByWithRelati
 }
 
 async function handleListTickets(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId } = await params
+  const { storeId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "kitchen:view")
 

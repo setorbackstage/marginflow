@@ -4,7 +4,7 @@ import { z } from "zod"
 import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { deliveryService, authorizationService } from "@/server/services"
-import { requireAuth, parseQuery } from "@/server/lib"
+import { requireAuth, parseQuery, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta } from "@/server/lib/http"
 import { toDeliveryResponse } from "./_delivery-response"
 
@@ -30,7 +30,7 @@ function buildDateRange(dateFrom?: string, dateTo?: string): Prisma.DeliveryWher
 }
 
 async function handleListDeliveries(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId } = await params
+  const { storeId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "delivery:view")
 

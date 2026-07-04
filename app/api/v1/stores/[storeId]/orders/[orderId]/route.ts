@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { orderService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 import { getOrderWithDetailsOrThrow, toOrderResponse } from "../_order-response"
 
@@ -20,7 +20,7 @@ const updateOrderSchema = z.object({
 })
 
 async function handleGetOrder(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, orderId } = await params
+  const { storeId, orderId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "orders:view")
 
@@ -29,7 +29,7 @@ async function handleGetOrder(request: NextRequest, { params }: RouteContext): P
 }
 
 async function handleUpdateOrder(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, orderId } = await params
+  const { storeId, orderId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "orders:edit")
 

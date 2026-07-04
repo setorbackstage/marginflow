@@ -2,7 +2,7 @@ import "server-only"
 import type { NextRequest } from "next/server"
 import { prisma } from "@/server/db"
 import { paymentService, orderService, authorizationService } from "@/server/services"
-import { requireAuth } from "@/server/lib"
+import { requireAuth, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 import { toPaymentDetailResponse } from "../../_payment-response"
 
@@ -11,11 +11,15 @@ interface RouteContext {
 }
 
 async function handleConfirmPayment(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, paymentId } = await params
+  const { storeId, paymentId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "orders:edit")
 
-  const payment = await paymentService.confirm(prisma, storeId, paymentId)
+  // API_SPEC.md's Event Contracts: confirming a payment cascades through the
+  // synchronous bus (payment.paid → Customers' total_spent). All those writes
+  // must land in the same database transaction as the payment status change —
+  // same pattern as the order/kitchen/delivery status endpoints.
+  const payment = await prisma.$transaction((tx) => paymentService.confirm(tx, storeId, paymentId))
   const [order, attempts] = await Promise.all([
     orderService.getById(prisma, payment.orderId),
     paymentService.listAttemptsByOrder(prisma, payment.orderId),

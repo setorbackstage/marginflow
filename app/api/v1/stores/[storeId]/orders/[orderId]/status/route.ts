@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { orderService, deliveryService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody, BadRequestError, ConflictError } from "@/server/lib"
+import { requireAuth, parseJsonBody, BadRequestError, ConflictError, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 import { getOrderWithDetailsOrThrow, toOrderResponse } from "../../_order-response"
 
@@ -27,7 +27,7 @@ const STATUS_PERMISSION: Record<string, string> = {
 }
 
 async function handleUpdateStatus(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, orderId } = await params
+  const { storeId, orderId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   const input = await parseJsonBody(request, updateStatusSchema)
 
@@ -58,12 +58,19 @@ async function handleUpdateStatus(request: NextRequest, { params }: RouteContext
     }
   }
 
-  await orderService.updateStatus(prisma, storeId, orderId, input.status, {
-    reason: input.reason,
-    notes: input.notes,
-    triggeredByUserId: actor.userId,
-    isManagerApproved,
-  })
+  // API_SPEC.md's Event Contracts: side effects of this transition (e.g. Kitchen
+  // Ticket creation on order.confirmed) must land in the same database
+  // transaction as the status change itself — the synchronous event bus runs
+  // listeners with this same `tx` client, so a listener failure rolls back
+  // the whole transition, not just the order row.
+  await prisma.$transaction((tx) =>
+    orderService.updateStatus(tx, storeId, orderId, input.status, {
+      reason: input.reason,
+      notes: input.notes,
+      triggeredByUserId: actor.userId,
+      isManagerApproved,
+    }),
+  )
 
   const updated = await getOrderWithDetailsOrThrow(storeId, orderId)
   return ok(await toOrderResponse(updated))

@@ -825,7 +825,7 @@ Returns the updated order object (same shape as GET /orders/:orderId).
 - Items cannot be modified via this endpoint. Use the order items endpoints.
 - Grand total is recomputed if delivery address changes the delivery fee (future).
 
-**Events Produced:** `order.updated`
+**Events Produced:** None
 
 ---
 

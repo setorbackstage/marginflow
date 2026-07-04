@@ -5,7 +5,7 @@ import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { menuService, authorizationService } from "@/server/services"
 import type { UpdateMenuInput } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok, noContent } from "@/server/lib/http"
 import { toMenuDetailResponse, toMenuResponse } from "../_menu-response"
 
@@ -28,7 +28,7 @@ const updateMenuSchema = z
   .strict()
 
 async function handleGetMenu(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, menuId } = await params
+  const { storeId, menuId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "menu:view")
 
@@ -37,7 +37,7 @@ async function handleGetMenu(request: NextRequest, { params }: RouteContext): Pr
 }
 
 async function handleUpdateMenu(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, menuId } = await params
+  const { storeId, menuId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "menu:edit")
 
@@ -51,7 +51,7 @@ async function handleUpdateMenu(request: NextRequest, { params }: RouteContext):
 }
 
 async function handleDeleteMenu(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, menuId } = await params
+  const { storeId, menuId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "menu:edit")
 

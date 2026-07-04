@@ -2,7 +2,7 @@ import "server-only"
 import type { NextRequest } from "next/server"
 import { prisma } from "@/server/db"
 import { orderService, userService, authorizationService } from "@/server/services"
-import { requireAuth } from "@/server/lib"
+import { requireAuth, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 import { getOrderWithDetailsOrThrow } from "../../_order-response"
 
@@ -11,7 +11,7 @@ interface RouteContext {
 }
 
 async function handleGetTimeline(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, orderId } = await params
+  const { storeId, orderId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "orders:view")
 

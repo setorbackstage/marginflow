@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { customerService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 import { toCustomerDetailResponse } from "../_customer-response"
 
@@ -26,7 +26,7 @@ const updateCustomerSchema = z.object({
 })
 
 async function handleGetCustomer(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, customerId } = await params
+  const { storeId, customerId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "customers:view")
 
@@ -40,7 +40,7 @@ async function handleGetCustomer(request: NextRequest, { params }: RouteContext)
  * checked only for the fields actually present in the body.
  */
 async function handleUpdateCustomer(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, customerId } = await params
+  const { storeId, customerId } = requireUuidParams(await params)
   const actor = requireAuth(request)
 
   const input = await parseJsonBody(request, updateCustomerSchema)

@@ -102,13 +102,19 @@ export const deliveryService = {
       if (delivery.status !== "DISPATCHED" && delivery.status !== "IN_TRANSIT") {
         throw new BadRequestError("INVALID_TRANSITION", "Transition not allowed.")
       }
+      // API_SPEC.md: `reason` is required for the FAILED transition (enforced at
+      // the Zod layer too). Reuses the same VALIDATION_ERROR code assignCourier
+      // already uses for a missing required field — no new error code introduced.
+      if (!opts.reason || opts.reason.trim().length === 0) {
+        throw new BadRequestError("VALIDATION_ERROR", "reason is required when transitioning to FAILED.")
+      }
       if (!opts.isManagerOrOwner) {
         throw new ConflictError(
           "DISPATCHED_DELIVERY_CANCEL_REQUIRES_MANAGER",
           "Failing a dispatched delivery requires manager or owner approval.",
         )
       }
-      const reason = opts.reason ?? "Delivery failed."
+      const reason = opts.reason
       const updated = await deliveryRepository.update(db, deliveryId, { status: "FAILED", failedAt: now, failedReason: reason })
       await eventBus.publish(
         createEvent("delivery.failed", storeId, null, {

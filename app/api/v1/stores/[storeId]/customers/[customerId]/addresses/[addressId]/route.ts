@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { customerService, addressService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok, noContent } from "@/server/lib/http"
 import { toAddressResponse } from "../../../_customer-response"
 
@@ -28,7 +28,7 @@ const updateAddressSchema = z.object({
 })
 
 async function handleUpdateAddress(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, customerId, addressId } = await params
+  const { storeId, customerId, addressId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "customers:edit")
 
@@ -44,7 +44,7 @@ async function handleUpdateAddress(request: NextRequest, { params }: RouteContex
 }
 
 async function handleDeleteAddress(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, customerId, addressId } = await params
+  const { storeId, customerId, addressId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "customers:edit")
 

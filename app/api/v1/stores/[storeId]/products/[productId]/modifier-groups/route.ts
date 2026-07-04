@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { modifierGroupService, productService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok, created } from "@/server/lib/http"
 
 interface RouteContext {
@@ -43,7 +43,7 @@ function toModifierGroupWithModifiersResponse(group: Awaited<ReturnType<typeof m
 }
 
 async function handleListModifierGroups(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, productId } = await params
+  const { storeId, productId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:view")
 
@@ -54,7 +54,7 @@ async function handleListModifierGroups(request: NextRequest, { params }: RouteC
 }
 
 async function handleCreateModifierGroup(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, productId } = await params
+  const { storeId, productId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:create")
 

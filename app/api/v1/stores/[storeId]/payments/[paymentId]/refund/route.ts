@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { paymentService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 
 interface RouteContext {
@@ -17,7 +17,7 @@ const refundPaymentSchema = z.object({
 })
 
 async function handleRefundPayment(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, paymentId } = await params
+  const { storeId, paymentId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "orders:refund")
 

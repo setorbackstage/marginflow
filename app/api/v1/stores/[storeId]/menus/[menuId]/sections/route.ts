@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { menuService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 import { toMenuDetailResponse } from "../../_menu-response"
 
@@ -23,7 +23,7 @@ const replaceSectionsSchema = z.object({
 })
 
 async function handleReplaceSections(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, menuId } = await params
+  const { storeId, menuId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "menu:edit")
 

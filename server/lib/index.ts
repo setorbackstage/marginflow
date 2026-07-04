@@ -13,6 +13,7 @@ export {
 export type { ErrorDetail } from "./errors"
 export { parseJsonBody, parseQuery } from "./validation"
 export { requireAuth } from "./authenticate"
+export { requireUuidParams } from "./uuid"
 export { toJsonInput, toNullableJsonInput } from "./json"
 export { eventBus, createEvent } from "./events"
 export type { DomainEvent, DomainEventType, DomainEventOf, EventEnvelope } from "./events"

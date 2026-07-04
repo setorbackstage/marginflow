@@ -5,7 +5,7 @@ import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { productService, authorizationService } from "@/server/services"
 import type { CreateProductInput } from "@/server/services"
-import { requireAuth, parseJsonBody, parseQuery } from "@/server/lib"
+import { requireAuth, parseJsonBody, parseQuery, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, created } from "@/server/lib/http"
 import { toProductListItem, toProductDetailResponse } from "./_product-response"
 
@@ -47,7 +47,7 @@ const createProductSchema = z.object({
 })
 
 async function handleListProducts(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId } = await params
+  const { storeId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:view")
 
@@ -75,7 +75,7 @@ async function handleListProducts(request: NextRequest, { params }: RouteContext
 }
 
 async function handleCreateProduct(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId } = await params
+  const { storeId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:create")
 

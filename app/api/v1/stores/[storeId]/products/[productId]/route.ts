@@ -5,7 +5,7 @@ import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { productService, authorizationService } from "@/server/services"
 import type { UpdateProductInput } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok, noContent } from "@/server/lib/http"
 import { toProductDetailResponse } from "../_product-response"
 
@@ -28,7 +28,7 @@ const updateProductSchema = z.object({
 })
 
 async function handleGetProduct(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, productId } = await params
+  const { storeId, productId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:view")
 
@@ -37,7 +37,7 @@ async function handleGetProduct(request: NextRequest, { params }: RouteContext):
 }
 
 async function handleUpdateProduct(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, productId } = await params
+  const { storeId, productId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:edit")
 
@@ -53,7 +53,7 @@ async function handleUpdateProduct(request: NextRequest, { params }: RouteContex
 }
 
 async function handleDeleteProduct(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, productId } = await params
+  const { storeId, productId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:delete")
 

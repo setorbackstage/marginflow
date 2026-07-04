@@ -96,6 +96,16 @@ export const paymentService = {
   /** `POST /payments/:paymentId/confirm` — marks a manual payment as received. */
   async confirm(db: DbClient, storeId: string, paymentId: string): Promise<Payment> {
     const payment = await getPaymentOrThrow(db, storeId, paymentId)
+
+    // Idempotent confirm: a payment that already reached PAID (or a later
+    // refund state) must not re-run the capture side effects. Re-publishing
+    // payment.paid would double-count customer.total_spent and record a
+    // duplicate attempt. API_SPEC.md documents no error for this case, so we
+    // return the already-settled payment unchanged (still 200 OK, status PAID).
+    if (payment.status === "PAID" || payment.status === "PARTIALLY_REFUNDED" || payment.status === "REFUNDED") {
+      return payment
+    }
+
     const attempts = await paymentAttemptRepository.findManyByOrder(db, payment.orderId)
     const pendingAttempt = attempts.find((attempt) => attempt.status === "PENDING")
 
@@ -128,10 +138,10 @@ export const paymentService = {
   },
 
   /**
-   * `POST /payments/:paymentId/refund`. Requires `orders:refund` — the
-   * requires the `orders:refund` permission — Business Rule 25 ("only
-   * managers and owners"), enforced here via `authorizationService` so the
-   * rule lives in the Service layer, not the Controller.
+   * `POST /payments/:paymentId/refund`. Requires the `orders:refund`
+   * permission — Business Rule 25 ("only managers and owners"), enforced
+   * here via `authorizationService` so the rule lives in the Service layer,
+   * not the Controller.
    */
   async refund(db: DbClient, storeId: string, paymentId: string, input: RefundPaymentInput, refundedByUserId: string): Promise<Payment> {
     const canRefund = await authorizationService.hasPermission(db, refundedByUserId, storeId, "orders:refund")

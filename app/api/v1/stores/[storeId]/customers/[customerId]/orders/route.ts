@@ -4,7 +4,7 @@ import { z } from "zod"
 import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { customerService, orderService, authorizationService } from "@/server/services"
-import { requireAuth, parseQuery } from "@/server/lib"
+import { requireAuth, parseQuery, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta } from "@/server/lib/http"
 
 interface RouteContext {
@@ -52,7 +52,7 @@ function toOrderListItem(order: Awaited<ReturnType<typeof orderService.listBySto
 }
 
 async function handleListCustomerOrders(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, customerId } = await params
+  const { storeId, customerId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "customers:view")
 

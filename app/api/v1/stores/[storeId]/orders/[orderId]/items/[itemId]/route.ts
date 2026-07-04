@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { orderService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok, noContent } from "@/server/lib/http"
 import { getOrderWithDetailsOrThrow, toOrderItemResponse } from "../../../_order-response"
 
@@ -18,7 +18,7 @@ const updateOrderItemSchema = z.object({
 })
 
 async function handleUpdateItem(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, orderId, itemId } = await params
+  const { storeId, orderId, itemId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "orders:edit")
 
@@ -26,7 +26,7 @@ async function handleUpdateItem(request: NextRequest, { params }: RouteContext):
   await getOrderWithDetailsOrThrow(storeId, orderId)
 
   const input = await parseJsonBody(request, updateOrderItemSchema)
-  const item = await orderService.updateItem(prisma, orderId, itemId, input)
+  const item = await orderService.updateItem(prisma, storeId, orderId, itemId, input)
   const order = await orderService.getById(prisma, orderId)
 
   return ok({
@@ -41,14 +41,14 @@ async function handleUpdateItem(request: NextRequest, { params }: RouteContext):
 }
 
 async function handleRemoveItem(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, orderId, itemId } = await params
+  const { storeId, orderId, itemId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "orders:edit")
 
   // Confirms the order belongs to this store before any mutation (Store Isolation).
   await getOrderWithDetailsOrThrow(storeId, orderId)
 
-  await orderService.removeItem(prisma, orderId, itemId)
+  await orderService.removeItem(prisma, storeId, orderId, itemId)
   return noContent()
 }
 

@@ -4,7 +4,7 @@ import { z } from "zod"
 import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { categoryService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody, parseQuery } from "@/server/lib"
+import { requireAuth, parseJsonBody, parseQuery, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok, created } from "@/server/lib/http"
 import { toCategoryResponse } from "./_category-response"
 
@@ -28,7 +28,7 @@ const createCategorySchema = z.object({
 })
 
 async function handleListCategories(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId } = await params
+  const { storeId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:view")
 
@@ -43,7 +43,7 @@ async function handleListCategories(request: NextRequest, { params }: RouteConte
 }
 
 async function handleCreateCategory(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId } = await params
+  const { storeId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:create")
 

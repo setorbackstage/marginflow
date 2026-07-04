@@ -4,7 +4,7 @@ import { z } from "zod"
 import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { customerService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody, parseQuery } from "@/server/lib"
+import { requireAuth, parseJsonBody, parseQuery, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, created } from "@/server/lib/http"
 import { toCustomerListItem, toCustomerDetailResponse } from "./_customer-response"
 
@@ -44,7 +44,7 @@ const createCustomerSchema = z.object({
 })
 
 async function handleListCustomers(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId } = await params
+  const { storeId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "customers:view")
 
@@ -70,7 +70,7 @@ async function handleListCustomers(request: NextRequest, { params }: RouteContex
 }
 
 async function handleCreateCustomer(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId } = await params
+  const { storeId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "customers:create")
 

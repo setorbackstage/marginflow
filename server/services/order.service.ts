@@ -82,6 +82,20 @@ async function getOrderOrThrow(db: DbClient, id: string): Promise<Order> {
   return order
 }
 
+/**
+ * Store Isolation (API_SPEC.md) for every mutation this service owns
+ * (`update`, `addItem`, `updateItem`, `removeItem`, `updateStatus`) — kept
+ * separate from `getById` (unchecked) because Payments' and Deliveries'
+ * routes already call `getById` with an `order.orderId` that was already
+ * verified store-scoped via the Payment/Delivery record itself; changing
+ * that call site is out of scope here.
+ */
+async function getOrderInStoreOrThrow(db: DbClient, storeId: string, id: string): Promise<Order> {
+  const order = await getOrderOrThrow(db, id)
+  if (order.storeId !== storeId) throw new NotFoundError("ORDER_NOT_FOUND", "Order does not exist in this store.")
+  return order
+}
+
 function assertEditable(order: Order): void {
   if (!EDITABLE_STATUSES.includes(order.status)) {
     throw new ConflictError("ORDER_NOT_EDITABLE", "Order is not in DRAFT or PENDING status.")
@@ -352,7 +366,7 @@ export const orderService = {
 
   /** `PATCH /orders/:orderId` — only while DRAFT or PENDING. */
   async update(db: DbClient, storeId: string, orderId: string, input: UpdateOrderInput): Promise<Order> {
-    const order = await getOrderOrThrow(db, orderId)
+    const order = await getOrderInStoreOrThrow(db, storeId, orderId)
     assertEditable(order)
 
     let deliveryAddress: AddressSnapshot | undefined
@@ -380,7 +394,7 @@ export const orderService = {
 
   /** `POST /orders/:orderId/items` — only while DRAFT or PENDING. */
   async addItem(db: DbClient, storeId: string, orderId: string, input: CreateOrderItemInput): Promise<OrderItem> {
-    const order = await getOrderOrThrow(db, orderId)
+    const order = await getOrderInStoreOrThrow(db, storeId, orderId)
     assertEditable(order)
 
     const priced = await priceItem(db, storeId, input)
@@ -401,8 +415,8 @@ export const orderService = {
   },
 
   /** `PATCH /orders/:orderId/items/:itemId` — only while DRAFT or PENDING. */
-  async updateItem(db: DbClient, orderId: string, itemId: string, input: UpdateOrderItemInput): Promise<OrderItem> {
-    const order = await getOrderOrThrow(db, orderId)
+  async updateItem(db: DbClient, storeId: string, orderId: string, itemId: string, input: UpdateOrderItemInput): Promise<OrderItem> {
+    const order = await getOrderInStoreOrThrow(db, storeId, orderId)
     assertEditable(order)
 
     const item = await orderItemRepository.findById(db, itemId)
@@ -419,8 +433,8 @@ export const orderService = {
   },
 
   /** `DELETE /orders/:orderId/items/:itemId` — only while DRAFT or PENDING; the last item cannot be removed. */
-  async removeItem(db: DbClient, orderId: string, itemId: string): Promise<void> {
-    const order = await getOrderOrThrow(db, orderId)
+  async removeItem(db: DbClient, storeId: string, orderId: string, itemId: string): Promise<void> {
+    const order = await getOrderInStoreOrThrow(db, storeId, orderId)
     assertEditable(order)
 
     const item = await orderItemRepository.findById(db, itemId)
@@ -448,7 +462,7 @@ export const orderService = {
    * "exactly-once within the transaction" guarantee API_SPEC.md documents.
    */
   async updateStatus(db: DbClient, storeId: string, orderId: string, target: string, opts: UpdateOrderStatusOptions): Promise<Order> {
-    const order = await getOrderOrThrow(db, orderId)
+    const order = await getOrderInStoreOrThrow(db, storeId, orderId)
 
     if (target === "CANCELLED") return cancelOrder(db, storeId, order, opts)
     if (target === "DELIVERED") return deliverTakeawayOrder(db, storeId, order, opts)

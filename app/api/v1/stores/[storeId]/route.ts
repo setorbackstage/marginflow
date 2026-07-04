@@ -5,7 +5,7 @@ import { prisma } from "@/server/db"
 import { storeService, authorizationService } from "@/server/services"
 import type { UpdateStoreInput } from "@/server/services"
 import type { Store } from "@/generated/prisma/client"
-import { requireAuth, parseJsonBody, toJsonInput } from "@/server/lib"
+import { requireAuth, requireUuidParams, parseJsonBody, toJsonInput } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 
 interface RouteContext {
@@ -74,7 +74,7 @@ function toStoreResponse(store: Store) {
 }
 
 async function handleGetStore(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId } = await params
+  const { storeId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "store:view")
 
@@ -83,7 +83,7 @@ async function handleGetStore(request: NextRequest, { params }: RouteContext): P
 }
 
 async function handleUpdateStore(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId } = await params
+  const { storeId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "store:edit")
 

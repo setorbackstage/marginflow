@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { categoryService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok, noContent } from "@/server/lib/http"
 import { toCategoryResponse } from "../_category-response"
 
@@ -21,7 +21,7 @@ const updateCategorySchema = z.object({
 })
 
 async function handleGetCategory(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, categoryId } = await params
+  const { storeId, categoryId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:view")
 
@@ -30,7 +30,7 @@ async function handleGetCategory(request: NextRequest, { params }: RouteContext)
 }
 
 async function handleUpdateCategory(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, categoryId } = await params
+  const { storeId, categoryId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:edit")
 
@@ -40,7 +40,7 @@ async function handleUpdateCategory(request: NextRequest, { params }: RouteConte
 }
 
 async function handleDeleteCategory(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, categoryId } = await params
+  const { storeId, categoryId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:delete")
 

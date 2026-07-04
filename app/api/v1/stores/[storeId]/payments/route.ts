@@ -4,7 +4,7 @@ import { z } from "zod"
 import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { paymentService, authorizationService } from "@/server/services"
-import { requireAuth, parseQuery } from "@/server/lib"
+import { requireAuth, parseQuery, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta } from "@/server/lib/http"
 import { toPaymentListItem } from "./_payment-response"
 
@@ -39,7 +39,7 @@ function buildDateRange(dateFrom?: string, dateTo?: string): Prisma.PaymentWhere
 }
 
 async function handleListPayments(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId } = await params
+  const { storeId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "finance:view")
 

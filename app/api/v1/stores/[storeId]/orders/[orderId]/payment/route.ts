@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { paymentService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, created } from "@/server/lib/http"
 
 interface RouteContext {
@@ -18,12 +18,14 @@ const initiatePaymentSchema = z.object({
 })
 
 async function handleInitiatePayment(request: NextRequest, { params }: RouteContext): Promise<Response> {
-  const { storeId, orderId } = await params
+  const { storeId, orderId } = requireUuidParams(await params)
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "orders:edit")
 
   const input = await parseJsonBody(request, initiatePaymentSchema)
-  const { payment, attemptId } = await paymentService.initiate(prisma, storeId, orderId, input)
+  // Payment + PaymentAttempt creation (and any payment.created consumers) must
+  // be atomic — same $transaction pattern as the status-transition endpoints.
+  const { payment, attemptId } = await prisma.$transaction((tx) => paymentService.initiate(tx, storeId, orderId, input))
 
   return created({
     id: payment.id,
