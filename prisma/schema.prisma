@@ -1,0 +1,976 @@
+// MarginFlow — Prisma Schema
+//
+// Single source of truth: docs/DATA_MODEL.md. Every model, field, relation,
+// index and default below is a direct translation of that document. Do not
+// add fields, tables or relations that are not documented there.
+//
+// ── Modeling decisions forced by Prisma's limitations ──────────────────────
+//
+// 1. NO Prisma `enum` types. DATA_MODEL.md's Design Principle #5 explicitly
+//    rejects native PostgreSQL ENUM columns ("PostgreSQL ENUM types require
+//    ALTER TYPE to add new values — a locking DDL operation") in favor of
+//    TEXT + CHECK. Prisma's `enum` keyword, on the postgresql connector,
+//    ALWAYS compiles to a native `CREATE TYPE ... AS ENUM`, which is exactly
+//    the mechanism the source of truth forbids. Every status/type/enum-like
+//    column below is therefore `String`, with its valid values documented in
+//    a `///` comment directly above the field. Application-level type safety
+//    for these values already exists in features/*/types/*.ts.
+//
+// 2. NO CHECK constraints. Prisma's stable schema language cannot express
+//    CHECK constraints (single- or multi-column). Every CHECK documented in
+//    DATA_MODEL.md is preserved as a `///` comment on the relevant field (or
+//    on the model, for cross-column checks). These must be added as raw SQL
+//    in the migration file after `prisma migrate dev --create-only` — this
+//    is the explicit job of the migrations step, not this schema.
+//
+// 3. NO partial (filtered) indexes. Prisma's declarative schema has no
+//    `WHERE` clause for `@@index`/`@@unique`. Two different cases result:
+//      a) Partial UNIQUE indexes on a nullable column (e.g. products.sku
+//         WHERE sku IS NOT NULL) are modeled as a plain `@@unique` — this is
+//         NOT an approximation: PostgreSQL already treats NULL as distinct
+//         from any other NULL in a unique constraint, so multiple NULLs are
+//         allowed with or without the partial condition. The only difference
+//         is that the plain unique index also indexes the NULL rows (a minor
+//         storage cost, not a correctness gap).
+//      b) Partial PERFORMANCE indexes that are not about uniqueness (e.g.
+//         addresses(customer_id, is_default) WHERE is_default = true, or
+//         orders(store_id, scheduled_for) WHERE scheduled_for IS NOT NULL)
+//         are modeled as full (non-partial) indexes. They are correct but
+//         larger than the documented partial index. A raw-SQL migration can
+//         narrow these to true partial indexes later as a size optimization
+//         once real data volume justifies it.
+//
+// 4. `updated_at` uses Prisma's `@updatedAt`, which is the "application-layer
+//    hook" option DATA_MODEL.md's Timestamp Strategy explicitly allows (the
+//    alternative it names is a database trigger). Note this means updated_at
+//    is only maintained for writes that go through Prisma Client — any raw
+//    SQL or bulk operation that bypasses Prisma must set it explicitly.
+//
+// 5. UUID primary keys use `@default(dbgenerated("gen_random_uuid()"))` to
+//    match DATA_MODEL.md's documented column default exactly (a database-
+//    generated UUID), rather than Prisma's own client-side `uuid()`
+//    generator. `gen_random_uuid()` is a PostgreSQL 13+ built-in requiring no
+//    extension.
+//
+// See the chat response accompanying this file for the full validation pass
+// against DATA_MODEL.md and a complete list of these limitations.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Organizations
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Top-level entity for multi-company/franchise management (Phase 3). Root of
+/// the hierarchy — no foreign keys of its own.
+model Organization {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  /// CHECK (type IN ('FRANCHISE', 'RESTAURANT_GROUP', 'HOLDING_COMPANY'))
+  type      String
+  taxId     String?  @map("tax_id")
+  logoUrl   String?  @map("logo_url")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  accounts Account[]
+
+  @@map("organizations")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Accounts
+// ─────────────────────────────────────────────────────────────────────────
+
+/// The billing and subscription unit. One business owner has one Account,
+/// which may contain multiple Stores.
+model Account {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  name           String
+  email          String    @unique
+  phone          String?
+  taxId          String?   @map("tax_id")
+  /// CHECK (plan IN ('FREE', 'STARTER', 'PRO', 'ENTERPRISE'))
+  plan           String    @default("FREE")
+  /// CHECK (status IN ('ACTIVE', 'INACTIVE', 'SUSPENDED', 'PAST_DUE'))
+  status         String    @default("ACTIVE")
+  trialEndsAt    DateTime? @map("trial_ends_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  stores       Store[]
+
+  @@index([organizationId])
+  @@map("accounts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Stores
+// ─────────────────────────────────────────────────────────────────────────
+
+/// The fundamental operational unit. Every order, product, customer and
+/// payment belongs to exactly one Store — the multi-tenancy boundary.
+model Store {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId           String   @map("account_id") @db.Uuid
+  name                String
+  /// Immutable after creation.
+  slug                String   @unique
+  /// CHECK (type IN ('RESTAURANT', 'DARK_KITCHEN', 'CAFE', 'BAR', 'PIZZERIA', 'BURGER_SHOP', 'FRANCHISE_UNIT'))
+  type                String
+  /// CHECK (status IN ('ACTIVE', 'INACTIVE', 'SUSPENDED'))
+  status              String   @default("ACTIVE")
+  phone               String
+  email               String
+  logoUrl             String?  @map("logo_url")
+  timezone            String   @default("America/Sao_Paulo")
+  /// CHECK (currency IN ('BRL', 'USD', 'EUR'))
+  currency            String   @default("BRL")
+  /// CHECK (minimum_order_value >= 0). Cents. 0 = no minimum.
+  minimumOrderValue   Int      @default(0) @map("minimum_order_value")
+  /// CHECK (delivery_fee >= 0). Cents. Default fee; may be overridden per order.
+  deliveryFee         Int      @default(0) @map("delivery_fee")
+  /// WeeklySchedule JSON: { monday: { isOpen, slots: [{ open, close }] }, ... }
+  operatingHours      Json     @map("operating_hours") @db.JsonB
+  addressStreet       String?  @map("address_street")
+  addressNumber       String?  @map("address_number")
+  addressComplement   String?  @map("address_complement")
+  addressNeighborhood String?  @map("address_neighborhood")
+  addressCity         String?  @map("address_city")
+  /// ISO 3166-2 subdivision code, e.g. "SP".
+  addressState        String?  @map("address_state")
+  addressPostalCode   String?  @map("address_postal_code")
+  /// ISO 3166-1 alpha-2 code.
+  addressCountry      String   @default("BR") @map("address_country")
+  addressLatitude     Decimal? @map("address_latitude") @db.Decimal(10, 7)
+  addressLongitude    Decimal? @map("address_longitude") @db.Decimal(10, 7)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  account         Account          @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  settings        StoreSettings?
+  roles           Role[]
+  memberships     Membership[]
+  customers       Customer[]
+  categories      Category[]
+  products        Product[]
+  modifierGroups  ModifierGroup[]
+  modifiers       Modifier[]
+  menus           Menu[]
+  orders          Order[]
+  kitchenTickets  KitchenTicket[]
+  payments        Payment[]
+  paymentAttempts PaymentAttempt[]
+  deliveries      Delivery[]
+  invoices        Invoice[]
+
+  @@index([accountId])
+  @@map("stores")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Store Settings
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Operational configuration for a Store, kept separate so the core Store
+/// identity can evolve independently. Exactly one per Store. Note: DATA_MODEL.md
+/// does not define a created_at column for this table — only updated_at.
+model StoreSettings {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId                 String   @unique @map("store_id") @db.Uuid
+  autoConfirmOrders       Boolean  @default(false) @map("auto_confirm_orders")
+  printReceiptOnConfirm   Boolean  @default(false) @map("print_receipt_on_confirm")
+  /// CHECK (receipt_format IN ('A4', 'THERMAL_80MM', 'THERMAL_58MM'))
+  receiptFormat           String   @default("THERMAL_80MM") @map("receipt_format")
+  allowScheduledOrders    Boolean  @default(false) @map("allow_scheduled_orders")
+  /// CHECK (max_scheduled_days_ahead >= 1)
+  maxScheduledDaysAhead   Int      @default(7) @map("max_scheduled_days_ahead")
+  acceptsCash             Boolean  @default(true) @map("accepts_cash")
+  acceptsCard             Boolean  @default(true) @map("accepts_card")
+  acceptsPix              Boolean  @default(true) @map("accepts_pix")
+  acceptsVoucher          Boolean  @default(false) @map("accepts_voucher")
+  acceptsOnlinePayment    Boolean  @default(false) @map("accepts_online_payment")
+  /// Per-event notification channel config: { newOrder: ['IN_APP', 'WHATSAPP'], ... }
+  notificationPreferences Json     @default("{}") @map("notification_preferences") @db.JsonB
+  updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("store_settings")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Users
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A human operator (staff), global in identity. Store-scoped permissions are
+/// expressed entirely through Memberships, never on this model.
+model User {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  email        String    @unique
+  phone        String?
+  avatarUrl    String?   @map("avatar_url")
+  /// Hashed password (never plaintext). Null while status = INVITED.
+  passwordHash String?   @map("password_hash")
+  /// CHECK (status IN ('ACTIVE', 'INACTIVE', 'INVITED'))
+  status       String    @default("INVITED")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  memberships          Membership[]            @relation("MembershipUser")
+  invitedMemberships   Membership[]            @relation("MembershipInvitedBy")
+  cancelledOrders      Order[]                 @relation("OrderCancelledBy")
+  triggeredTransitions OrderStatusTransition[] @relation("TransitionTriggeredBy")
+  refundedPayments     Payment[]               @relation("PaymentRefundedBy")
+  refreshTokens        RefreshToken[]
+  passwordResetTokens  PasswordResetToken[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Roles
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Defines what a User can do within one specific Store. Never global.
+model Role {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId      String   @map("store_id") @db.Uuid
+  /// CHECK (name IN ('OWNER', 'MANAGER', 'CASHIER', 'KITCHEN_ATTENDANT', 'DELIVERY_COORDINATOR', 'ANALYST'))
+  name         String
+  displayName  String   @map("display_name")
+  /// domain:action permission strings, e.g. {orders:create,orders:view}
+  permissions  String[] @default([])
+  isSystemRole Boolean  @default(true) @map("is_system_role")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store       Store        @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  memberships Membership[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("roles")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Memberships
+// ─────────────────────────────────────────────────────────────────────────
+
+/// The join between User, Store and Role — "what can this user do here?".
+model Membership {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  storeId         String    @map("store_id") @db.Uuid
+  roleId          String    @map("role_id") @db.Uuid
+  /// CHECK (status IN ('ACTIVE', 'INVITED', 'SUSPENDED', 'REVOKED'))
+  status          String    @default("INVITED")
+  invitedByUserId String?   @map("invited_by_user_id") @db.Uuid
+  invitedAt       DateTime? @map("invited_at") @db.Timestamptz(6)
+  acceptedAt      DateTime? @map("accepted_at") @db.Timestamptz(6)
+  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user          User  @relation("MembershipUser", fields: [userId], references: [id], onDelete: Restrict)
+  store         Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  role          Role  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  invitedByUser User? @relation("MembershipInvitedBy", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+
+  invitationTokens InvitationToken[]
+
+  @@unique([userId, storeId])
+  @@index([storeId])
+  @@index([userId])
+  @@map("memberships")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Refresh Tokens
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Hash of an issued refresh token, per API_SPEC.md's Refresh Token Strategy.
+/// A row is never physically deleted on rotation — `revokedAt` is set instead
+/// — because reuse detection requires the prior token's record to still
+/// exist to be recognized as already-rotated.
+model RefreshToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  /// Hash of the raw refresh token. The raw value is only ever held by the client.
+  tokenHash String    @unique @map("token_hash")
+  /// 7 days from issuance, per API_SPEC.md's JWT Strategy.
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  /// Set on rotation, logout, or invalidation. NULL = still active.
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Password Reset Tokens
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Hash of a password reset token, per API_SPEC.md's Password Reset Flow.
+/// Only one active (non-revoked) token per user — enforced by a partial
+/// unique index added in a raw-SQL migration (see file header, point 3).
+model PasswordResetToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  /// Hash of the raw reset token emailed to the user.
+  tokenHash String    @unique @map("token_hash")
+  /// 60 minutes from issuance, per API_SPEC.md's Password Reset Flow.
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  /// Set when used, or superseded by a newer reset request. NULL = still active.
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Invitation Tokens
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Hash of a team invitation token, per API_SPEC.md's Invitation Flow. Only
+/// one active (non-revoked) token per Membership — enforced by a partial
+/// unique index added in a raw-SQL migration (see file header, point 3).
+model InvitationToken {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  membershipId String    @map("membership_id") @db.Uuid
+  /// Hash of the raw invitation token emailed to the invitee.
+  tokenHash    String    @unique @map("token_hash")
+  /// 72 hours from issuance, per API_SPEC.md's Invitation Flow.
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(6)
+  /// Set when accepted, or superseded by a re-invite. NULL = still active.
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([membershipId])
+  @@map("invitation_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Customers
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A person who placed at least one Order at a Store. Always store-scoped —
+/// never shared across Stores, and never a User.
+model Customer {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId      String    @map("store_id") @db.Uuid
+  name         String
+  phone        String
+  email        String?
+  taxId        String?   @map("tax_id")
+  notes        String?
+  /// CHECK (status IN ('ACTIVE', 'BLOCKED'))
+  status       String    @default("ACTIVE")
+  firstOrderAt DateTime? @map("first_order_at") @db.Timestamptz(6)
+  lastOrderAt  DateTime? @map("last_order_at") @db.Timestamptz(6)
+  /// CHECK (total_orders >= 0). Denormalized; maintained by the service layer.
+  totalOrders  Int       @default(0) @map("total_orders")
+  /// CHECK (total_spent >= 0). Denormalized sum in cents; maintained by the service layer.
+  totalSpent   Int       @default(0) @map("total_spent")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store     Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  addresses Address[]
+  orders    Order[]
+
+  @@unique([storeId, phone])
+  @@index([storeId, lastOrderAt(sort: Desc)])
+  @@index([storeId, totalSpent(sort: Desc)])
+  @@index([storeId, status])
+  @@map("customers")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Addresses
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A saved delivery address for a Customer. Copied as an immutable JSONB
+/// snapshot into an Order at placement time — this row may later change or
+/// be soft-deleted without affecting historical orders.
+model Address {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerId   String    @map("customer_id") @db.Uuid
+  /// CHECK (label IN ('HOME', 'WORK', 'OTHER'))
+  label        String    @default("OTHER")
+  street       String
+  number       String
+  complement   String?
+  neighborhood String
+  city         String
+  /// ISO 3166-2 subdivision code. CHECK (length(state) = 2)
+  state        String
+  postalCode   String    @map("postal_code")
+  /// ISO 3166-1 alpha-2 code. CHECK (length(country) = 2)
+  country      String    @default("BR")
+  latitude     Decimal?  @db.Decimal(10, 7)
+  longitude    Decimal?  @db.Decimal(10, 7)
+  /// At most one address per customer should be default. DATA_MODEL.md
+  /// documents this as application-level only, not a DB constraint.
+  isDefault    Boolean   @default(false) @map("is_default")
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([customerId, isDefault])
+  @@map("addresses")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Categories
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Groups Products for organization and display only — no operational role.
+model Category {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId     String    @map("store_id") @db.Uuid
+  name        String
+  description String?
+  imageUrl    String?   @map("image_url")
+  /// CHECK (sort_order >= 0)
+  sortOrder   Int       @default(0) @map("sort_order")
+  isActive    Boolean   @default(true) @map("is_active")
+  /// A category with active products cannot be soft-deleted (application-level rule).
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store        Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  products     Product[]
+  menuSections MenuSection[]
+
+  @@unique([storeId, name])
+  @@index([storeId, sortOrder])
+  @@index([storeId, isActive])
+  @@map("categories")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Products
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A sellable item. Never hardcoded — always managed through the catalog.
+/// Soft-deleted so historical Order Items retain their soft reference.
+model Product {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId              String    @map("store_id") @db.Uuid
+  categoryId           String    @map("category_id") @db.Uuid
+  name                 String
+  description          String?
+  /// CHECK (price >= 0). Base price in cents.
+  price                Int
+  imageUrl             String?   @map("image_url")
+  sku                  String?
+  /// CHECK (type IN ('SIMPLE', 'COMBO', 'SERVICE_CHARGE'))
+  type                 String    @default("SIMPLE")
+  /// CHECK (status IN ('ACTIVE', 'INACTIVE', 'OUT_OF_STOCK'))
+  status               String    @default("ACTIVE")
+  /// Computed/denormalized: status = ACTIVE AND within availabilitySchedule.
+  isAvailable          Boolean   @default(true) @map("is_available")
+  /// Optional WeeklySchedule JSON. Null = always available while active.
+  availabilitySchedule Json?     @map("availability_schedule") @db.JsonB
+  /// CHECK (sort_order >= 0)
+  sortOrder            Int       @default(0) @map("sort_order")
+  deletedAt            DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store          Store           @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  category       Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  modifierGroups ModifierGroup[]
+  orderItems     OrderItem[]
+
+  /// DATA_MODEL.md: UNIQUE (store_id, sku) WHERE sku IS NOT NULL. A plain
+  /// @@unique is equivalent here — see file header, point 3a.
+  @@unique([storeId, sku])
+  @@index([storeId, categoryId, sortOrder])
+  @@index([storeId, status])
+  @@index([storeId, status, isAvailable])
+  @@map("products")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Modifier Groups
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A customization dimension for a Product (e.g. "Choose your size").
+model ModifierGroup {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId       String    @map("store_id") @db.Uuid
+  productId     String    @map("product_id") @db.Uuid
+  name          String
+  description   String?
+  isRequired    Boolean   @default(false) @map("is_required")
+  /// CHECK (min_selections >= 0)
+  minSelections Int       @default(0) @map("min_selections")
+  /// CHECK (max_selections >= 1). DATA_MODEL.md also requires
+  /// min_selections <= max_selections — a cross-column CHECK not expressible
+  /// in Prisma; add via raw SQL in the migration (see file header, point 2).
+  maxSelections Int       @default(1) @map("max_selections")
+  /// CHECK (sort_order >= 0)
+  sortOrder     Int       @default(0) @map("sort_order")
+  isActive      Boolean   @default(true) @map("is_active")
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store     Store      @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  modifiers Modifier[]
+
+  @@unique([productId, name])
+  @@index([productId, sortOrder])
+  @@index([storeId])
+  @@map("modifier_groups")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Modifiers
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A single selectable option within a Modifier Group.
+model Modifier {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId         String    @map("store_id") @db.Uuid
+  modifierGroupId String    @map("modifier_group_id") @db.Uuid
+  name            String
+  /// Cents added when selected. 0 = no cost, >0 = surcharge, <0 = discount. No CHECK — negative is intentional.
+  priceAdjustment Int       @default(0) @map("price_adjustment")
+  sku             String?
+  /// CHECK (sort_order >= 0)
+  sortOrder       Int       @default(0) @map("sort_order")
+  isActive        Boolean   @default(true) @map("is_active")
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store         Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  modifierGroup ModifierGroup @relation(fields: [modifierGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([modifierGroupId, name])
+  @@index([modifierGroupId, sortOrder])
+  @@map("modifiers")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Menus
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A curated, channel-specific, time-bound view of the catalog. Hard-deleted
+/// (not soft-deleted) — a deliberate exception documented in DATA_MODEL.md's
+/// Soft Delete Strategy: menus have no historical significance.
+model Menu {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId              String   @map("store_id") @db.Uuid
+  name                 String
+  description          String?
+  /// CHECK (status IN ('ACTIVE', 'INACTIVE', 'SCHEDULED'))
+  status               String   @default("INACTIVE")
+  /// CHECK (channel IN ('DELIVERY', 'IN_STORE', 'MARKETPLACE', 'KIOSK'))
+  channel              String   @default("DELIVERY")
+  /// Optional WeeklySchedule JSON. Null = active during all store operating hours.
+  availabilitySchedule Json?    @map("availability_schedule") @db.JsonB
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store    Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  sections MenuSection[]
+
+  @@unique([storeId, name])
+  @@index([storeId, status, channel])
+  @@map("menus")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Menu Sections
+// ─────────────────────────────────────────────────────────────────────────
+
+/// The join between a Menu and its Categories, carrying display-order
+/// configuration independent of the Category's own sort_order. No
+/// independent lifecycle — created and destroyed with the Menu, hence no
+/// timestamps (matching DATA_MODEL.md's explicit design note).
+model MenuSection {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  menuId     String  @map("menu_id") @db.Uuid
+  categoryId String  @map("category_id") @db.Uuid
+  /// CHECK (sort_order >= 0)
+  sortOrder  Int     @default(0) @map("sort_order")
+  isVisible  Boolean @default(true) @map("is_visible")
+
+  menu     Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@unique([menuId, categoryId])
+  @@index([menuId, sortOrder])
+  @@map("menu_sections")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Orders
+// ─────────────────────────────────────────────────────────────────────────
+
+/// The central entity of MarginFlow. The origin of Kitchen Ticket, Payment,
+/// Delivery and Invoice. Status is one-directional; the full history lives
+/// in OrderStatusTransition, denormalized here for query performance.
+model Order {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId           String    @map("store_id") @db.Uuid
+  customerId        String?   @map("customer_id") @db.Uuid
+  /// CHECK (number > 0). Sequential per store; generated by the service layer via an advisory lock.
+  number            Int
+  /// CHECK (status IN ('DRAFT', 'PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'))
+  status            String    @default("DRAFT")
+  /// CHECK (type IN ('DELIVERY', 'TAKEAWAY', 'DINE_IN'))
+  type              String
+  /// CHECK (channel IN ('IN_STORE', 'PHONE', 'MARKETPLACE', 'WHATSAPP', 'KIOSK'))
+  channel           String
+  tableNumber       String?   @map("table_number")
+  /// Immutable snapshot captured at placement, null for DINE_IN/TAKEAWAY.
+  /// Shape: { street, number, complement, neighborhood, city, state, postalCode, country, latitude, longitude }
+  deliveryAddress   Json?     @map("delivery_address") @db.JsonB
+  /// CHECK (items_total >= 0)
+  itemsTotal        Int       @default(0) @map("items_total")
+  /// CHECK (discount_total >= 0)
+  discountTotal     Int       @default(0) @map("discount_total")
+  /// CHECK (delivery_fee >= 0). Always 0 for non-delivery orders.
+  deliveryFee       Int       @default(0) @map("delivery_fee")
+  /// CHECK (grand_total >= 0). items_total - discount_total + delivery_fee. Immutable after CONFIRMED.
+  grandTotal        Int       @default(0) @map("grand_total")
+  notes             String?
+  scheduledFor      DateTime? @map("scheduled_for") @db.Timestamptz(6)
+  /// Mandatory when status = CANCELLED (application-level rule, not a DB CHECK).
+  cancelledReason   String?   @map("cancelled_reason")
+  cancelledByUserId String?   @map("cancelled_by_user_id") @db.Uuid
+  confirmedAt       DateTime? @map("confirmed_at") @db.Timestamptz(6)
+  readyAt           DateTime? @map("ready_at") @db.Timestamptz(6)
+  deliveredAt       DateTime? @map("delivered_at") @db.Timestamptz(6)
+  cancelledAt       DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store             Store                   @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  customer          Customer?               @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  cancelledByUser   User?                   @relation("OrderCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: SetNull)
+  items             OrderItem[]
+  statusTransitions OrderStatusTransition[]
+  kitchenTicket     KitchenTicket?
+  payment           Payment?
+  paymentAttempts   PaymentAttempt[]
+  delivery          Delivery?
+  invoice           Invoice?
+
+  @@unique([storeId, number])
+  @@index([storeId, status])
+  @@index([storeId, createdAt(sort: Desc)])
+  @@index([storeId, type, status])
+  @@index([storeId, customerId])
+  @@index([customerId, createdAt(sort: Desc)])
+  @@index([storeId, channel])
+  @@index([storeId, scheduledFor])
+  @@map("orders")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Order Items
+// ─────────────────────────────────────────────────────────────────────────
+
+/// One line of an Order. All product/modifier data is snapshotted — no live
+/// catalog reference is required to reconstruct the order as it was placed.
+model OrderItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId           String   @map("order_id") @db.Uuid
+  productId         String?  @map("product_id") @db.Uuid
+  productName       String   @map("product_name")
+  /// CHECK (product_price >= 0). Snapshot of the base unit price at placement, in cents.
+  productPrice      Int      @map("product_price")
+  /// CHECK (quantity > 0)
+  quantity          Int
+  /// Snapshot array: [{ modifierId, modifierGroupId, name, priceAdjustment }]
+  selectedModifiers Json     @default("[]") @map("selected_modifiers") @db.JsonB
+  /// CHECK (unit_total >= 0). product_price + sum of selected modifier price_adjustments.
+  unitTotal         Int      @map("unit_total")
+  /// CHECK (subtotal >= 0). unit_total * quantity.
+  subtotal          Int
+  notes             String?
+  /// CHECK (status IN ('PENDING', 'PREPARING', 'READY', 'CANCELLED'))
+  status            String   @default("PENDING")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Order Status Transitions
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Append-only audit log of every Order status change. Canonical lifecycle
+/// history — rows are never updated or deleted, hence no updated_at.
+model OrderStatusTransition {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId           String   @map("order_id") @db.Uuid
+  /// CHECK (status IN ('DRAFT', 'PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'))
+  status            String
+  triggeredByUserId String?  @map("triggered_by_user_id") @db.Uuid
+  notes             String?
+  occurredAt        DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  order           Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  triggeredByUser User? @relation("TransitionTriggeredBy", fields: [triggeredByUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, occurredAt(sort: Desc)])
+  @@map("order_status_transitions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Kitchen Tickets
+// ─────────────────────────────────────────────────────────────────────────
+
+/// The Kitchen module's sole interface to an Order. Created automatically
+/// and atomically when an Order reaches CONFIRMED. One per Order.
+model KitchenTicket {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId     String    @map("store_id") @db.Uuid
+  orderId     String    @unique @map("order_id") @db.Uuid
+  orderNumber Int       @map("order_number")
+  /// CHECK (order_type IN ('DELIVERY', 'TAKEAWAY', 'DINE_IN'))
+  orderType   String    @map("order_type")
+  /// CHECK (status IN ('QUEUED', 'PREPARING', 'READY', 'CANCELLED'))
+  status      String    @default("QUEUED")
+  notes       String?
+  queuedAt    DateTime  @default(now()) @map("queued_at") @db.Timestamptz(6)
+  startedAt   DateTime? @map("started_at") @db.Timestamptz(6)
+  readyAt     DateTime? @map("ready_at") @db.Timestamptz(6)
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  order Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  items KitchenItem[]
+
+  @@index([storeId, status])
+  @@index([storeId, queuedAt])
+  @@map("kitchen_tickets")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Kitchen Items
+// ─────────────────────────────────────────────────────────────────────────
+
+/// One production line within a Kitchen Ticket, shaped for kitchen display
+/// only — no pricing data. No independent lifecycle, hence no timestamps.
+model KitchenItem {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId        String   @map("ticket_id") @db.Uuid
+  productName     String   @map("product_name")
+  /// CHECK (quantity > 0)
+  quantity        Int
+  /// Human-readable modifier labels pre-formatted for the KDS, e.g. {Grande, Borda Recheada}
+  modifierSummary String[] @default([]) @map("modifier_summary")
+  notes           String?
+  /// CHECK (status IN ('PENDING', 'PREPARING', 'READY', 'CANCELLED'))
+  status          String   @default("PENDING")
+
+  ticket KitchenTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("kitchen_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Payments
+// ─────────────────────────────────────────────────────────────────────────
+
+/// The settled financial record for a completed Order. Strictly financial —
+/// never influences production or delivery. At most one per Order.
+model Payment {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId              String    @unique @map("order_id") @db.Uuid
+  storeId              String    @map("store_id") @db.Uuid
+  /// CHECK (amount > 0). Must equal order.grand_total; discrepancies are flagged for reconciliation.
+  amount               Int
+  /// CHECK (refunded_amount >= 0). DATA_MODEL.md does not document a CHECK
+  /// tying this to `amount`; consider adding CHECK (refunded_amount <= amount)
+  /// via raw SQL as a financial-integrity guard even though it is not in the
+  /// source document's Constraints column.
+  refundedAmount       Int       @default(0) @map("refunded_amount")
+  /// CHECK (status IN ('PENDING', 'AUTHORIZED', 'PAID', 'REFUNDED', 'PARTIALLY_REFUNDED', 'FAILED'))
+  status               String    @default("PENDING")
+  /// CHECK (method IN ('CASH', 'CREDIT_CARD', 'DEBIT_CARD', 'PIX', 'VOUCHER', 'GIFT_CARD', 'ONLINE'))
+  method               String
+  /// CHECK (gateway IN ('MANUAL', 'STRIPE', 'PAGARME', 'MERCADO_PAGO', 'IUGU', 'ASAAS'))
+  gateway              String    @default("MANUAL")
+  gatewayTransactionId String?   @map("gateway_transaction_id")
+  successfulAttemptId  String?   @map("successful_attempt_id") @db.Uuid
+  refundedByUserId     String?   @map("refunded_by_user_id") @db.Uuid
+  /// Mandatory when status = REFUNDED or PARTIALLY_REFUNDED (application-level rule).
+  refundReason         String?   @map("refund_reason")
+  paidAt               DateTime? @map("paid_at") @db.Timestamptz(6)
+  refundedAt           DateTime? @map("refunded_at") @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  order             Order           @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  store             Store           @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  refundedByUser    User?           @relation("PaymentRefundedBy", fields: [refundedByUserId], references: [id], onDelete: SetNull)
+  successfulAttempt PaymentAttempt? @relation("PaymentSuccessfulAttempt", fields: [successfulAttemptId], references: [id], onDelete: SetNull)
+  /// DATA_MODEL.md does not mark invoices.payment_id as UNIQUE (only order_id
+  /// is), so this is modeled as *-to-one from Invoice, not a strict 1:1 —
+  /// matching the source document exactly rather than assuming a tighter
+  /// constraint than what is documented.
+  invoices          Invoice[]
+
+  @@index([storeId, createdAt(sort: Desc)])
+  @@index([storeId, status])
+  @@index([storeId, paidAt(sort: Desc)])
+  @@index([storeId, method])
+  @@map("payments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Payment Attempts
+// ─────────────────────────────────────────────────────────────────────────
+
+/// One attempt to process payment for an Order. The audit trail of the
+/// payment pipeline — immutable once resolved, hence no updated_at. Note:
+/// DATA_MODEL.md does not define a payment_id foreign key on this table; the
+/// only link to a settled Payment is Payment.successful_attempt_id.
+model PaymentAttempt {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId              String    @map("order_id") @db.Uuid
+  storeId              String    @map("store_id") @db.Uuid
+  /// CHECK (amount > 0)
+  amount               Int
+  /// CHECK (method IN ('CASH', 'CREDIT_CARD', 'DEBIT_CARD', 'PIX', 'VOUCHER', 'GIFT_CARD', 'ONLINE'))
+  method               String
+  /// CHECK (gateway IN ('MANUAL', 'STRIPE', 'PAGARME', 'MERCADO_PAGO', 'IUGU', 'ASAAS'))
+  gateway              String
+  /// CHECK (status IN ('PENDING', 'AUTHORIZED', 'CAPTURED', 'DECLINED', 'FAILED', 'CANCELLED'))
+  status               String    @default("PENDING")
+  gatewayTransactionId String?   @unique @map("gateway_transaction_id")
+  /// Raw gateway response, stored for audit/debugging. Never parsed after initial processing.
+  gatewayResponse      Json?     @map("gateway_response") @db.JsonB
+  failureReason        String?   @map("failure_reason")
+  attemptedAt          DateTime  @default(now()) @map("attempted_at") @db.Timestamptz(6)
+  resolvedAt           DateTime? @map("resolved_at") @db.Timestamptz(6)
+
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  store             Store     @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  paymentsSettledBy Payment[] @relation("PaymentSuccessfulAttempt")
+
+  @@index([orderId])
+  @@index([storeId, attemptedAt(sort: Desc)])
+  @@map("payment_attempts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Deliveries
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Tracks physical movement from Store to Customer. Created only after the
+/// Kitchen Ticket reaches READY, and only for type = DELIVERY orders.
+model Delivery {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId            String    @unique @map("order_id") @db.Uuid
+  storeId            String    @map("store_id") @db.Uuid
+  /// CHECK (status IN ('AWAITING_PICKUP', 'DISPATCHED', 'IN_TRANSIT', 'DELIVERED', 'FAILED', 'RETURNED'))
+  status             String    @default("AWAITING_PICKUP")
+  /// No FK — couriers are not a separate table in the current schema. Reserved for a future `couriers` table.
+  courierId          String?   @map("courier_id") @db.Uuid
+  courierName        String?   @map("courier_name")
+  courierPhone       String?   @map("courier_phone")
+  /// CHECK (courier_type IN ('INTERNAL', 'PLATFORM'))
+  courierType        String?   @map("courier_type")
+  /// CHECK (platform IN ('IFOOD', 'RAPPI', 'UBER_EATS', 'LOGGI', 'OTHER'))
+  platform           String?
+  platformDeliveryId String?   @map("platform_delivery_id")
+  /// Immutable address snapshot copied from the Order at Delivery creation time.
+  deliveryAddress    Json      @map("delivery_address") @db.JsonB
+  /// CHECK (estimated_minutes > 0)
+  estimatedMinutes   Int?      @map("estimated_minutes")
+  /// Required when status = FAILED (application-level rule).
+  failedReason       String?   @map("failed_reason")
+  dispatchedAt       DateTime? @map("dispatched_at") @db.Timestamptz(6)
+  deliveredAt        DateTime? @map("delivered_at") @db.Timestamptz(6)
+  failedAt           DateTime? @map("failed_at") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@index([storeId, status])
+  @@index([storeId, createdAt(sort: Desc)])
+  @@map("deliveries")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Invoices
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A fiscal document (NFC-e/NF-e) for a completed, paid Order. Immutable
+/// after issuance — corrections require cancelling and re-issuing.
+model Invoice {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId            String    @unique @map("order_id") @db.Uuid
+  paymentId          String    @map("payment_id") @db.Uuid
+  storeId            String    @map("store_id") @db.Uuid
+  customerTaxId      String?   @map("customer_tax_id")
+  invoiceNumber      BigInt?   @map("invoice_number")
+  series             String?
+  /// CHECK (type IN ('NFCE', 'NFE'))
+  type               String    @default("NFCE")
+  /// CHECK (status IN ('PENDING', 'ISSUED', 'CANCELLED'))
+  status             String    @default("PENDING")
+  xmlUrl             String?   @map("xml_url")
+  pdfUrl             String?   @map("pdf_url")
+  /// CHECK (length(access_key) = 44)
+  accessKey          String?   @unique @map("access_key")
+  issuedAt           DateTime? @map("issued_at") @db.Timestamptz(6)
+  cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  /// Required when status = CANCELLED (application-level rule).
+  cancellationReason String?   @map("cancellation_reason")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@unique([storeId, invoiceNumber, series])
+  @@index([storeId, status])
+  @@map("invoices")
+}

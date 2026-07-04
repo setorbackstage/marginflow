@@ -1,5 +1,5 @@
 import type { Brand, Cents, ISODateTime } from "@/types/common"
-import type { StoreId } from "@/features/stores/types/store"
+import type { StoreId } from "@/features/stores/types"
 import type { ModifierGroupId } from "./modifier-group"
 
 export type ModifierId = Brand<string, "ModifierId">
@@ -23,6 +23,7 @@ export interface Modifier {
   readonly sku: string | null
   readonly sortOrder: number
   readonly isActive: boolean
+  readonly deletedAt: ISODateTime | null // soft delete timestamp; null = not deleted
   readonly createdAt: ISODateTime
   readonly updatedAt: ISODateTime
 }

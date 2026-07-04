@@ -1,7 +1,7 @@
 import type { Brand, ISODateTime } from "@/types/common"
-import type { StoreId } from "@/features/stores/types/store"
-import type { OrderId } from "@/features/orders/types/order-status"
-import type { AddressSnapshot } from "@/features/customers/types/address"
+import type { StoreId } from "@/features/stores/types"
+import type { OrderId } from "@/features/orders/types"
+import type { AddressSnapshot } from "@/features/customers/types"
 import type { CourierId, CourierType, DeliveryPlatform } from "./courier"
 
 export type DeliveryId = Brand<string, "DeliveryId">

@@ -1,5 +1,5 @@
 import type { Brand, Cents, ISODateTime, WeeklySchedule } from "@/types/common"
-import type { StoreId } from "@/features/stores/types/store"
+import type { StoreId } from "@/features/stores/types"
 import type { CategoryId } from "./category"
 
 export type ProductId = Brand<string, "ProductId">

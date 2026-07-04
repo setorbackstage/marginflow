@@ -831,7 +831,9 @@ Returns the updated order object (same shape as GET /orders/:orderId).
 
 ## POST /api/v1/stores/:storeId/orders/:orderId/status
 
-**Purpose:** Transition an order to the next status. Enforces the one-directional status machine. Records the transition in the audit log.
+**Purpose:** Transition an order through the status transitions that Orders itself owns. Enforces the one-directional status machine. Records the transition in the audit log.
+
+**Ownership note:** This endpoint is **not** the entry point for every status the `orders.status` field can hold. `PREPARING`, `READY`, and `OUT_FOR_DELIVERY` are system-derived — they are set exclusively by the Orders service in reaction to `kitchen_ticket.ready`, `delivery.dispatched`, and `delivery.delivered` events (see `POST /kitchen/tickets/:ticketId/status` and `POST /deliveries/:deliveryId/status` below). Calling this endpoint with one of those three statuses as the target returns `400 INVALID_TRANSITION`. This split exists so that Kitchen and Delivery each remain the single owner of their own transitions — the Orders module never reaches into Kitchen Ticket or Delivery state directly, only through the events they publish.
 
 **Authentication required:** Yes
 
@@ -851,14 +853,21 @@ Returns the updated order object (same shape as GET /orders/:orderId).
 |---|---|---|---|
 | `DRAFT` | `PENDING` | `orders:create` | None |
 | `PENDING` | `CONFIRMED` | `orders:edit` | Creates Kitchen Ticket; emits `order.confirmed`; if `auto_confirm_orders = true`, this happens automatically |
-| `CONFIRMED` | `PREPARING` | `kitchen:update_status` | Updates Kitchen Ticket to PREPARING |
-| `PREPARING` | `READY` | `kitchen:update_status` | Updates Kitchen Ticket to READY; creates Delivery record for DELIVERY orders; emits `order.ready` |
-| `READY` | `OUT_FOR_DELIVERY` | `delivery:update_status` | Updates Delivery status to DISPATCHED; emits `order.out_for_delivery` |
-| `OUT_FOR_DELIVERY` | `DELIVERED` | `delivery:update_status` | Updates Delivery status to DELIVERED; emits `order.delivered`; updates customer stats |
-| `READY` | `DELIVERED` | `orders:edit` | For TAKEAWAY orders only. Marks order as picked up. |
-| Any (before DELIVERED) | `CANCELLED` | `orders:cancel` | Cancels Kitchen Ticket; cancels in-progress Delivery (requires manager for dispatched deliveries); emits `order.cancelled` |
+| `READY` | `DELIVERED` | `orders:edit` | TAKEAWAY orders only — there is no Delivery record for this order type, so Orders is the sole owner of the pickup confirmation. Emits `order.delivered` directly. |
+| Any (before DELIVERED) | `CANCELLED` | `orders:cancel` | Emits `order.cancelled`. Kitchen consumes it and cancels the Kitchen Ticket. Delivery consumes it and cancels/fails the Delivery record. If the Delivery has already reached `DISPATCHED` or later, cancellation additionally requires the acting user to hold manager-level `delivery:update_status`; if absent, the whole request is rejected with `409 DISPATCHED_DELIVERY_CANCEL_REQUIRES_MANAGER` before any state changes. (This check can still block the caller's response today because the event bus is synchronous and in-process — see the note under Event Contracts on what must change if the bus becomes asynchronous.) |
+
+**System-derived transitions (not callable via this endpoint):**
+
+| From | To | Actually triggered by | Producing event |
+|---|---|---|---|
+| `CONFIRMED` | `PREPARING` | `POST /kitchen/tickets/:ticketId/status` (QUEUED → PREPARING) | `kitchen_ticket.status_changed` |
+| `PREPARING` | `READY` | `POST /kitchen/tickets/:ticketId/status` (PREPARING → READY) | `kitchen_ticket.ready` |
+| `READY` | `OUT_FOR_DELIVERY` | `POST /deliveries/:deliveryId/status` (AWAITING_PICKUP → DISPATCHED) | `delivery.dispatched` |
+| `OUT_FOR_DELIVERY` | `DELIVERED` | `POST /deliveries/:deliveryId/status` (→ DELIVERED) | `delivery.delivered` |
 
 **Forbidden Transitions:**
+
+This table describes the overall system-wide state machine spanning the Orders, Kitchen, and Delivery endpoints together — not only the transitions this endpoint itself accepts.
 
 | Attempt | Reason |
 |---|---|
@@ -899,17 +908,17 @@ Returns the updated order object.
 | 409 | `DISPATCHED_DELIVERY_CANCEL_REQUIRES_MANAGER` | Cancelling a dispatched delivery requires manager role |
 
 **Business Rules:**
-- All transitions are recorded in `order_status_transitions` with the authenticated user's ID and the timestamp.
-- Operational timestamps (`confirmed_at`, `ready_at`, `delivered_at`, `cancelled_at`) are set once and never overwritten.
-- Kitchen Ticket status follows Order status automatically for kitchen-relevant transitions.
+- All transitions — whether triggered here or derived from Kitchen/Delivery events — are recorded in `order_status_transitions` with the actor's user ID (or `null` for system-triggered transitions) and the timestamp.
+- Operational timestamps (`confirmed_at`, `ready_at`, `delivered_at`, `cancelled_at`) are set once and never overwritten, regardless of whether the transition was client-triggered or event-derived.
+- Order status follows Kitchen Ticket and Delivery status automatically, via the domain events listed in the "System-derived transitions" table above. This endpoint never mutates those three statuses directly.
 - `grand_total` cannot change after an order reaches CONFIRMED.
 
-**Events Produced:**
+**Events Produced (by this endpoint):**
 - `order.confirmed` when status → CONFIRMED
-- `order.ready` when status → READY
-- `order.out_for_delivery` when status → OUT_FOR_DELIVERY
-- `order.delivered` when status → DELIVERED
+- `order.delivered` when status → DELIVERED (TAKEAWAY pickup path only; for DELIVERY orders this event is instead produced by the Orders service after consuming `delivery.delivered` — see Event Contracts)
 - `order.cancelled` when status → CANCELLED
+
+`order.ready` and `order.out_for_delivery` are never produced by this endpoint — they are produced by the Orders service in the background after consuming `kitchen_ticket.ready` and `delivery.dispatched` respectively. See Event Contracts.
 
 ---
 
@@ -1696,16 +1705,71 @@ Returns the created modifier.
 
 ## PATCH /api/v1/stores/:storeId/menus/:menuId
 
-**Purpose:** Update menu fields.
+**Purpose:** Update menu fields other than its publish status.
 
 **Authentication required:** Yes
 
 **Permissions required:** `menu:edit`
 
-**Request Body:** Any subset of: `name`, `description`, `status`, `availabilitySchedule`
+**Request Body:** Any subset of: `name`, `description`, `availabilitySchedule`
 
 **Business Rules:**
-- Publishing a menu (setting status to ACTIVE) requires `menu:publish` permission.
+- `status` is not a valid field on this endpoint. Use `POST /menus/:menuId/publish` or `POST /menus/:menuId/unpublish` to change it — this keeps Menu consistent with how Order, Kitchen Ticket, and Delivery model status transitions as dedicated action endpoints with their own permission, rather than as an implicit side effect of a general-purpose PATCH.
+
+**Error Responses:**
+
+| Status | Code | When |
+|---|---|---|
+| 422 | `VALIDATION_ERROR` | Request body includes `status` |
+| 404 | `MENU_NOT_FOUND` | Menu does not exist in this store |
+
+---
+
+## POST /api/v1/stores/:storeId/menus/:menuId/publish
+
+**Purpose:** Activate a menu, making it visible to its ordering channel.
+
+**Authentication required:** Yes
+
+**Permissions required:** `menu:publish`
+
+**Request Body:** None
+
+**Success Response — 200 OK:** Returns the updated menu with `status: "ACTIVE"`.
+
+**Error Responses:**
+
+| Status | Code | When |
+|---|---|---|
+| 403 | `INSUFFICIENT_PERMISSIONS` | User holds `menu:edit` but not `menu:publish` |
+| 409 | `MENU_ALREADY_ACTIVE` | Menu is already ACTIVE |
+| 404 | `MENU_NOT_FOUND` | Menu does not exist in this store |
+
+**Events Produced:** `menu.published`
+
+---
+
+## POST /api/v1/stores/:storeId/menus/:menuId/unpublish
+
+**Purpose:** Deactivate a menu, hiding it from its ordering channel without deleting it.
+
+**Authentication required:** Yes
+
+**Permissions required:** `menu:publish`
+
+**Request Body:** None
+
+**Success Response — 200 OK:** Returns the updated menu with `status: "INACTIVE"`.
+
+**Error Responses:**
+
+| Status | Code | When |
+|---|---|---|
+| 403 | `INSUFFICIENT_PERMISSIONS` | User holds `menu:edit` but not `menu:publish` |
+| 409 | `MENU_NOT_ACTIVE` | Menu is not currently ACTIVE |
+| 404 | `MENU_NOT_FOUND` | Menu does not exist in this store |
+
+**Events Produced:** `menu.unpublished`
 
 ---
 
@@ -2097,12 +2161,14 @@ GET /api/v1/stores/str_01HXYZ789/kitchen/tickets?status=QUEUED,PREPARING&sort=qu
 |---|---|---|---|
 | `status` | string | Yes | Target status |
 
+**Ownership note:** The Kitchen module is the sole owner of these two transitions. No other endpoint may set a Kitchen Ticket (or the parent Order) to `PREPARING`/`READY` — see the ownership note on `POST /orders/:orderId/status`.
+
 **Allowed Transitions:**
 
 | From | To | Side Effects |
 |---|---|---|
-| `QUEUED` | `PREPARING` | Records `started_at` |
-| `PREPARING` | `READY` | Records `ready_at`; triggers Delivery creation for DELIVERY orders; emits `kitchen_ticket.ready` |
+| `QUEUED` | `PREPARING` | Records `started_at`; emits `kitchen_ticket.status_changed`. Orders service consumes this event and advances the order to `PREPARING`. |
+| `PREPARING` | `READY` | Records `ready_at`; emits `kitchen_ticket.ready`. Delivery service consumes this event and creates a Delivery record (DELIVERY orders only). Orders service consumes the same event and advances the order to `READY`, then republishes `order.ready` for consumers that only need the Order-shaped view (see Event Contracts). |
 
 **Forbidden Transitions:**
 
@@ -2261,6 +2327,8 @@ GET /api/v1/stores/str_01HXYZ789/kitchen/tickets?status=QUEUED,PREPARING&sort=qu
 
 **Purpose:** Transition a delivery to the next status.
 
+**Ownership note:** The Delivery module is the sole owner of these transitions. No other endpoint may set a Delivery (or the parent Order's `OUT_FOR_DELIVERY`/`DELIVERED` status) directly — see the ownership note on `POST /orders/:orderId/status`.
+
 **Authentication required:** Yes
 
 **Permissions required:** `delivery:update_status`
@@ -2276,9 +2344,9 @@ GET /api/v1/stores/str_01HXYZ789/kitchen/tickets?status=QUEUED,PREPARING&sort=qu
 
 | From | To | Side Effects |
 |---|---|---|
-| `AWAITING_PICKUP` | `DISPATCHED` | Records `dispatched_at`; triggers order status → OUT_FOR_DELIVERY; emits `delivery.dispatched` |
+| `AWAITING_PICKUP` | `DISPATCHED` | Records `dispatched_at`; emits `delivery.dispatched`. Orders service consumes this event and advances the order to `OUT_FOR_DELIVERY`, then republishes `order.out_for_delivery` for consumers that only need the Order-shaped view (see Event Contracts). |
 | `DISPATCHED` | `IN_TRANSIT` | Optional intermediate step |
-| `IN_TRANSIT` | `DELIVERED` | Records `delivered_at`; triggers order status → DELIVERED; emits `delivery.delivered`; updates customer stats |
+| `IN_TRANSIT` | `DELIVERED` | Records `delivered_at`; emits `delivery.delivered`. Orders service consumes this event, advances the order to `DELIVERED`, and republishes `order.delivered` — which the Customers service consumes to update order stats. |
 | `DISPATCHED` | `DELIVERED` | Skips IN_TRANSIT. Same side effects as above |
 | `DISPATCHED` | `FAILED` | Records `failed_at` and `failed_reason`; requires manager authorization if already dispatched |
 | `IN_TRANSIT` | `FAILED` | Same as above |
@@ -3424,6 +3492,16 @@ Every event shares the same envelope structure:
 | `triggeredByUserId` | The user who caused the event. Null for system-triggered events |
 | `payload` | Event-specific data. Schema described per event below |
 
+## Raw Events vs. Derived Order Events
+
+Each status-owning module (Kitchen, Delivery) publishes exactly one **raw event** per transition it owns: `kitchen_ticket.ready`, `delivery.dispatched`, `delivery.delivered`. These are the only events Delivery and Kitchen ever produce for their own transitions, and they are the events other modules that need the underlying detail (e.g., Delivery needs the address snapshot to create its record) must consume directly.
+
+The Orders service consumes each raw event, advances its own `orders.status` projection, and then republishes a corresponding **derived event** — `order.ready`, `order.out_for_delivery`, `order.delivered` — purely for consumers that only care about the Order-shaped view and should never need to know Kitchen or Delivery exist (Customers, CRM, Reports, Analytics, Finance). A derived event's producer is always "Orders service," never the module whose raw event triggered it.
+
+**Rule:** no module may consume both a raw event and its derived echo for the same transition — pick the one appropriate to what the consumer actually needs. Delivery consumes `kitchen_ticket.ready` (raw), never `order.ready` (derived). Nothing today consumes `order.out_for_delivery`; it exists for future Analytics/Notifications consumers.
+
+**Synchronous-bus caveat:** because the current event bus is in-process and synchronous, a consumer is still able to block the original caller's request — this is what lets Delivery's manager-approval check on `order.cancelled` (see that event below) fail the request synchronously today. If the bus is ever replaced with an asynchronous broker (BullMQ, Redis Streams — see the note at the top of this section), any check that must block the *caller's* response can no longer live inside an async event consumer and must become a synchronous pre-check made directly by the producing service before it commits.
+
 ---
 
 ## order.created
@@ -3482,11 +3560,9 @@ Every event shares the same envelope structure:
 
 ## order.ready
 
-**Producer:** Kitchen service, on kitchen ticket status → READY
+**Producer:** Orders service — a **derived event**, republished after consuming `kitchen_ticket.ready` and advancing the order's own status to READY. Never produced directly by Kitchen.
 
-**Consumers:**
-- **Delivery service** — creates a Delivery record for DELIVERY orders
-- **Orders service** — updates order status to READY
+**Consumers:** None in the current phase. Future: Analytics, Notifications. (Delivery does **not** consume this — it consumes the raw `kitchen_ticket.ready` event directly, since that is the event carrying the address snapshot it needs.)
 
 **Payload:**
 ```json
@@ -3494,18 +3570,7 @@ Every event shares the same envelope structure:
   "orderId": "ord_01HXYZ001",
   "orderNumber": 4821,
   "type": "DELIVERY",
-  "kitchenTicketId": "tkt_01HXYZ888",
-  "readyAt": "2025-07-03T14:41:00.000Z",
-  "deliveryAddressSnapshot": {
-    "street": "Rua das Flores",
-    "number": "123",
-    "neighborhood": "Jardim América",
-    "city": "São Paulo",
-    "state": "SP",
-    "postalCode": "01310-100",
-    "latitude": -23.561684,
-    "longitude": -46.655981
-  }
+  "readyAt": "2025-07-03T14:41:00.000Z"
 }
 ```
 
@@ -3513,10 +3578,9 @@ Every event shares the same envelope structure:
 
 ## order.out_for_delivery
 
-**Producer:** Orders service, on status transition → OUT_FOR_DELIVERY
+**Producer:** Orders service — a **derived event**, republished after consuming `delivery.dispatched` and advancing the order's own status to OUT_FOR_DELIVERY. Never produced directly by Delivery.
 
-**Consumers:**
-- **Delivery service** — updates delivery status to DISPATCHED
+**Consumers:** None in the current phase. Future: Analytics, Notifications.
 
 **Payload:**
 ```json
@@ -3531,7 +3595,7 @@ Every event shares the same envelope structure:
 
 ## order.delivered
 
-**Producer:** Orders service / Delivery service, on final delivery confirmation
+**Producer:** Orders service. Two distinct paths converge on this event: (1) for DELIVERY orders, it is a **derived event** republished after consuming `delivery.delivered`; (2) for TAKEAWAY orders, which have no Delivery record, it is produced directly by the Orders service on the `READY → DELIVERED` transition of `POST /orders/:orderId/status`.
 
 **Consumers:**
 - **Customers service** — increments `total_orders`, updates `last_order_at` (does NOT update `total_spent` — that waits for payment.paid)
@@ -3554,11 +3618,11 @@ Every event shares the same envelope structure:
 
 ## order.cancelled
 
-**Producer:** Orders service, on status transition → CANCELLED
+**Producer:** Orders service, on status transition → CANCELLED. This is an Orders-owned transition, not a derived event — the client calls `POST /orders/:orderId/status` directly.
 
 **Consumers:**
 - **Kitchen service** — transitions KitchenTicket to CANCELLED
-- **Delivery service** — transitions Delivery to FAILED (if dispatched, logs cancellation)
+- **Delivery service** — transitions Delivery to FAILED. If the Delivery had already reached DISPATCHED or later, this consumer enforces the manager-authorization requirement (see `POST /orders/:orderId/status`); on the current synchronous in-process bus, a failed check here still rejects the original request. This is the one place in the system where an event consumer performs a synchronous authorization check — see the Raw Events vs. Derived Order Events note above for what changes if the bus becomes asynchronous.
 - **Finance service** (future) — records cancellation
 
 **Payload:**
@@ -3615,21 +3679,34 @@ Every event shares the same envelope structure:
 
 ## kitchen_ticket.ready
 
-**Producer:** Kitchen service, on ticket status → READY
+**Producer:** Kitchen service, on ticket status → READY. This is the **raw event** for the Ready transition — the only one Kitchen ever produces for it.
 
 **Consumers:**
-- **Delivery service** — creates Delivery record (for DELIVERY orders only)
-- **Orders service** — transitions order to READY
+- **Delivery service** — creates the Delivery record (for DELIVERY orders only), using `deliveryAddressSnapshot` from this payload
+- **Orders service** — transitions order to READY, then republishes the derived `order.ready` event
 
 **Payload:**
 ```json
 {
   "ticketId": "tkt_01HXYZ888",
   "orderId": "ord_01HXYZ001",
+  "orderNumber": 4821,
   "orderType": "DELIVERY",
-  "readyAt": "2025-07-03T14:41:00.000Z"
+  "readyAt": "2025-07-03T14:41:00.000Z",
+  "deliveryAddressSnapshot": {
+    "street": "Rua das Flores",
+    "number": "123",
+    "neighborhood": "Jardim América",
+    "city": "São Paulo",
+    "state": "SP",
+    "postalCode": "01310-100",
+    "latitude": -23.561684,
+    "longitude": -46.655981
+  }
 }
 ```
+
+`deliveryAddressSnapshot` is present only when `orderType = DELIVERY`; it is the data Delivery needs to create its record and is never carried by the derived `order.ready` event.
 
 ---
 
@@ -3654,9 +3731,9 @@ Every event shares the same envelope structure:
 
 ## delivery.dispatched
 
-**Producer:** Delivery service, on delivery status → DISPATCHED
+**Producer:** Delivery service, on delivery status → DISPATCHED. This is the **raw event** for the dispatch transition — the only one Delivery ever produces for it.
 
-**Consumers:** Orders service — triggers order status → OUT_FOR_DELIVERY
+**Consumers:** Orders service — advances order status to OUT_FOR_DELIVERY, then republishes the derived `order.out_for_delivery` event
 
 **Payload:**
 ```json
@@ -3674,9 +3751,9 @@ Every event shares the same envelope structure:
 
 ## delivery.delivered
 
-**Producer:** Delivery service, on delivery status → DELIVERED
+**Producer:** Delivery service, on delivery status → DELIVERED. This is the **raw event** for the delivered transition — the only one Delivery ever produces for it.
 
-**Consumers:** Orders service — transitions order status → DELIVERED
+**Consumers:** Orders service — transitions order status → DELIVERED, then republishes the derived `order.delivered` event, which Customers/CRM/Analytics consume
 
 **Payload:**
 ```json
@@ -3818,25 +3895,66 @@ Every event shares the same envelope structure:
 
 ---
 
+## menu.published
+
+**Producer:** Products service, on `POST /menus/:menuId/publish`
+
+**Consumers:** None in the current phase. Future: ordering channels invalidating a cached menu view.
+
+**Payload:**
+```json
+{
+  "menuId": "mnu_01HXYZ200",
+  "storeId": "str_01HXYZ789",
+  "channel": "DELIVERY",
+  "publishedAt": "2025-07-03T15:00:00.000Z"
+}
+```
+
+---
+
+## menu.unpublished
+
+**Producer:** Products service, on `POST /menus/:menuId/unpublish`
+
+**Consumers:** None in the current phase. Future: ordering channels invalidating a cached menu view.
+
+**Payload:**
+```json
+{
+  "menuId": "mnu_01HXYZ200",
+  "storeId": "str_01HXYZ789",
+  "channel": "DELIVERY",
+  "unpublishedAt": "2025-07-03T18:00:00.000Z"
+}
+```
+
+---
+
 ## Event Consumption Summary
 
 | Event | Producers | Consumers |
 |---|---|---|
 | `order.created` | Orders | (Analytics — future) |
 | `order.confirmed` | Orders | Kitchen (creates ticket) |
-| `order.ready` | Kitchen | Delivery (creates record), Orders (updates status) |
-| `order.out_for_delivery` | Orders | Delivery (updates status) |
-| `order.delivered` | Orders | Customers (stats), CRM, Analytics |
-| `order.cancelled` | Orders | Kitchen (cancels ticket), Delivery (cancels record), Finance |
+| `order.ready` *(derived)* | Orders (after consuming `kitchen_ticket.ready`) | (Analytics/Notifications — future) |
+| `order.out_for_delivery` *(derived)* | Orders (after consuming `delivery.dispatched`) | (Analytics/Notifications — future) |
+| `order.delivered` | Orders (derived from `delivery.delivered` for DELIVERY orders; produced directly for TAKEAWAY pickup) | Customers (stats), CRM, Analytics |
+| `order.cancelled` | Orders | Kitchen (cancels ticket), Delivery (cancels record; enforces manager approval if dispatched), Finance |
 | `kitchen_ticket.created` | Kitchen | — |
-| `kitchen_ticket.status_changed` | Kitchen | Orders (syncs status) |
-| `kitchen_ticket.ready` | Kitchen | Delivery (creates record), Orders (updates status) |
-| `delivery.created` | Delivery | — |
-| `delivery.dispatched` | Delivery | Orders (→ OUT_FOR_DELIVERY) |
-| `delivery.delivered` | Delivery | Orders (→ DELIVERED) |
+| `kitchen_ticket.status_changed` | Kitchen | Orders (syncs status to PREPARING) |
+| `kitchen_ticket.ready` *(raw)* | Kitchen | Delivery (creates record), Orders (updates status to READY, republishes `order.ready`) |
+| `delivery.created` | Delivery (after consuming `kitchen_ticket.ready`) | — |
+| `delivery.dispatched` *(raw)* | Delivery | Orders (updates status to OUT_FOR_DELIVERY, republishes `order.out_for_delivery`) |
+| `delivery.delivered` *(raw)* | Delivery | Orders (updates status to DELIVERED, republishes `order.delivered`) |
 | `delivery.failed` | Delivery | Orders (flag for resolution) |
 | `payment.created` | Payments | — |
 | `payment.paid` | Payments | Finance, Customers (total_spent), Invoice, Loyalty |
 | `payment.refunded` | Payments | Finance, Loyalty |
 | `membership.invited` | Team | Notifications |
+| `membership.accepted` | Auth | Notifications |
+| `menu.published` | Products | (future) |
+| `menu.unpublished` | Products | (future) |
+
+*(raw)* = the single event a status-owning module produces for its own transition. *(derived)* = an Order-shaped echo the Orders service republishes after consuming a raw event, for consumers that should not depend on Kitchen/Delivery internals. See "Raw Events vs. Derived Order Events" above.
 | `membership.accepted` | Auth | Notifications, Analytics |

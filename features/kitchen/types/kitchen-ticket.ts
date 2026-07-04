@@ -1,6 +1,6 @@
 import type { Brand, ISODateTime } from "@/types/common"
-import type { StoreId } from "@/features/stores/types/store"
-import type { OrderId, OrderType } from "@/features/orders/types/order-status"
+import type { StoreId } from "@/features/stores/types"
+import type { OrderId, OrderType } from "@/features/orders/types"
 import type { KitchenTicketStatus } from "./kitchen-status"
 import type { KitchenItemId } from "./kitchen-item"
 

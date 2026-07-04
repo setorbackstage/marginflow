@@ -1,5 +1,5 @@
 import type { Brand, ISODateTime } from "@/types/common"
-import type { StoreId } from "@/features/stores/types/store"
+import type { StoreId } from "@/features/stores/types"
 
 export type CategoryId = Brand<string, "CategoryId">
 
@@ -17,6 +17,7 @@ export interface Category {
   readonly imageUrl: string | null
   readonly sortOrder: number
   readonly isActive: boolean
+  readonly deletedAt: ISODateTime | null // soft delete timestamp; null = not deleted
   readonly createdAt: ISODateTime
   readonly updatedAt: ISODateTime
 }

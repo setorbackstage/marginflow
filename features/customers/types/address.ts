@@ -28,6 +28,7 @@ export interface Address {
   readonly latitude: number | null
   readonly longitude: number | null
   readonly isDefault: boolean
+  readonly deletedAt: ISODateTime | null // soft delete timestamp; null = not deleted
   readonly createdAt: ISODateTime
   readonly updatedAt: ISODateTime
 }

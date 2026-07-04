@@ -1,8 +1,7 @@
 import type { Brand, Cents, ISODateTime } from "@/types/common"
-import type { StoreId } from "@/features/stores/types/store"
-import type { CustomerId } from "@/features/customers/types/customer"
-import type { AddressSnapshot } from "@/features/customers/types/address"
-import type { UserId } from "@/features/users/types/user"
+import type { StoreId } from "@/features/stores/types"
+import type { CustomerId, AddressSnapshot } from "@/features/customers/types"
+import type { UserId } from "@/features/users/types"
 import type { OrderId, OrderStatus, OrderType, OrderChannel } from "./order-status"
 import type { OrderItemId } from "./order-item"
 

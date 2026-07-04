@@ -212,6 +212,7 @@ A User is a human operator who interacts with MarginFlow on behalf of a Store. U
 | `email` | TEXT | No | — | NOT NULL, UNIQUE | Authentication identifier. Globally unique. |
 | `phone` | TEXT | Yes | NULL | — | Optional contact phone number. |
 | `avatar_url` | TEXT | Yes | NULL | — | Profile image URL. |
+| `password_hash` | TEXT | Yes | NULL | — | Hashed password (never plaintext). Null while `status = INVITED` — the user has not set a password yet, per `POST /auth/accept-invitation`. |
 | `status` | TEXT | No | `'INVITED'` | NOT NULL, CHECK IN ('ACTIVE', 'INACTIVE', 'INVITED') | INVITED = has not yet set a password. INACTIVE = access revoked. |
 | `last_login_at` | TIMESTAMPTZ | Yes | NULL | — | UTC timestamp of the most recent successful login. Null for new users. |
 | `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of record creation. |
@@ -291,6 +292,101 @@ Membership is the join between a User, a Store, and a Role. It answers: "What is
 | `revoked_at` | TIMESTAMPTZ | Yes | NULL | — | UTC timestamp when access was revoked. |
 | `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of record creation. |
 | `updated_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of last modification. |
+
+---
+
+# Refresh Tokens
+
+**Purpose**
+Persists the hash of every issued refresh token so `POST /auth/refresh` can validate, rotate, and revoke sessions, per API_SPEC.md's Refresh Token Strategy. A row is never physically deleted on rotation — `revoked_at` is set instead — because the documented replay-attack defense ("if a refresh token is used twice, the server detects the reuse... and invalidates the entire session") requires the prior token's record to still exist to be recognized as already-rotated. The raw token is never stored, only its hash.
+
+**Table name:** `refresh_tokens`
+
+**Primary Key:** `id UUID`
+
+**Unique Constraints**
+- `token_hash` — the hash of a given raw refresh token is globally unique.
+
+**Foreign Keys**
+- `user_id → users.id` (CASCADE on delete — session artifacts have no meaning without their owner)
+
+**Indexes**
+- Primary key on `id` (automatic).
+- Unique index on `token_hash` (lookup on every refresh call).
+- Index on `user_id` (revoke-all-sessions on logout, password reset, and reuse detection).
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `user_id` | UUID | No | — | NOT NULL, FK → users.id CASCADE | The user this session belongs to. |
+| `token_hash` | TEXT | No | — | NOT NULL, UNIQUE | Hash of the raw refresh token. The raw value is only ever held by the client. |
+| `expires_at` | TIMESTAMPTZ | No | — | NOT NULL | 7 days from issuance, per API_SPEC.md's JWT Strategy. |
+| `revoked_at` | TIMESTAMPTZ | Yes | NULL | — | Set when the token is rotated (refresh), logged out, or invalidated (password reset, reuse detected). NULL = still active. |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of issuance. |
+
+---
+
+# Password Reset Tokens
+
+**Purpose**
+Persists the hash of a password reset token issued by `POST /auth/forgot-password`, so `POST /auth/reset-password` can validate it, per API_SPEC.md's Password Reset Flow. Only one active (non-revoked, non-expired) token may exist per user at a time — requesting a new one invalidates the previous.
+
+**Table name:** `password_reset_tokens`
+
+**Primary Key:** `id UUID`
+
+**Unique Constraints**
+- `token_hash` — the hash of a given raw reset token is globally unique.
+- `user_id` WHERE `revoked_at IS NULL` — at most one active reset token per user. (Partial index — see Database Rules.)
+
+**Foreign Keys**
+- `user_id → users.id` (CASCADE on delete)
+
+**Indexes**
+- Primary key on `id` (automatic).
+- Unique index on `token_hash` (lookup on reset).
+- Partial unique index on `user_id` WHERE `revoked_at IS NULL` (enforces "one active token per user").
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `user_id` | UUID | No | — | NOT NULL, FK → users.id CASCADE | The user requesting the reset. |
+| `token_hash` | TEXT | No | — | NOT NULL, UNIQUE | Hash of the raw reset token emailed to the user. |
+| `expires_at` | TIMESTAMPTZ | No | — | NOT NULL | 60 minutes from issuance, per API_SPEC.md's Password Reset Flow. |
+| `revoked_at` | TIMESTAMPTZ | Yes | NULL | — | Set when the token is used, or superseded by a newer reset request. NULL = still active. |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of issuance. |
+
+---
+
+# Invitation Tokens
+
+**Purpose**
+Persists the hash of a team invitation token issued by `POST /stores/:storeId/team/invite`, so `POST /auth/accept-invitation` can validate it, per API_SPEC.md's Invitation Flow. Only one active (non-revoked, non-expired) token may exist per Membership at a time — re-inviting re-issues the token.
+
+**Table name:** `invitation_tokens`
+
+**Primary Key:** `id UUID`
+
+**Unique Constraints**
+- `token_hash` — the hash of a given raw invitation token is globally unique.
+- `membership_id` WHERE `revoked_at IS NULL` — at most one active invitation token per Membership. (Partial index — see Database Rules.)
+
+**Foreign Keys**
+- `membership_id → memberships.id` (CASCADE on delete)
+
+**Indexes**
+- Primary key on `id` (automatic).
+- Unique index on `token_hash` (lookup on accept).
+- Partial unique index on `membership_id` WHERE `revoked_at IS NULL` (enforces "one active token per membership").
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `membership_id` | UUID | No | — | NOT NULL, FK → memberships.id CASCADE | The membership this invitation activates. |
+| `token_hash` | TEXT | No | — | NOT NULL, UNIQUE | Hash of the raw invitation token emailed to the invitee. |
+| `expires_at` | TIMESTAMPTZ | No | — | NOT NULL | 72 hours from issuance, per API_SPEC.md's Invitation Flow. |
+| `revoked_at` | TIMESTAMPTZ | Yes | NULL | — | Set when the token is accepted, or superseded by a re-invite. NULL = still active. |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of issuance. |
 
 ---
 
@@ -1028,6 +1124,9 @@ A fiscal document (NF-e or NFC-e) generated for a completed, paid Order. Require
 | `orders` | `order_status_transitions` | `order_status_transitions.order_id` | The complete lifecycle history of an Order is an append-only log of its status transitions. |
 | `kitchen_tickets` | `kitchen_items` | `kitchen_items.ticket_id` | A Kitchen Ticket contains one item per product line in the Order. |
 | `orders` | `payment_attempts` | `payment_attempts.order_id` | Multiple failed payment attempts may occur before a successful one. |
+| `users` | `refresh_tokens` | `refresh_tokens.user_id` | A user may hold multiple active sessions (e.g., multiple devices). |
+| `users` | `password_reset_tokens` | `password_reset_tokens.user_id` | Historical reset requests are retained (revoked, not deleted) for audit; only one is active at a time. |
+| `memberships` | `invitation_tokens` | `invitation_tokens.membership_id` | Historical invitations are retained (revoked, not deleted) for audit; only one is active at a time. |
 
 ## Many-to-Many Relationships
 
@@ -1054,6 +1153,8 @@ A fiscal document (NF-e or NFC-e) generated for a completed, paid Order. Require
 - Deleting a `menu` cascades to its `menu_sections`.
 - Deleting a `kitchen_ticket` cascades to its `kitchen_items`.
 - Financial records (`payments`, `payment_attempts`, `invoices`) are never deleted under any circumstances.
+- Deleting a `user` cascades to their `refresh_tokens` and `password_reset_tokens` — session/reset artifacts have no meaning without their owner.
+- Deleting a `membership` cascades to its `invitation_tokens`.
 
 ## Cascade Behaviors Summary
 
@@ -1073,6 +1174,9 @@ A fiscal document (NF-e or NFC-e) generated for a completed, paid Order. Require
 | kitchen_ticket → kitchen_items | CASCADE | Items are destroyed with the ticket |
 | users (deleted) → FK references | SET NULL | Preserves audit trail with null actor |
 | role → memberships | RESTRICT | Cannot delete a role in use |
+| user → refresh_tokens | CASCADE | Sessions are destroyed with the user |
+| user → password_reset_tokens | CASCADE | Reset requests are destroyed with the user |
+| membership → invitation_tokens | CASCADE | Invitations are destroyed with the membership |
 
 ## Soft Delete Strategy
 
@@ -1090,6 +1194,10 @@ Entities that use a **status field** instead of soft delete (because their lifec
 `orders` (status = CANCELLED), `customers` (status = BLOCKED), `users` (status = INACTIVE), `memberships` (status = REVOKED), `stores` (status = INACTIVE/SUSPENDED), `accounts` (status = SUSPENDED).
 
 Financial records (`payments`, `payment_attempts`, `invoices`) are **never deleted and never soft-deleted**. They are permanent audit records.
+
+**Deliberate exception — `revoked_at` instead of `deleted_at`:** `refresh_tokens`, `password_reset_tokens`, and `invitation_tokens` use `revoked_at`, not `deleted_at`. This is not the same mechanism as catalog soft-delete: a revoked token is never presented to a client again as valid, but the row is deliberately retained (never deleted) so a replayed/reused token can still be recognized and its whole session invalidated, per API_SPEC.md's Refresh Token Strategy. Queries for an *active* token filter on `WHERE revoked_at IS NULL AND expires_at > now()`.
+
+**Deliberate exception — hard delete:** `menus` and `menu_sections` are **hard-deleted**, not soft-deleted. Unlike the catalog entities above, they are pure publishing/configuration artifacts with no historical significance — no other table snapshots or references a Menu the way `order_items` snapshots a Product. See `DELETE /stores/:storeId/menus/:menuId` in `API_SPEC.md`.
 
 ## Timestamp Strategy
 
@@ -1111,11 +1219,15 @@ Both columns are stored in UTC (TIMESTAMPTZ). Conversion to the Store's local ti
 | `invoices` | `issued_at`, `cancelled_at` |
 | `memberships` | `invited_at`, `accepted_at`, `revoked_at` |
 | `users` | `last_login_at` |
+| `refresh_tokens` | `revoked_at` |
+| `password_reset_tokens` | `revoked_at` |
+| `invitation_tokens` | `revoked_at` |
 
 **Tables without `updated_at`** (append-only or immutable):
 - `order_status_transitions` — rows are never updated.
 - `kitchen_items` — managed through parent ticket lifecycle.
 - `menu_sections` — pure configuration join table.
+- `refresh_tokens`, `password_reset_tokens`, `invitation_tokens` — created once and mutated at most once (`revoked_at` set), which is itself the timestamp of that change; a separate `updated_at` would be redundant.
 
 ## Audit Strategy
 

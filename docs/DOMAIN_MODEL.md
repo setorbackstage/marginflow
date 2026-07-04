@@ -3,6 +3,8 @@
 > **Source of truth for the business domain.**
 > Every engineer, every AI, and every product decision must align with this document.
 > If a business rule changes, update this document first — before any code changes.
+>
+> This includes adding a new valid value to an existing attribute's enumeration (e.g., a new Store type, payment gateway, or delivery platform). An enum addition is a business-rule change, not a technical detail, and must be reflected here before `DATA_MODEL.md` or `API_SPEC.md` are updated to match.
 
 ---
 
@@ -59,7 +61,7 @@ The Store is the fundamental organizational unit of MarginFlow. Every piece of o
 **Main Attributes**
 - `id` — unique identifier
 - `name` — display name (e.g., "Loja Centro")
-- `type` — business type: `restaurant`, `dark_kitchen`, `cafe`, `bar`, `franchise_unit`
+- `type` — business type: `restaurant`, `dark_kitchen`, `cafe`, `bar`, `pizzeria`, `burger_shop`, `franchise_unit`
 - `slug` — URL-friendly identifier
 - `status` — `active`, `inactive`, `suspended`
 - `phone` — contact number
@@ -126,7 +128,7 @@ A Role defines what a User can see and do within a Store. Roles enforce the prin
 
 **Main Attributes**
 - `id`
-- `name` — `owner`, `manager`, `cashier`, `kitchen`, `delivery_coordinator`, `analyst`
+- `name` — `owner`, `manager`, `cashier`, `kitchen_attendant`, `delivery_coordinator`, `analyst`
 - `permissions` — structured list of allowed actions (e.g., `orders:create`, `finance:view`, `products:delete`)
 - `is_system_role` — whether it is a built-in role or a custom role
 - `created_at`, `updated_at`
@@ -480,8 +482,8 @@ A Payment records the financial transaction that settles an Order. An Order may 
 - `store_id`
 - `amount` — total amount paid in cents
 - `status` — `pending`, `authorized`, `paid`, `refunded`, `partially_refunded`, `failed`
-- `method` — `cash`, `credit_card`, `debit_card`, `pix`, `voucher`, `online`
-- `gateway` — payment processor used (e.g., `stripe`, `pagarme`, `mercadopago`, `manual`)
+- `method` — `cash`, `credit_card`, `debit_card`, `pix`, `voucher`, `gift_card`, `online`
+- `gateway` — payment processor used (e.g., `stripe`, `pagarme`, `mercado_pago`, `iugu`, `asaas`, `manual`)
 - `gateway_transaction_id` — external reference for reconciliation
 - `gateway_response` — raw response stored for audit
 - `paid_at`
@@ -516,7 +518,7 @@ A Delivery tracks the physical movement of an Order from the Store to the Custom
 - `courier_name` — name of the delivery person
 - `courier_phone`
 - `courier_type` — `internal`, `platform` (third-party)
-- `platform` — if courier_type = platform: `ifood`, `rappi`, `uber_eats`, etc.
+- `platform` — if courier_type = platform: `ifood`, `rappi`, `uber_eats`, `loggi`, `other`
 - `platform_delivery_id` — external reference
 - `delivery_address` — copied from Order (denormalized snapshot)
 - `estimated_time` — estimated delivery time in minutes
@@ -921,12 +923,16 @@ Every domain transition that matters to another domain is expressed as a domain 
 | Event | Produced by | Consumed by |
 |---|---|---|
 | `order.confirmed` | Orders | Kitchen |
-| `order.ready` | Kitchen | Delivery |
-| `order.delivered` | Delivery | Orders |
+| `kitchen_ticket.ready` | Kitchen | Delivery, Orders |
+| `order.ready` *(derived)* | Orders, after consuming `kitchen_ticket.ready` | (future: Analytics, Notifications) |
+| `delivery.delivered` | Delivery | Orders |
+| `order.delivered` *(derived)* | Orders, after consuming `delivery.delivered` | CRM, Reports, Analytics |
 | `payment.paid` | Payments | Finance, Invoice, Loyalty |
 | `order.completed` | Orders | CRM, Reports, Analytics |
 | `product.stock_changed` | Inventory | Products |
 | `coupon.applied` | Coupons | Orders |
+
+> Kitchen and Delivery each publish exactly one raw event per transition they own (`kitchen_ticket.ready`, `delivery.delivered`, and so on). Orders consumes those raw events, advances its own status, and republishes an Order-shaped derived event for consumers that should never need to know Kitchen or Delivery exist. No module ever consumes both a raw event and its derived echo for the same transition. The full event catalog — including `order.out_for_delivery`, `order.cancelled`, and every payload — is the authoritative one in `API_SPEC.md`; this table is illustrative, not exhaustive.
 
 Each module publishes its events and subscribes to the events it needs. No module ever imports another module's internal functions, hooks, or services. The contract is the event shape — a pure data structure with no behavioral coupling.
 

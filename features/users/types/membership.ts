@@ -1,5 +1,5 @@
 import type { Brand, ISODateTime } from "@/types/common"
-import type { StoreId } from "@/features/stores/types/store"
+import type { StoreId } from "@/features/stores/types"
 import type { UserId } from "./user"
 import type { RoleId } from "./role"
 

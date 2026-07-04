@@ -25,6 +25,25 @@ export enum StoreCurrency {
   EUR = "EUR",
 }
 
+/**
+ * The Store's physical address.
+ * Persisted as flat, indexed columns (see DATA_MODEL.md) — used for map
+ * integrations and geographic reports. Distinct from AddressSnapshot,
+ * which is an immutable copy captured on an Order at placement time.
+ */
+export interface StoreAddress {
+  readonly street: string
+  readonly number: string
+  readonly complement: string | null
+  readonly neighborhood: string
+  readonly city: string
+  readonly state: string
+  readonly postalCode: string
+  readonly country: string
+  readonly latitude: number | null
+  readonly longitude: number | null
+}
+
 export interface Store {
   readonly id: StoreId
   readonly accountId: AccountId
@@ -40,6 +59,7 @@ export interface Store {
   readonly minimumOrderValue: Cents // 0 means no minimum
   readonly deliveryFee: Cents
   readonly operatingHours: WeeklySchedule
+  readonly address: StoreAddress
   readonly createdAt: ISODateTime
   readonly updatedAt: ISODateTime
 }

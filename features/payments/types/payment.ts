@@ -1,7 +1,7 @@
 import type { Brand, Cents, ISODateTime } from "@/types/common"
-import type { StoreId } from "@/features/stores/types/store"
-import type { OrderId } from "@/features/orders/types/order-status"
-import type { UserId } from "@/features/users/types/user"
+import type { StoreId } from "@/features/stores/types"
+import type { OrderId } from "@/features/orders/types"
+import type { UserId } from "@/features/users/types"
 import type { PaymentMethod, PaymentGateway } from "./payment-method"
 import type { PaymentAttemptId } from "./payment-attempt"
 

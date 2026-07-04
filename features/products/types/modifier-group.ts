@@ -1,5 +1,5 @@
 import type { Brand, ISODateTime } from "@/types/common"
-import type { StoreId } from "@/features/stores/types/store"
+import type { StoreId } from "@/features/stores/types"
 import type { ProductId } from "./product"
 
 export type ModifierGroupId = Brand<string, "ModifierGroupId">
@@ -22,6 +22,7 @@ export interface ModifierGroup {
   readonly maxSelections: number  // 1 = single-choice; >1 = multi-select
   readonly sortOrder: number
   readonly isActive: boolean
+  readonly deletedAt: ISODateTime | null // soft delete timestamp; null = not deleted
   readonly createdAt: ISODateTime
   readonly updatedAt: ISODateTime
 }
