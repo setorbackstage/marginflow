@@ -52,7 +52,7 @@ export default function LoginPage() {
           <div className="flex size-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
             <UtensilsCrossed className="size-5" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">MarginFlow</h1>
+          <h1 className="text-xl font-semibold tracking-tight">MarginFlow OS</h1>
           <p className="text-sm text-muted-foreground">O sistema operacional do seu restaurante</p>
         </div>
 

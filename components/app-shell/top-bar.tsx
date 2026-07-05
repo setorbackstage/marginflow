@@ -36,7 +36,7 @@ export function TopBar({
                 onClick={() => onNavigate("/", "Dashboard")}
                 className="cursor-pointer"
               >
-                MarginFlow
+                MarginFlow OS
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator className="hidden sm:block" />

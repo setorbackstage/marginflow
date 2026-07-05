@@ -1,14 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { Sparkles } from "lucide-react"
 
 import { navGroups } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
@@ -68,19 +66,6 @@ export function AppSidebar({
           </SidebarGroup>
         ))}
       </SidebarContent>
-      <SidebarFooter>
-        <div className="flex items-center gap-3 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-3 group-data-[collapsible=icon]:hidden">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
-            <Sparkles className="size-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">Upgrade to Pro</p>
-            <p className="truncate text-xs text-muted-foreground">
-              Unlock forecasting & AI insights
-            </p>
-          </div>
-        </div>
-      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

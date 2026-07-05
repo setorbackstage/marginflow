@@ -126,7 +126,7 @@ export default function OrdersPage() {
         <EmptyState
           icon={ReceiptText}
           title="Nenhum pedido encontrado"
-          description={search || statusFilter !== "ALL" ? "Ajuste os filtros ou a busca." : "Comece criando o primeiro pedido."}
+          description={search || statusFilter !== "ACTIVE" ? "Ajuste os filtros ou a busca." : "Comece criando o primeiro pedido."}
           action={
             canCreate && !search ? (
               <Button size="sm" onClick={() => openCreateDialog()}>

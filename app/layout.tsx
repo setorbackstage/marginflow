@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { ThemeProvider, QueryProvider } from "@/providers"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
+import { APP_NAME, APP_DESCRIPTION, APP_URL } from "@/config"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -17,26 +18,27 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "MarginFlow — Restaurant OS",
-  description:
-    "MarginFlow is the all-in-one operating system for restaurants, cafés, bars, delivery businesses and dark kitchens.",
-  generator: "v0.app",
+  metadataBase: new URL(APP_URL),
+  title: {
+    default: APP_NAME,
+    template: `%s — ${APP_NAME}`,
+  },
+  description: APP_DESCRIPTION,
+  applicationName: APP_NAME,
   icons: {
-    icon: [
-      {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
-    ],
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icon-32x32.png", sizes: "32x32", type: "image/png" }],
     apple: "/apple-icon.png",
+  },
+  openGraph: {
+    type: "website",
+    siteName: APP_NAME,
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary",
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
   },
 }
 

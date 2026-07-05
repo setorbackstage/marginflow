@@ -21,7 +21,7 @@ function resolveActiveNav(pathname: string): { url: string; title: string } {
       best = { url: item.url, title: item.title }
     }
   }
-  return best ?? { url: pathname, title: "MarginFlow" }
+  return best ?? { url: pathname, title: "MarginFlow OS" }
 }
 
 /**

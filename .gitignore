@@ -22,3 +22,6 @@ node_modules
 .claude/
 .config/
 .local/
+
+# TypeScript incremental build cache (redirected into node_modules/.cache, see tsconfig.json)
+*.tsbuildinfo
