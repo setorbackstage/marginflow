@@ -1,0 +1,130 @@
+"use client"
+
+import * as React from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { Loader2 } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Field, FieldLabel, FieldError, FieldGroup, FieldDescription } from "@/components/ui/field"
+import { useCreateCustomer, useUpdateCustomer } from "@/features/customers/hooks"
+import type { CustomerDetail } from "@/features/customers/types"
+
+const customerSchema = z.object({
+  name: z.string().min(2, "Mínimo de 2 caracteres").max(120),
+  phone: z.string().min(8, "Telefone inválido").max(20),
+  email: z.union([z.email("E-mail inválido"), z.literal("")]).optional(),
+  taxId: z.union([z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos"), z.literal("")]).optional(),
+  notes: z.string().max(500).optional(),
+})
+
+type CustomerFormValues = z.infer<typeof customerSchema>
+
+export function CustomerFormDialog({
+  open,
+  onOpenChange,
+  customer,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  customer?: CustomerDetail | null
+}) {
+  const isEdit = Boolean(customer)
+  const create = useCreateCustomer()
+  const update = useUpdateCustomer()
+  const isPending = create.isPending || update.isPending
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerSchema),
+    defaultValues: { name: "", phone: "", email: "", taxId: "", notes: "" },
+  })
+
+  React.useEffect(() => {
+    if (open) {
+      reset({
+        name: customer?.name ?? "",
+        phone: customer?.phone ?? "",
+        email: customer?.email ?? "",
+        taxId: customer?.taxId ?? "",
+        notes: customer?.notes ?? "",
+      })
+    }
+  }, [open, customer, reset])
+
+  const onSubmit = handleSubmit((values) => {
+    const input = {
+      name: values.name,
+      phone: values.phone,
+      email: values.email || null,
+      taxId: values.taxId || null,
+      notes: values.notes || null,
+    }
+    if (isEdit && customer) {
+      update.mutate({ customerId: customer.id, input }, { onSuccess: () => onOpenChange(false) })
+    } else {
+      create.mutate(input, { onSuccess: () => onOpenChange(false) })
+    }
+  })
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Editar cliente" : "Novo cliente"}</DialogTitle>
+          <DialogDescription>{isEdit ? "Atualize os dados do cliente." : "Cadastre um novo cliente da loja."}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={onSubmit} noValidate>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="customer-name">Nome</FieldLabel>
+              <Input id="customer-name" aria-invalid={!!errors.name} {...register("name")} />
+              <FieldError errors={[errors.name]} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="customer-phone">Telefone</FieldLabel>
+              <Input id="customer-phone" placeholder="+55 11 99999-0000" aria-invalid={!!errors.phone} {...register("phone")} />
+              <FieldError errors={[errors.phone]} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="customer-email">E-mail (opcional)</FieldLabel>
+              <Input id="customer-email" type="email" aria-invalid={!!errors.email} {...register("email")} />
+              <FieldError errors={[errors.email]} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="customer-taxid">CPF (opcional)</FieldLabel>
+              <Input id="customer-taxid" placeholder="Somente números" aria-invalid={!!errors.taxId} {...register("taxId")} />
+              <FieldError errors={[errors.taxId]} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="customer-notes">Observações</FieldLabel>
+              <Textarea id="customer-notes" rows={3} {...register("notes")} />
+              <FieldDescription>Notas internas, visíveis apenas para a equipe.</FieldDescription>
+            </Field>
+          </FieldGroup>
+          <DialogFooter className="mt-4">
+            <Button type="submit" disabled={isPending}>
+              {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+              {isEdit ? "Salvar" : "Criar cliente"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
