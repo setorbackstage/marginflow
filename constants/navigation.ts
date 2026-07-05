@@ -21,9 +21,9 @@ export const navGroups: NavGroup[] = [
     label: "Operações",
     items: [
       { title: "Dashboard", url: "/", icon: LayoutDashboard },
-      { title: "Pedidos", url: "/orders", icon: ReceiptText, badge: "12" },
+      { title: "Pedidos", url: "/orders", icon: ReceiptText },
       { title: "Cozinha", url: "/kitchen", icon: ChefHat },
-      { title: "Entregas", url: "/delivery", icon: Truck, badge: "3" },
+      { title: "Entregas", url: "/delivery", icon: Truck },
     ],
   },
   {
