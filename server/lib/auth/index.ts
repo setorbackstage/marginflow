@@ -13,8 +13,9 @@ export { hashPassword, verifyPassword } from "./password"
 export { generateRawToken, hashToken } from "./tokens"
 export {
   loginSchema,
+  signupSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   acceptInvitationSchema,
 } from "./validators"
-export type { LoginInput, ForgotPasswordInput, ResetPasswordInput, AcceptInvitationInput } from "./validators"
+export type { LoginInput, SignupInput, ForgotPasswordInput, ResetPasswordInput, AcceptInvitationInput } from "./validators"

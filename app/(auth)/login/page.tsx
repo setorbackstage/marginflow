@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -95,6 +96,13 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
+
+        <p className="text-center text-sm text-muted-foreground">
+          Ainda não tem uma conta?{" "}
+          <Link href="/signup" className="font-medium text-foreground underline underline-offset-4">
+            Criar conta
+          </Link>
+        </p>
       </div>
     </div>
   )

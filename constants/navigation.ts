@@ -14,7 +14,7 @@ import {
   Settings,
 } from "lucide-react"
 
-import type { NavGroup, Restaurant } from "@/types/navigation"
+import type { NavGroup } from "@/types/navigation"
 
 export const navGroups: NavGroup[] = [
   {
@@ -55,11 +55,4 @@ export const navGroups: NavGroup[] = [
       { title: "Configurações", url: "/settings", icon: Settings },
     ],
   },
-]
-
-export const restaurants: Restaurant[] = [
-  { id: "minha-loja", name: "Minha Loja", type: "Loja principal", initials: "ML" },
-  { id: "loja-centro", name: "Loja Centro", type: "Restaurante", initials: "LC" },
-  { id: "loja-shopping", name: "Loja Shopping", type: "Praça de alimentação", initials: "LS" },
-  { id: "cozinha-delivery", name: "Cozinha Delivery", type: "Dark kitchen", initials: "CD" },
 ]

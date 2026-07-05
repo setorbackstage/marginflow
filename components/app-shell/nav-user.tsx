@@ -2,14 +2,14 @@
 
 import {
   ChevronsUpDown,
-  CreditCard,
   LogOut,
   Settings,
-  Sparkles,
-  CircleUserRound,
+  Loader2,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useAuth, useLogout } from "@/features/auth"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -21,13 +21,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-const user = {
-  name: "Alex Moreno",
-  email: "alex@marginflow.app",
-  initials: "AM",
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  const first = parts[0]?.[0] ?? ""
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : ""
+  return (first + last).toUpperCase()
 }
 
 export function NavUser() {
+  const router = useRouter()
+  const { session } = useAuth()
+  const logout = useLogout()
+  const user = session.user
+  const initials = initialsOf(user.name)
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -40,10 +47,7 @@ export function NavUser() {
         }
       >
         <Avatar className="size-6 rounded-md">
-          <AvatarImage src="/user-avatar.png" alt="" />
-          <AvatarFallback className="rounded-md text-[0.7rem]">
-            {user.initials}
-          </AvatarFallback>
+          <AvatarFallback className="rounded-md text-[0.7rem]">{initials}</AvatarFallback>
         </Avatar>
         <span className="hidden text-sm font-medium lg:inline-block">
           {user.name}
@@ -51,46 +55,32 @@ export function NavUser() {
         <ChevronsUpDown className="hidden text-muted-foreground lg:inline-block" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={8} className="w-60 rounded-lg">
-        <DropdownMenuLabel className="p-0 font-normal">
-          <div className="flex items-center gap-2 px-1.5 py-2 text-left">
-            <Avatar className="size-8 rounded-md">
-              <AvatarImage src="/user-avatar.png" alt="" />
-              <AvatarFallback className="rounded-md text-xs">
-                {user.initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="grid flex-1 leading-tight">
-              <span className="truncate text-sm font-medium">{user.name}</span>
-              <span className="truncate text-xs text-muted-foreground">
-                {user.email}
-              </span>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="p-0 font-normal">
+            <div className="flex items-center gap-2 px-1.5 py-2 text-left">
+              <Avatar className="size-8 rounded-md">
+                <AvatarFallback className="rounded-md text-xs">{initials}</AvatarFallback>
+              </Avatar>
+              <div className="grid flex-1 leading-tight">
+                <span className="truncate text-sm font-medium">{user.name}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {user.email}
+                </span>
+              </div>
             </div>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="gap-2">
-          <Sparkles />
-          Upgrade to Pro
-        </DropdownMenuItem>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem className="gap-2">
-            <CircleUserRound />
-            Account
-          </DropdownMenuItem>
-          <DropdownMenuItem className="gap-2">
-            <CreditCard />
-            Billing
-          </DropdownMenuItem>
-          <DropdownMenuItem className="gap-2">
+          <DropdownMenuItem className="gap-2" onClick={() => router.push("/settings")}>
             <Settings />
-            Settings
+            Configurações
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" className="gap-2">
-          <LogOut />
-          Log out
+        <DropdownMenuItem variant="destructive" className="gap-2" disabled={logout.isPending} onClick={() => logout.mutate()}>
+          {logout.isPending ? <Loader2 className="animate-spin" /> : <LogOut />}
+          Sair
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -163,6 +163,59 @@ The refresh token is set as an HTTP-only, Secure, SameSite=Strict cookie named `
 
 ---
 
+## POST /api/v1/auth/signup
+
+**Purpose:** Self-service tenant creation. Creates a new Account, Store, StoreSettings, the Store's `OWNER` Role, the User, and an `ACTIVE` Membership linking them, all atomically. Returns the same session envelope as `POST /api/v1/auth/login` — the new owner is authenticated immediately, no separate login step required.
+
+**Authentication required:** No
+
+**Permissions required:** None
+
+**Request Body:**
+
+| Field | Type | Required | Validation |
+|---|---|---|---|
+| `storeName` | string | Yes | Min 2 characters. Used as the Account name, Store name, and the basis for the Store's `slug` |
+| `ownerName` | string | Yes | Min 2 characters |
+| `email` | string | Yes | Valid email format. Becomes both the Account's and the User's email |
+| `password` | string | Yes | Min 8 characters |
+| `phone` | string | Yes | Min 8 characters. Becomes both the Account's and the Store's phone |
+| `storeType` | string | Yes | One of `RESTAURANT`, `DARK_KITCHEN`, `CAFE`, `BAR`, `PIZZERIA`, `BURGER_SHOP`, `FRANCHISE_UNIT` |
+
+**Request Example:**
+```json
+{
+  "storeName": "Pizza do João",
+  "ownerName": "João Silva",
+  "email": "joao@marginflow.app",
+  "password": "minha-senha-segura",
+  "phone": "+5511999990000",
+  "storeType": "RESTAURANT"
+}
+```
+
+**Success Response — 201 Created:** Same envelope as `POST /api/v1/auth/login` — `{ accessToken, user, memberships }`, with exactly one membership: the new Store, with the `OWNER` Role (all permissions).
+
+The refresh token is set as an HTTP-only, Secure, SameSite=Strict cookie named `mf_refresh_token`, identical to the login endpoint.
+
+**Error Responses:**
+
+| Status | Code | When |
+|---|---|---|
+| 409 | `EMAIL_ALREADY_REGISTERED` | The email is already in use by an existing Account or User |
+| 422 | `VALIDATION_ERROR` | Missing or invalid fields |
+
+**Business Rules:**
+- The Store's `slug` is derived from `storeName` (lowercased, ASCII, hyphen-separated). If already taken, a numeric suffix (`-2`, `-3`, ...) is appended until a free one is found.
+- The `OWNER` Role is created with the store-scoped "Full Permission Catalog" (see Authorization → RBAC below) — identical to how the seed/onboarding of every other store's `OWNER` role is shaped.
+- `StoreSettings` is created with its documented defaults (`accepts_cash`/`accepts_card`/`accepts_pix = true`, `auto_confirm_orders = false`, etc. — see `DATA_MODEL.md`).
+- `operatingHours` defaults to Monday–Saturday 09:00–18:00, Sunday closed — editable immediately via `PATCH /stores/:storeId` after signup.
+- The whole operation (Account, Store, StoreSettings, Role, User, Membership, and the initial session's refresh token) is one database transaction — if any step fails, nothing is created.
+
+**Events Produced:** None
+
+---
+
 ## POST /api/v1/auth/logout
 
 **Purpose:** Invalidate the current session. Clears the refresh token cookie.

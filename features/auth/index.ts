@@ -1,5 +1,5 @@
 export { SessionProvider, useAuth, useActiveStoreId, useCan, useSessionQuery, SESSION_KEY } from "./session"
 export { AuthGuard } from "./auth-guard"
-export { useLogin, useLogout } from "./hooks"
-export { login, logout, fetchMe } from "./api"
-export type { Session, SessionUser, SessionMembership, SessionRole, LoginInput } from "./types"
+export { useLogin, useSignup, useLogout } from "./hooks"
+export { login, signup, logout, fetchMe } from "./api"
+export type { Session, SessionUser, SessionMembership, SessionRole, LoginInput, SignupInput, StoreType } from "./types"

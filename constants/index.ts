@@ -1,1 +1,1 @@
-export { navGroups, restaurants } from "./navigation"
+export { navGroups } from "./navigation"

@@ -1,17 +1,14 @@
 "use client"
 
-import * as React from "react"
-import { Check, ChevronsUpDown, Plus } from "lucide-react"
+import { Check, ChevronsUpDown } from "lucide-react"
 
-import { restaurants, type Restaurant } from "@/lib/navigation"
+import { useAuth } from "@/features/auth"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -21,17 +18,25 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-function RestaurantMark({ initials }: { initials: string }) {
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  const first = parts[0]?.[0] ?? ""
+  const second = parts[1]?.[0] ?? ""
+  return (first + second).toUpperCase()
+}
+
+function StoreMark({ name }: { name: string }) {
   return (
     <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">
-      {initials}
+      {initialsOf(name)}
     </div>
   )
 }
 
+/** Store switcher — driven entirely by the session's real memberships, never a fixed/demo list. */
 export function RestaurantSwitcher() {
   const { isMobile } = useSidebar()
-  const [active, setActive] = React.useState<Restaurant>(restaurants[0])
+  const { memberships, activeMembership, setActiveStore } = useAuth()
 
   return (
     <SidebarMenu>
@@ -45,56 +50,39 @@ export function RestaurantSwitcher() {
               />
             }
           >
-            <RestaurantMark initials={active.initials} />
+            <StoreMark name={activeMembership.storeName} />
             <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">{active.name}</span>
-              <span className="truncate text-xs text-muted-foreground">
-                {active.type}
-              </span>
+              <span className="truncate font-semibold">{activeMembership.storeName}</span>
+              <span className="truncate text-xs text-muted-foreground">{activeMembership.role.displayName}</span>
             </div>
-            <ChevronsUpDown className="ml-auto text-muted-foreground" />
+            {memberships.length > 1 ? <ChevronsUpDown className="ml-auto text-muted-foreground" /> : null}
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="min-w-64 rounded-lg"
-            align="start"
-            side={isMobile ? "bottom" : "right"}
-            sideOffset={4}
-          >
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Selecionar loja
-            </DropdownMenuLabel>
-            <DropdownMenuGroup>
-              {restaurants.map((restaurant, index) => (
-                <DropdownMenuItem
-                  key={restaurant.id}
-                  onClick={() => setActive(restaurant)}
-                  className="gap-2 p-2"
-                >
-                  <RestaurantMark initials={restaurant.initials} />
-                  <div className="grid flex-1 leading-tight">
-                    <span className="truncate text-sm font-medium">
-                      {restaurant.name}
-                    </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {restaurant.type}
-                    </span>
-                  </div>
-                  {active.id === restaurant.id ? (
-                    <Check className="size-4 text-primary" />
-                  ) : (
-                    <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2 text-muted-foreground">
-              <div className="flex size-8 items-center justify-center rounded-md border border-dashed">
-                <Plus className="size-4" />
-              </div>
-              <span className="text-sm font-medium">Add restaurant</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
+          {memberships.length > 1 ? (
+            <DropdownMenuContent
+              className="min-w-64 rounded-lg"
+              align="start"
+              side={isMobile ? "bottom" : "right"}
+              sideOffset={4}
+            >
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs text-muted-foreground">Selecionar loja</DropdownMenuLabel>
+                {memberships.map((membership) => (
+                  <DropdownMenuItem
+                    key={membership.storeId}
+                    onClick={() => setActiveStore(membership.storeId)}
+                    className="gap-2 p-2"
+                  >
+                    <StoreMark name={membership.storeName} />
+                    <div className="grid flex-1 leading-tight">
+                      <span className="truncate text-sm font-medium">{membership.storeName}</span>
+                      <span className="truncate text-xs text-muted-foreground">{membership.role.displayName}</span>
+                    </div>
+                    {activeMembership.storeId === membership.storeId ? <Check className="size-4 text-primary" /> : null}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          ) : null}
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>

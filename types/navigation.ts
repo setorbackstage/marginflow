@@ -11,10 +11,3 @@ export type NavGroup = {
   label: string
   items: NavItem[]
 }
-
-export type Restaurant = {
-  id: string
-  name: string
-  type: string
-  initials: string
-}

@@ -8,6 +8,17 @@ export const loginSchema = z.object({
 })
 export type LoginInput = z.infer<typeof loginSchema>
 
+/** `POST /auth/signup` */
+export const signupSchema = z.object({
+  storeName: z.string().min(2, "Store name must be at least 2 characters."),
+  ownerName: z.string().min(2, "Name must be at least 2 characters."),
+  email: z.email(),
+  password: z.string().min(MIN_PASSWORD_LENGTH, `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`),
+  phone: z.string().min(8, "Phone must be at least 8 characters."),
+  storeType: z.enum(["RESTAURANT", "DARK_KITCHEN", "CAFE", "BAR", "PIZZERIA", "BURGER_SHOP", "FRANCHISE_UNIT"]),
+})
+export type SignupInput = z.infer<typeof signupSchema>
+
 /** `POST /auth/forgot-password` */
 export const forgotPasswordSchema = z.object({
   email: z.email(),

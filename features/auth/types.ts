@@ -36,3 +36,14 @@ export interface LoginInput {
   email: string
   password: string
 }
+
+export type StoreType = "RESTAURANT" | "DARK_KITCHEN" | "CAFE" | "BAR" | "PIZZERIA" | "BURGER_SHOP" | "FRANCHISE_UNIT"
+
+export interface SignupInput {
+  storeName: string
+  ownerName: string
+  email: string
+  password: string
+  phone: string
+  storeType: StoreType
+}

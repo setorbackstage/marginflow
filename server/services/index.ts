@@ -10,6 +10,9 @@ export type { UpdateStoreInput, UpdateStoreSettingsInput } from "./store.service
 export { loginService } from "./login.service"
 export type { LoginMembershipContext, LoginResult } from "./login.service"
 
+export { signupService } from "./signup.service"
+export type { SignupServiceInput } from "./signup.service"
+
 export { refreshTokenService } from "./refresh-token.service"
 export type { RefreshResult } from "./refresh-token.service"
 

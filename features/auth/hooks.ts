@@ -2,9 +2,9 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
-import { login, logout, fetchMe } from "./api"
+import { login, signup, logout, fetchMe } from "./api"
 import { SESSION_KEY } from "./session"
-import type { LoginInput } from "./types"
+import type { LoginInput, SignupInput } from "./types"
 
 /**
  * Login mutation. On success it warms the session cache (so the app shell has
@@ -16,6 +16,20 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (input: LoginInput) => login(input),
+    onSuccess: async () => {
+      await queryClient.fetchQuery({ queryKey: SESSION_KEY, queryFn: ({ signal }) => fetchMe(signal) })
+      router.replace("/")
+    },
+  })
+}
+
+/** Signup mutation — same post-success flow as login (the new owner is already authenticated). */
+export function useSignup() {
+  const queryClient = useQueryClient()
+  const router = useRouter()
+
+  return useMutation({
+    mutationFn: (input: SignupInput) => signup(input),
     onSuccess: async () => {
       await queryClient.fetchQuery({ queryKey: SESSION_KEY, queryFn: ({ signal }) => fetchMe(signal) })
       router.replace("/")
