@@ -1,5 +1,144 @@
-import { FeaturePlaceholder } from "@/components/app-shell/feature-placeholder"
+"use client"
 
-export default function Page() {
-  return <FeaturePlaceholder title="Pedidos" description="Gestão de pedidos da loja." />
+import * as React from "react"
+import { useRouter } from "next/navigation"
+import { Plus, ReceiptText } from "lucide-react"
+
+import { useCan } from "@/features/auth"
+import { useOrders, CreateOrderDialog, ORDER_STATUS_CONFIG, ORDER_TYPE_LABEL } from "@/features/orders"
+import { PageHeader } from "@/components/app-shell/page-container"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
+import { EmptyState, ErrorState, StatusBadge, PaginationBar, SearchBar } from "@/components/shared"
+import { formatCents, formatDateTime } from "@/lib/format"
+import { useDebouncedValue } from "@/hooks"
+
+const STATUS_FILTER_LABEL: Record<string, string> = {
+  ALL: "Todos os status",
+  ACTIVE: "Em andamento",
+  DELIVERED: "Entregues",
+  CANCELLED: "Cancelados",
+}
+const ACTIVE_STATUSES = "DRAFT,PENDING,CONFIRMED,PREPARING,READY,OUT_FOR_DELIVERY"
+
+export default function OrdersPage() {
+  const router = useRouter()
+  const canCreate = useCan("orders:create")
+
+  const [searchInput, setSearchInput] = React.useState("")
+  const search = useDebouncedValue(searchInput)
+  const [statusFilter, setStatusFilter] = React.useState<"ALL" | "ACTIVE" | "DELIVERED" | "CANCELLED">("ACTIVE")
+  const [page, setPage] = React.useState(1)
+  const [createOpen, setCreateOpen] = React.useState(false)
+  const [createKey, setCreateKey] = React.useState(0)
+  const openCreateDialog = () => {
+    setCreateKey((k) => k + 1)
+    setCreateOpen(true)
+  }
+
+  const statusParam = statusFilter === "ALL" ? undefined : statusFilter === "ACTIVE" ? ACTIVE_STATUSES : statusFilter
+  const orders = useOrders({ page, search: search || undefined, status: statusParam })
+
+  const handleFilterChange = (value: typeof statusFilter | null) => {
+    if (!value) return
+    setStatusFilter(value)
+    setPage(1)
+  }
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value)
+    setPage(1)
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Pedidos"
+        description="Acompanhe e gerencie os pedidos da loja."
+        actions={
+          canCreate ? (
+            <Button size="sm" onClick={() => openCreateDialog()}>
+              <Plus data-icon="inline-start" />
+              Novo pedido
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchBar value={searchInput} onChange={handleSearchChange} placeholder="Buscar por número ou cliente..." />
+        <Select value={statusFilter} onValueChange={handleFilterChange}>
+          <SelectTrigger className="w-48">
+            <SelectValue>{(v: string | null) => STATUS_FILTER_LABEL[v ?? "ALL"]}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(STATUS_FILTER_LABEL).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {orders.isLoading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ) : orders.isError ? (
+        <ErrorState error={orders.error} onRetry={() => orders.refetch()} />
+      ) : orders.data && orders.data.items.length > 0 ? (
+        <>
+          <div className="rounded-xl border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Pedido</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Criado em</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {orders.data.items.map((order) => (
+                  <TableRow key={order.id} className="cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)}>
+                    <TableCell className="font-medium">#{order.number}</TableCell>
+                    <TableCell className="text-muted-foreground">{order.customerName ?? "Cliente avulso"}</TableCell>
+                    <TableCell>{ORDER_TYPE_LABEL[order.type]}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={order.status} config={ORDER_STATUS_CONFIG} />
+                    </TableCell>
+                    <TableCell className="tabular-nums">{formatCents(order.grandTotal)}</TableCell>
+                    <TableCell className="text-muted-foreground">{formatDateTime(order.createdAt)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <PaginationBar pagination={orders.data.pagination} onPageChange={setPage} />
+        </>
+      ) : (
+        <EmptyState
+          icon={ReceiptText}
+          title="Nenhum pedido encontrado"
+          description={search || statusFilter !== "ALL" ? "Ajuste os filtros ou a busca." : "Comece criando o primeiro pedido."}
+          action={
+            canCreate && !search ? (
+              <Button size="sm" onClick={() => openCreateDialog()}>
+                <Plus data-icon="inline-start" />
+                Novo pedido
+              </Button>
+            ) : undefined
+          }
+        />
+      )}
+
+      <CreateOrderDialog key={createKey} open={createOpen} onOpenChange={setCreateOpen} />
+    </div>
+  )
 }
