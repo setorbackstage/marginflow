@@ -1,6 +1,12 @@
+# pnpm 11 auto-scaffolds an `allowBuilds` prompt for optional native build
+# scripts and, until each is resolved to a boolean, `pnpm install` (and the
+# implicit pre-run check before `pnpm lint`/`pnpm exec`) exits non-zero.
+# None are needed here (Prisma client already generated; sharp/msw/unrs-resolver
+# optional), so they are all disabled.
 allowBuilds:
-  '@prisma/engines': set this to true or false
-  msw: set this to true or false
-  prisma: set this to true or false
-  sharp: set this to true or false
-  unrs-resolver: set this to true or false
+  '@prisma/engines': false
+  esbuild: true
+  msw: false
+  prisma: false
+  sharp: false
+  unrs-resolver: false

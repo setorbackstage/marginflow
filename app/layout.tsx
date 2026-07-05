@@ -1,8 +1,9 @@
 import { Analytics } from "@vercel/analytics/next"
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
-import { ThemeProvider } from "@/providers"
+import { ThemeProvider, QueryProvider } from "@/providers"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -65,7 +66,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider delay={200}>{children}</TooltipProvider>
+          <QueryProvider>
+            <TooltipProvider delay={200}>{children}</TooltipProvider>
+            <Toaster position="top-right" richColors closeButton />
+          </QueryProvider>
         </ThemeProvider>
         {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
