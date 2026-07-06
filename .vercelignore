@@ -1,0 +1,16 @@
+# Claude Code tooling — not part of the application
+.agents/
+.claude/
+.config/
+.local/
+.mcp.json
+skills-lock.json
+Sprints/
+attached_assets/
+
+# Already in .gitignore but explicit for safety
+node_modules/
+.next/
+generated/
+.env
+.env*.local
