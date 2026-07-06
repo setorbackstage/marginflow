@@ -6,12 +6,8 @@ import {
   BookOpenText,
   Boxes,
   Users,
-  HeartHandshake,
   Truck,
   Wallet,
-  ChartColumnBig,
-  Blocks,
-  Palette,
   Settings,
 } from "lucide-react"
 
@@ -37,24 +33,14 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: "Relacionamento",
-    items: [
-      { title: "Clientes", url: "/customers", icon: Users },
-      { title: "CRM", url: "/crm", icon: HeartHandshake },
-    ],
+    items: [{ title: "Clientes", url: "/customers", icon: Users }],
   },
   {
     label: "Análises",
-    items: [
-      { title: "Financeiro", url: "/finance", icon: Wallet },
-      { title: "Relatórios", url: "/reports", icon: ChartColumnBig },
-    ],
+    items: [{ title: "Financeiro", url: "/finance", icon: Wallet }],
   },
   {
     label: "Sistema",
-    items: [
-      { title: "Integrações", url: "/integrations", icon: Blocks },
-      { title: "Design System", url: "/design-system", icon: Palette },
-      { title: "Configurações", url: "/settings", icon: Settings },
-    ],
+    items: [{ title: "Configurações", url: "/settings", icon: Settings }],
   },
 ]
