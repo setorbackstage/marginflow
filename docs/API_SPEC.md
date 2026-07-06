@@ -495,10 +495,16 @@ GET /api/v1/stores/str_01HXYZ789/dashboard?date=2025-07-03
         "grandTotal": 5290,
         "createdAt": "2025-07-03T14:22:00.000Z"
       }
-    ]
+    ],
+    "inventory": {
+      "lowStockCount": 3,
+      "cmv": 218430
+    }
   }
 }
 ```
+
+> `inventory` is an additive, non-breaking extension for the Inventory module. `lowStockCount` = number of ingredients currently at or below `min_stock` (including negative stock). `cmv` = cost of goods sold for the requested date, in **integer cents** (rounded from movement cost snapshots): Σ(|quantity_delta| × unit_cost) of `SALE_CONSUMPTION` movements minus `SALE_REVERSAL` movements in the store-timezone day. Present only when the store has at least one ingredient registered; otherwise `null`.
 
 **Error Responses:**
 
@@ -2640,6 +2646,386 @@ GET /api/v1/stores/str_01HXYZ789/kitchen/tickets?status=QUEUED,PREPARING&sort=qu
 
 ---
 
+# Inventory — Ingredients
+
+## GET /api/v1/stores/:storeId/inventory/ingredients
+
+**Purpose:** List the store's ingredients with current stock, cost and low-stock flag.
+
+**Authentication required:** Yes
+
+**Permissions required:** `inventory:view`
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `search` | string | — | Filter by name (partial match) |
+| `status` | string | — | `ACTIVE`, `INACTIVE` |
+| `lowStock` | boolean | — | `true` returns only ingredients with `min_stock` set and `current_stock <= min_stock` |
+| `page` | integer | 1 | Page number |
+| `perPage` | integer | 20 | Items per page (max 100) |
+
+**Success Response — 200 OK:**
+```json
+{
+  "data": [
+    {
+      "id": "ing_01HXYZ200",
+      "storeId": "str_01HXYZ789",
+      "name": "Farinha de trigo tipo 1",
+      "unit": "G",
+      "currentStock": 18500.000,
+      "minStock": 5000.000,
+      "costPerUnit": 0.5,
+      "isLowStock": false,
+      "status": "ACTIVE",
+      "createdAt": "2025-07-03T10:00:00.000Z",
+      "updatedAt": "2025-07-03T10:00:00.000Z"
+    }
+  ],
+  "pagination": { "page": 1, "perPage": 20, "total": 42, "totalPages": 3 }
+}
+```
+
+Quantities (`currentStock`, `minStock`) are decimals in the ingredient's base unit. `costPerUnit` is a decimal in **cents per base unit** — the one documented exception to the integer-cents convention (see DATA_MODEL.md). `isLowStock` is computed: `minStock` is not null and `currentStock <= minStock`.
+
+---
+
+## POST /api/v1/stores/:storeId/inventory/ingredients
+
+**Purpose:** Register a new ingredient. Initial stock is always 0 — stock only ever changes through movements; record an `ENTRY` movement for opening balances.
+
+**Authentication required:** Yes
+
+**Permissions required:** `inventory:manage`
+
+**Request Body:**
+
+| Field | Type | Required | Validation |
+|---|---|---|---|
+| `name` | string | Yes | Min 2, max 120 characters. Unique per store |
+| `unit` | string | Yes | `G`, `ML`, `UN`. Immutable after creation |
+| `costPerUnit` | number | No | ≥ 0, cents per base unit. Default 0 |
+| `minStock` | number | No | ≥ 0, base units. Null disables the low-stock alert |
+| `status` | string | No | Default `ACTIVE` |
+
+**Success Response — 201 Created:**
+Returns the created ingredient object.
+
+**Error Responses:**
+
+| Status | Code | When |
+|---|---|---|
+| 409 | `INGREDIENT_NAME_TAKEN` | An ingredient with this name already exists at this store |
+| 422 | `VALIDATION_ERROR` | Invalid fields |
+
+---
+
+## GET /api/v1/stores/:storeId/inventory/ingredients/:ingredientId
+
+**Purpose:** Retrieve a single ingredient, including which recipes reference it.
+
+**Authentication required:** Yes
+
+**Permissions required:** `inventory:view`
+
+**Success Response — 200 OK:**
+Returns the ingredient object plus `usedInRecipes`: an array of `{ recipeId, productId, productName }`.
+
+**Error Responses:**
+
+| Status | Code | When |
+|---|---|---|
+| 404 | `INGREDIENT_NOT_FOUND` | Ingredient does not exist in this store |
+
+---
+
+## PATCH /api/v1/stores/:storeId/inventory/ingredients/:ingredientId
+
+**Purpose:** Update an ingredient's fields. `unit` is immutable — changing it would silently rescale every recipe and movement. `currentStock` is not writable — stock only changes through movements.
+
+**Authentication required:** Yes
+
+**Permissions required:** `inventory:manage`
+
+**Request Body:** Any subset of: `name`, `costPerUnit`, `minStock`, `status`
+
+**Success Response — 200 OK:**
+Returns the updated ingredient object.
+
+**Error Responses:**
+
+| Status | Code | When |
+|---|---|---|
+| 409 | `INGREDIENT_NAME_TAKEN` | New name already used by another ingredient |
+| 404 | `INGREDIENT_NOT_FOUND` | Ingredient does not exist in this store |
+
+---
+
+## DELETE /api/v1/stores/:storeId/inventory/ingredients/:ingredientId
+
+**Purpose:** Soft-delete an ingredient.
+
+**Authentication required:** Yes
+
+**Permissions required:** `inventory:manage`
+
+**Delete behavior:** Soft delete — sets `deleted_at`. The movement ledger is retained in full.
+
+**Cascade behavior:** None. Deletion is blocked while any recipe references the ingredient (Business Rule 44).
+
+**Success Response — 204 No Content**
+
+**Error Responses:**
+
+| Status | Code | When |
+|---|---|---|
+| 409 | `INGREDIENT_IN_USE` | The ingredient appears in one or more recipes. Remove it from all recipes first, or set it INACTIVE instead. |
+| 404 | `INGREDIENT_NOT_FOUND` | Ingredient does not exist |
+
+---
+
+# Inventory — Stock Movements
+
+## GET /api/v1/stores/:storeId/inventory/movements
+
+**Purpose:** List the store's stock movement ledger, newest first.
+
+**Authentication required:** Yes
+
+**Permissions required:** `inventory:view`
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `ingredientId` | string | — | Filter to one ingredient's history |
+| `type` | string | — | `ENTRY`, `EXIT`, `ADJUSTMENT`, `LOSS`, `SALE_CONSUMPTION`, `SALE_REVERSAL` |
+| `dateFrom` | string | — | ISO date, inclusive (store timezone) |
+| `dateTo` | string | — | ISO date, inclusive (store timezone) |
+| `page` | integer | 1 | Page number |
+| `perPage` | integer | 20 | Items per page (max 100) |
+
+**Success Response — 200 OK:**
+```json
+{
+  "data": [
+    {
+      "id": "stm_01HXYZ300",
+      "storeId": "str_01HXYZ789",
+      "ingredientId": "ing_01HXYZ200",
+      "ingredientName": "Farinha de trigo tipo 1",
+      "ingredientUnit": "G",
+      "type": "SALE_CONSUMPTION",
+      "quantityDelta": -450.000,
+      "unitCost": 0.5,
+      "orderId": "ord_01HXYZ001",
+      "orderNumber": 4821,
+      "reason": null,
+      "createdByUserId": null,
+      "createdByUserName": null,
+      "createdAt": "2025-07-03T14:23:00.000Z"
+    }
+  ],
+  "pagination": { "page": 1, "perPage": 20, "total": 310, "totalPages": 16 }
+}
+```
+
+---
+
+## POST /api/v1/stores/:storeId/inventory/movements
+
+**Purpose:** Record a manual stock movement. Automatic types (`SALE_CONSUMPTION`, `SALE_REVERSAL`) are written exclusively by the event consumer and are rejected here.
+
+**Authentication required:** Yes
+
+**Permissions required:** `inventory:adjust`
+
+**Request Body:**
+
+| Field | Type | Required | Validation |
+|---|---|---|---|
+| `ingredientId` | string | Yes | Must exist in this store, not deleted |
+| `type` | string | Yes | `ENTRY`, `EXIT`, `ADJUSTMENT`, `LOSS` only |
+| `quantity` | number | Yes | > 0. The API takes an absolute quantity; the sign is derived from `type`. For `ADJUSTMENT`, send `direction` |
+| `direction` | string | Only for `ADJUSTMENT` | `INCREASE` or `DECREASE` |
+| `reason` | string | For `ADJUSTMENT` and `LOSS` | Min 3, max 500 characters |
+| `costPerUnit` | number | No, `ENTRY` only | ≥ 0. When provided on an ENTRY, also updates the ingredient's `cost_per_unit` (latest-cost strategy) |
+
+**Request Example:**
+```json
+{
+  "ingredientId": "ing_01HXYZ200",
+  "type": "ENTRY",
+  "quantity": 25000,
+  "costPerUnit": 0.48
+}
+```
+
+**Success Response — 201 Created:**
+Returns the created movement object and the ingredient's new `currentStock`.
+
+**Error Responses:**
+
+| Status | Code | When |
+|---|---|---|
+| 400 | `INSUFFICIENT_STOCK` | An `EXIT`, `LOSS` or decreasing `ADJUSTMENT` would drive `current_stock` below zero (Business Rule 41 — manual movements cannot go negative) |
+| 400 | `INVALID_MOVEMENT_TYPE` | Type is `SALE_CONSUMPTION` or `SALE_REVERSAL` (reserved for the event consumer) |
+| 404 | `INGREDIENT_NOT_FOUND` | Ingredient does not exist in this store |
+| 422 | `VALIDATION_ERROR` | Missing `reason` on ADJUSTMENT/LOSS, missing `direction` on ADJUSTMENT, quantity ≤ 0 |
+
+**Business Rules:**
+- The movement insert and the `ingredients.current_stock` update happen in one transaction (Business Rule 38).
+- Movements are immutable — there is no PATCH or DELETE for movements. Corrections append an `ADJUSTMENT`.
+
+**Events Produced:** `stock.movement_created`; `stock.low` when the movement takes the ingredient from above to at-or-below `min_stock`.
+
+---
+
+# Inventory — Recipes (Ficha Técnica)
+
+## GET /api/v1/stores/:storeId/products/:productId/recipe
+
+**Purpose:** Retrieve a product's ficha técnica with computed costs.
+
+**Authentication required:** Yes
+
+**Permissions required:** `inventory:view`
+
+**Success Response — 200 OK:**
+```json
+{
+  "data": {
+    "id": "rcp_01HXYZ400",
+    "storeId": "str_01HXYZ789",
+    "productId": "prd_01HXYZ111",
+    "yieldQuantity": 1,
+    "notes": "Abrir a massa com 24h de descanso.",
+    "items": [
+      {
+        "id": "rci_01HXYZ401",
+        "ingredientId": "ing_01HXYZ200",
+        "ingredientName": "Farinha de trigo tipo 1",
+        "ingredientUnit": "G",
+        "quantity": 300.000,
+        "wastePct": 5.00,
+        "effectiveQuantityPerUnit": 315.000,
+        "itemCostPerUnit": 157.5
+      }
+    ],
+    "costPerUnit": 612.75,
+    "productPrice": 5290,
+    "marginPct": 88.41,
+    "createdAt": "2025-07-03T10:00:00.000Z",
+    "updatedAt": "2025-07-03T10:00:00.000Z"
+  }
+}
+```
+
+`effectiveQuantityPerUnit` = `quantity × (1 + wastePct/100) ÷ yieldQuantity`. `itemCostPerUnit` and `costPerUnit` are decimals in cents, computed at read time from current ingredient costs (never stored). `marginPct` = `(productPrice − costPerUnit) ÷ productPrice × 100`; null when the product price is 0.
+
+**Error Responses:**
+
+| Status | Code | When |
+|---|---|---|
+| 404 | `RECIPE_NOT_FOUND` | The product has no ficha técnica |
+| 404 | `PRODUCT_NOT_FOUND` | Product does not exist in this store |
+
+---
+
+## PUT /api/v1/stores/:storeId/products/:productId/recipe
+
+**Purpose:** Create or fully replace a product's ficha técnica. PUT semantics: the submitted item list atomically replaces the previous one — omitted ingredients are removed.
+
+**Authentication required:** Yes
+
+**Permissions required:** `inventory:manage`
+
+**Request Body:**
+
+| Field | Type | Required | Validation |
+|---|---|---|---|
+| `yieldQuantity` | number | No | > 0. Default 1 |
+| `notes` | string | No | Max 1000 characters |
+| `items` | array | Yes | Min 1 item |
+| `items[].ingredientId` | string | Yes | Must exist in this store, not deleted. No duplicates in the list |
+| `items[].quantity` | number | Yes | > 0, in the ingredient's base unit |
+| `items[].wastePct` | number | No | 0–100. Default 0 |
+
+**Success Response — 200 OK:**
+Returns the full recipe object (same shape as GET). `201 Created` when the product had no recipe before.
+
+**Error Responses:**
+
+| Status | Code | When |
+|---|---|---|
+| 404 | `PRODUCT_NOT_FOUND` | Product does not exist in this store |
+| 404 | `INGREDIENT_NOT_FOUND` | An item references a non-existent or deleted ingredient |
+| 409 | `DUPLICATE_RECIPE_INGREDIENT` | The same ingredient appears twice in `items` |
+| 422 | `VALIDATION_ERROR` | Invalid fields |
+
+**Business Rules:**
+- Editing a recipe never rewrites past movements — consumption already recorded keeps its historical quantities and cost snapshots (Business Rule 45).
+
+---
+
+## DELETE /api/v1/stores/:storeId/products/:productId/recipe
+
+**Purpose:** Remove a product's ficha técnica. The product simply stops driving automatic consumption (Business Rule 42).
+
+**Authentication required:** Yes
+
+**Permissions required:** `inventory:manage`
+
+**Success Response — 204 No Content**
+
+**Error Responses:**
+
+| Status | Code | When |
+|---|---|---|
+| 404 | `RECIPE_NOT_FOUND` | The product has no ficha técnica |
+
+---
+
+# Inventory — Alerts
+
+## GET /api/v1/stores/:storeId/inventory/alerts
+
+**Purpose:** List active low-stock alerts. Alerts are derived state — computed from `current_stock` vs `min_stock` at read time; there is no alerts table.
+
+**Authentication required:** Yes
+
+**Permissions required:** `inventory:view`
+
+**Success Response — 200 OK:**
+```json
+{
+  "data": [
+    {
+      "ingredientId": "ing_01HXYZ200",
+      "ingredientName": "Farinha de trigo tipo 1",
+      "unit": "G",
+      "currentStock": 3200.000,
+      "minStock": 5000.000,
+      "severity": "LOW"
+    },
+    {
+      "ingredientId": "ing_01HXYZ210",
+      "ingredientName": "Mussarela",
+      "unit": "G",
+      "currentStock": -150.000,
+      "minStock": 2000.000,
+      "severity": "NEGATIVE"
+    }
+  ]
+}
+```
+
+`severity`: `LOW` = `0 <= currentStock <= minStock`; `OUT` = `currentStock = 0` exactly; `NEGATIVE` = `currentStock < 0` (count error — automatic consumption crossed zero, Business Rule 41). Sorted worst first: NEGATIVE, OUT, LOW.
+
+---
+
 # Reports
 
 ## GET /api/v1/stores/:storeId/reports/overview
@@ -3293,7 +3679,9 @@ MarginFlow uses **store-scoped, permission-based RBAC**. Every action is control
 | `CASHIER` | Order taking and payment | `orders:create`, `orders:view`, `orders:edit`, `orders:cancel`, `customers:view`, `customers:create` |
 | `KITCHEN_ATTENDANT` | Kitchen display and production | `kitchen:view`, `kitchen:update_status`, `orders:view` |
 | `DELIVERY_COORDINATOR` | Delivery assignment and tracking | `delivery:view`, `delivery:assign_courier`, `delivery:update_status`, `orders:view` |
-| `ANALYST` | Reporting and analytics only | `reports:view`, `reports:export`, `finance:view`, `orders:view`, `products:view`, `customers:view` |
+| `ANALYST` | Reporting and analytics only | `reports:view`, `reports:export`, `finance:view`, `orders:view`, `products:view`, `customers:view`, `inventory:view` |
+
+> Inventory permissions map to the built-in roles as follows: `OWNER` and `MANAGER` hold all three (`inventory:view`, `inventory:manage`, `inventory:adjust`); `KITCHEN_ATTENDANT` holds `inventory:view` (the kitchen needs to see what is running low); `ANALYST` holds `inventory:view`; `CASHIER` and `DELIVERY_COORDINATOR` hold none.
 
 ## Permission Naming
 
@@ -3350,6 +3738,10 @@ users:remove        — Revoke team member access
 
 store:view          — Read store profile
 store:edit          — Modify store profile (name, address, hours)
+
+inventory:view      — Read ingredients, stock balances, movements, alerts and recipes
+inventory:manage    — Create/edit/delete ingredients and recipes (fichas técnicas)
+inventory:adjust    — Record manual stock movements (entry, exit, adjustment, loss)
 
 billing:view        — View subscription and billing (future)
 billing:manage      — Manage subscription (future)
@@ -3467,6 +3859,13 @@ Each entry in `details` has:
 | `PHONE_ALREADY_REGISTERED` | 409 | Phone already used by another customer at this store |
 | `USER_ALREADY_MEMBER` | 409 | User already has an active membership at this store |
 | `CANNOT_REMOVE_LAST_OWNER` | 409 | Store must always have at least one active owner |
+| `INGREDIENT_NOT_FOUND` | 404 | Ingredient does not exist in this store |
+| `INGREDIENT_NAME_TAKEN` | 409 | Ingredient name already used at this store |
+| `INGREDIENT_IN_USE` | 409 | Ingredient is referenced by one or more recipes and cannot be deleted |
+| `RECIPE_NOT_FOUND` | 404 | Product has no ficha técnica |
+| `DUPLICATE_RECIPE_INGREDIENT` | 409 | The same ingredient appears twice in a recipe submission |
+| `INSUFFICIENT_STOCK` | 400 | Manual movement would drive stock below zero |
+| `INVALID_MOVEMENT_TYPE` | 400 | SALE_CONSUMPTION/SALE_REVERSAL cannot be created manually |
 | `RATE_LIMIT_EXCEEDED` | 429 | Too many requests in a short window |
 
 ---
@@ -3586,8 +3985,9 @@ The Orders service consumes each raw event, advances its own `orders.status` pro
 
 **Consumers:**
 - **Kitchen service** — creates a KitchenTicket atomically with this event
+- **Inventory service** — writes `SALE_CONSUMPTION` movements for each ingredient of each item's product recipe, atomically with this event (Business Rule 39). Idempotent under redelivery via the `(order_id, ingredient_id, type)` uniqueness. Products without a recipe are skipped silently (Business Rule 42).
 
-**Delivery guarantee:** Exactly-once within the confirmation transaction. The Kitchen Ticket creation is part of the same database transaction as the status change.
+**Delivery guarantee:** Exactly-once within the confirmation transaction. The Kitchen Ticket creation and the Inventory consumption movements are part of the same database transaction as the status change.
 
 **Payload:**
 ```json
@@ -3598,6 +3998,7 @@ The Orders service consumes each raw event, advances its own `orders.status` pro
   "items": [
     {
       "orderItemId": "itm_01HXYZ777",
+      "productId": "prd_01HXYZ111",
       "productName": "Pizza Margherita",
       "quantity": 1,
       "modifierSummary": ["Grande (35cm)"],
@@ -3608,6 +4009,8 @@ The Orders service consumes each raw event, advances its own `orders.status` pro
   "confirmedAt": "2025-07-03T14:23:00.000Z"
 }
 ```
+
+> `items[].productId` was added for the Inventory consumer (recipe lookup). Additive, non-breaking change per the Versioning rules — existing consumers (Kitchen) ignore it. It is null for order items whose product was hard-deleted (historical edge case only; products are soft-deleted in practice).
 
 ---
 
@@ -3676,6 +4079,7 @@ The Orders service consumes each raw event, advances its own `orders.status` pro
 **Consumers:**
 - **Kitchen service** — transitions KitchenTicket to CANCELLED
 - **Delivery service** — transitions Delivery to FAILED. If the Delivery had already reached DISPATCHED or later, this consumer enforces the manager-authorization requirement (see `POST /orders/:orderId/status`); on the current synchronous in-process bus, a failed check here still rejects the original request. This is the one place in the system where an event consumer performs a synchronous authorization check — see the Raw Events vs. Derived Order Events note above for what changes if the bus becomes asynchronous.
+- **Inventory service** — when `previousStatus = CONFIRMED` (kitchen had not started), writes `SALE_REVERSAL` movements mirroring the order's `SALE_CONSUMPTION` movements, restoring stock (Business Rule 40). Idempotent via the `(order_id, ingredient_id, type)` uniqueness. When `previousStatus` is `PREPARING` or later, no reversal — the ingredients were physically consumed. No-op if the order never had consumption movements.
 - **Finance service** (future) — records cancellation
 
 **Payload:**
@@ -3984,16 +4388,61 @@ The Orders service consumes each raw event, advances its own `orders.status` pro
 
 ---
 
+## stock.movement_created
+
+**Producer:** Inventory service, on every stock movement insert — manual (`POST /inventory/movements`) or automatic (the `order.confirmed`/`order.cancelled` consumers).
+
+**Consumers:** None in the current phase. Future: Analytics. The Dashboard and the alerts endpoint read the database directly — they do not consume this event.
+
+**Delivery guarantee:** At-least-once. Consumers must be idempotent on `eventId`.
+
+**Payload:**
+```json
+{
+  "movementId": "stm_01HXYZ300",
+  "ingredientId": "ing_01HXYZ200",
+  "ingredientName": "Farinha de trigo tipo 1",
+  "type": "SALE_CONSUMPTION",
+  "quantityDelta": -450.0,
+  "unitCost": 0.5,
+  "currentStock": 18050.0,
+  "orderId": "ord_01HXYZ001"
+}
+```
+
+`currentStock` is the ingredient's balance immediately after this movement. `orderId` is null for manual movements.
+
+---
+
+## stock.low
+
+**Producer:** Inventory service, when a movement takes an ingredient from above `min_stock` to at-or-below it (edge-triggered — not re-published by every subsequent movement while already low).
+
+**Consumers:** None in the current phase. Future: Notifications. The alerts endpoint derives the current alert list from the database, not from this event.
+
+**Payload:**
+```json
+{
+  "ingredientId": "ing_01HXYZ200",
+  "ingredientName": "Farinha de trigo tipo 1",
+  "unit": "G",
+  "currentStock": 3200.0,
+  "minStock": 5000.0
+}
+```
+
+---
+
 ## Event Consumption Summary
 
 | Event | Producers | Consumers |
 |---|---|---|
 | `order.created` | Orders | (Analytics — future) |
-| `order.confirmed` | Orders | Kitchen (creates ticket) |
+| `order.confirmed` | Orders | Kitchen (creates ticket), Inventory (SALE_CONSUMPTION movements) |
 | `order.ready` *(derived)* | Orders (after consuming `kitchen_ticket.ready`) | (Analytics/Notifications — future) |
 | `order.out_for_delivery` *(derived)* | Orders (after consuming `delivery.dispatched`) | (Analytics/Notifications — future) |
 | `order.delivered` | Orders (derived from `delivery.delivered` for DELIVERY orders; produced directly for TAKEAWAY pickup) | Customers (stats), CRM, Analytics |
-| `order.cancelled` | Orders | Kitchen (cancels ticket), Delivery (cancels record; enforces manager approval if dispatched), Finance |
+| `order.cancelled` | Orders | Kitchen (cancels ticket), Delivery (cancels record; enforces manager approval if dispatched), Inventory (SALE_REVERSAL when previousStatus = CONFIRMED), Finance |
 | `kitchen_ticket.created` | Kitchen | — |
 | `kitchen_ticket.status_changed` | Kitchen | Orders (syncs status to PREPARING) |
 | `kitchen_ticket.ready` *(raw)* | Kitchen | Delivery (creates record), Orders (updates status to READY, republishes `order.ready`) |
@@ -4008,6 +4457,7 @@ The Orders service consumes each raw event, advances its own `orders.status` pro
 | `membership.accepted` | Auth | Notifications |
 | `menu.published` | Products | (future) |
 | `menu.unpublished` | Products | (future) |
+| `stock.movement_created` | Inventory | (Analytics — future) |
+| `stock.low` | Inventory | (Notifications — future) |
 
 *(raw)* = the single event a status-owning module produces for its own transition. *(derived)* = an Order-shaped echo the Orders service republishes after consuming a raw event, for consumers that should not depend on Kitchen/Delivery internals. See "Raw Events vs. Derived Order Events" above.
-| `membership.accepted` | Auth | Notifications, Analytics |

@@ -1091,6 +1091,151 @@ A fiscal document (NF-e or NFC-e) generated for a completed, paid Order. Require
 
 ---
 
+# Ingredients
+
+**Purpose**
+A raw material (insumo) tracked by the Inventory module. Ingredients are bought and consumed, never sold — Products sell; the Recipe links the two. The `current_stock` column is a denormalized balance that must always equal the sum of the ingredient's `stock_movements.quantity_delta`, maintained in the same transaction as every movement insert (Business Rule 38).
+
+**Table name:** `ingredients`
+
+**Primary Key:** `id UUID`
+
+**Unique Constraints**
+- `(store_id, name)` WHERE `deleted_at IS NULL` — ingredient names are unique per store among non-deleted rows.
+
+**Foreign Keys**
+- `store_id → stores.id` (RESTRICT on delete)
+
+**Indexes**
+- Primary key on `id` (automatic).
+- Unique index on `(store_id, name)` WHERE `deleted_at IS NULL`.
+- Index on `(store_id, status)` — filter active/inactive.
+- Index on `(store_id)` WHERE `min_stock IS NOT NULL` — low-stock alert scan.
+
+**Soft Delete:** `deleted_at` — ingredients are soft-deleted to preserve the movement ledger and historical recipe references. Deletion is blocked while any recipe references the ingredient (Business Rule 44).
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `store_id` | UUID | No | — | NOT NULL, FK → stores.id RESTRICT | The store that owns this ingredient. |
+| `name` | TEXT | No | — | NOT NULL | Display name, e.g. "Farinha de trigo tipo 1". Unique per store. |
+| `unit` | TEXT | No | — | NOT NULL, CHECK IN ('G', 'ML', 'UN') | Base unit of measure. Immutable after creation — changing it would silently rescale every recipe and movement. G = grams, ML = milliliters, UN = discrete units. No unit conversion exists anywhere; UIs may display kg/L by dividing by 1000. |
+| `current_stock` | NUMERIC(14,3) | No | `0` | NOT NULL | Denormalized balance in base units. May be negative (Business Rule 41) — negative stock signals a count error and surfaces as an alert, never blocks a sale. |
+| `min_stock` | NUMERIC(14,3) | Yes | NULL | CHECK (min_stock >= 0) | Low-stock alert threshold. NULL disables the alert for this ingredient. |
+| `cost_per_unit` | NUMERIC(14,6) | No | `0` | NOT NULL, CHECK (cost_per_unit >= 0) | Cost in cents per base unit (e.g., R$ 5,00/kg flour = 0.5 cents/g). Deliberate exception to the integer-cents Monetary Columns convention: per-gram costs are fractional cents. This is a cost input used for recipe costing and movement snapshots — never a charged amount, so rounding rules for customer-facing values do not apply. |
+| `status` | TEXT | No | `'ACTIVE'` | NOT NULL, CHECK IN ('ACTIVE', 'INACTIVE') | INACTIVE hides the ingredient from new recipe references without breaking existing ones. |
+| `deleted_at` | TIMESTAMPTZ | Yes | NULL | — | Soft delete timestamp. |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of record creation. |
+| `updated_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of last modification. |
+
+---
+
+# Recipes
+
+**Purpose**
+The ficha técnica header of a Product: yield and notes. The ingredient lines live in `recipe_items`. One Recipe per Product, enforced by a unique constraint. Recipe costs are always computed at read time from current `ingredients.cost_per_unit` — never stored (movement snapshots, not recipes, are the historical cost record).
+
+**Table name:** `recipes`
+
+**Primary Key:** `id UUID`
+
+**Unique Constraints**
+- `product_id` — one Recipe per Product.
+
+**Foreign Keys**
+- `store_id → stores.id` (RESTRICT on delete)
+- `product_id → products.id` (CASCADE on delete — a hard-deleted product takes its recipe with it; note products are soft-deleted in practice)
+
+**Indexes**
+- Primary key on `id` (automatic).
+- Unique index on `product_id`.
+- Index on `store_id` — list all recipes of a store.
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `store_id` | UUID | No | — | NOT NULL, FK → stores.id RESTRICT | Store scope (always equals the product's store; duplicated for the mandatory store-isolation WHERE clause). |
+| `product_id` | UUID | No | — | NOT NULL, UNIQUE, FK → products.id CASCADE | The product this ficha técnica describes. |
+| `yield_quantity` | NUMERIC(10,3) | No | `1` | NOT NULL, CHECK (yield_quantity > 0) | How many units of the Product one execution of the recipe produces (rendimento). Consumption per product unit divides by this. |
+| `notes` | TEXT | Yes | NULL | — | Free-form preparation notes (observações). |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of record creation. |
+| `updated_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of last modification. |
+
+---
+
+# Recipe Items
+
+**Purpose**
+One ingredient line of a Recipe: nominal quantity per recipe execution plus the waste percentage (perda) applied on top. Effective consumption per product unit = `quantity × (1 + waste_pct/100) ÷ recipe.yield_quantity`.
+
+**Table name:** `recipe_items`
+
+**Primary Key:** `id UUID`
+
+**Unique Constraints**
+- `(recipe_id, ingredient_id)` — an ingredient appears at most once per recipe.
+
+**Foreign Keys**
+- `recipe_id → recipes.id` (CASCADE on delete — items are owned by their recipe)
+- `ingredient_id → ingredients.id` (RESTRICT on delete — enforces Business Rule 44 at the database level)
+
+**Indexes**
+- Primary key on `id` (automatic).
+- Unique index on `(recipe_id, ingredient_id)`.
+- Index on `ingredient_id` — "which recipes use this ingredient" lookup (deletion guard and impact analysis).
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `recipe_id` | UUID | No | — | NOT NULL, FK → recipes.id CASCADE | Parent recipe. |
+| `ingredient_id` | UUID | No | — | NOT NULL, FK → ingredients.id RESTRICT | The ingredient consumed. |
+| `quantity` | NUMERIC(14,3) | No | — | NOT NULL, CHECK (quantity > 0) | Nominal amount consumed per recipe execution, in the ingredient's base unit. |
+| `waste_pct` | NUMERIC(5,2) | No | `0` | NOT NULL, CHECK (waste_pct >= 0 AND waste_pct <= 100) | Percentage loss (perda) applied on top of `quantity` — trimming, evaporation, spillage. |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of record creation. |
+| `updated_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of last modification. |
+
+---
+
+# Stock Movements
+
+**Purpose**
+The immutable, append-only ledger of every stock change. Rows are never updated or deleted (no `updated_at` column); corrections append `ADJUSTMENT` movements. `SALE_CONSUMPTION` and `SALE_REVERSAL` rows are written by the Inventory event consumer inside the order-confirmation/cancellation transaction; the `(order_id, ingredient_id, type)` uniqueness makes that consumer idempotent (Business Rule 39).
+
+**Table name:** `stock_movements`
+
+**Primary Key:** `id UUID`
+
+**Unique Constraints**
+- `(order_id, ingredient_id, type)` — at most one automatic movement of each type per order/ingredient pair. Rows with NULL `order_id` (manual movements) are unaffected, since NULLs are distinct in PostgreSQL unique indexes.
+
+**Foreign Keys**
+- `store_id → stores.id` (RESTRICT on delete)
+- `ingredient_id → ingredients.id` (RESTRICT on delete — the ledger outlives nothing; ingredients are soft-deleted)
+- `order_id → orders.id` (RESTRICT on delete)
+- `created_by_user_id → users.id` (RESTRICT on delete)
+
+**Indexes**
+- Primary key on `id` (automatic).
+- Unique index on `(order_id, ingredient_id, type)`.
+- Index on `(store_id, ingredient_id, created_at DESC)` — an ingredient's movement history, newest first.
+- Index on `(store_id, created_at DESC)` — store-wide movement list, newest first.
+- Index on `(store_id, type, created_at)` — CMV period aggregation over SALE_CONSUMPTION/SALE_REVERSAL.
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `store_id` | UUID | No | — | NOT NULL, FK → stores.id RESTRICT | Store scope. |
+| `ingredient_id` | UUID | No | — | NOT NULL, FK → ingredients.id RESTRICT | The ingredient whose balance this movement changes. |
+| `type` | TEXT | No | — | NOT NULL, CHECK IN ('ENTRY', 'EXIT', 'ADJUSTMENT', 'LOSS', 'SALE_CONSUMPTION', 'SALE_REVERSAL') | ENTRY = goods received. EXIT = manual withdrawal. ADJUSTMENT = count correction (either sign). LOSS = breakage/spoilage. SALE_CONSUMPTION/SALE_REVERSAL = automatic, order-linked. |
+| `quantity_delta` | NUMERIC(14,3) | No | — | NOT NULL, CHECK (quantity_delta <> 0); sign-per-type CHECK: > 0 for ENTRY and SALE_REVERSAL, < 0 for EXIT, LOSS and SALE_CONSUMPTION | Signed quantity in the ingredient's base unit. The balance is the sum of these. |
+| `unit_cost` | NUMERIC(14,6) | No | — | NOT NULL, CHECK (unit_cost >= 0) | Snapshot of `ingredients.cost_per_unit` (cents per base unit) at movement time. CMV reads these snapshots, never current costs (Business Rule 45). |
+| `order_id` | UUID | Yes | NULL | FK → orders.id RESTRICT; CHECK: NOT NULL when type IN ('SALE_CONSUMPTION','SALE_REVERSAL'), NULL otherwise | The order that caused an automatic movement. Always NULL for manual types. |
+| `reason` | TEXT | Yes | NULL | CHECK: NOT NULL when type IN ('ADJUSTMENT', 'LOSS') | Mandatory justification for corrections and losses. |
+| `created_by_user_id` | UUID | Yes | NULL | FK → users.id RESTRICT | The operator for manual movements. NULL for automatic (event-driven) movements. |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp. The only timestamp — movements are immutable, so there is no `updated_at`. |
+
+---
+
 # Relationships
 
 ## One-to-One Relationships
@@ -1102,6 +1247,7 @@ A fiscal document (NF-e or NFC-e) generated for a completed, paid Order. Require
 | `orders` | `payments` | `payments.order_id` | An Order has at most one active Payment. Multiple payment attempts are tracked in `payment_attempts` but only one can be in the PAID state. |
 | `orders` | `deliveries` | `deliveries.order_id` | A delivery-type Order has at most one Delivery record. Created automatically when the Kitchen Ticket reaches READY. |
 | `orders` | `invoices` | `invoices.order_id` | An Order produces at most one Invoice. Corrections require cancellation and re-issuance. |
+| `products` | `recipes` | `recipes.product_id` | A Product has at most one Recipe (ficha técnica). The 1:1 constraint keeps costing and automatic consumption unambiguous. |
 
 ## One-to-Many Relationships
 
@@ -1127,6 +1273,11 @@ A fiscal document (NF-e or NFC-e) generated for a completed, paid Order. Require
 | `users` | `refresh_tokens` | `refresh_tokens.user_id` | A user may hold multiple active sessions (e.g., multiple devices). |
 | `users` | `password_reset_tokens` | `password_reset_tokens.user_id` | Historical reset requests are retained (revoked, not deleted) for audit; only one is active at a time. |
 | `memberships` | `invitation_tokens` | `invitation_tokens.membership_id` | Historical invitations are retained (revoked, not deleted) for audit; only one is active at a time. |
+| `stores` | `ingredients` | `ingredients.store_id` | Each Store tracks its own raw materials and stock levels. |
+| `recipes` | `recipe_items` | `recipe_items.recipe_id` | A ficha técnica lists one line per ingredient consumed. |
+| `ingredients` | `recipe_items` | `recipe_items.ingredient_id` | An ingredient may appear in many recipes. |
+| `ingredients` | `stock_movements` | `stock_movements.ingredient_id` | The append-only ledger whose sum is the ingredient's balance. |
+| `orders` | `stock_movements` | `stock_movements.order_id` | Automatic consumption/reversal movements are linked to the order that caused them. |
 
 ## Many-to-Many Relationships
 
@@ -1389,6 +1540,19 @@ The `orders` table is the highest-traffic table in the system. Every operational
 | Active deliveries | `(store_id, status)` | B-tree | In-flight deliveries dashboard |
 | History | `(store_id, created_at DESC)` | B-tree | Delivery history list |
 
+## Inventory
+
+| Index | Columns | Type | Purpose |
+|---|---|---|---|
+| Ingredient name | `(store_id, name)` WHERE `deleted_at IS NULL` | B-tree UNIQUE | Uniqueness + name lookup |
+| Low-stock scan | `(store_id)` WHERE `min_stock IS NOT NULL` | B-tree | Alert list without scanning alert-disabled rows |
+| Movement history | `(store_id, ingredient_id, created_at DESC)` | B-tree | Per-ingredient ledger, newest first |
+| Movement list | `(store_id, created_at DESC)` | B-tree | Store-wide movement screen |
+| CMV aggregation | `(store_id, type, created_at)` | B-tree | Period sum over SALE_CONSUMPTION/SALE_REVERSAL |
+| Consumption idempotency | `(order_id, ingredient_id, type)` | B-tree UNIQUE | At-most-once automatic movement per order/ingredient/type |
+| Recipe by product | `product_id` | B-tree UNIQUE | Ficha técnica lookup at order confirmation |
+| Ingredient usage | `recipe_items.ingredient_id` | B-tree | "Which recipes use this ingredient" (deletion guard) |
+
 ---
 
 # Future Scalability
@@ -1403,9 +1567,9 @@ The `orders` table is the highest-traffic table in the system. Every operational
 
 **Removing columns** is a two-phase operation: (1) stop writing to the column in application code, (2) deploy the `ALTER TABLE DROP COLUMN` migration in a separate release. This avoids downtime when the column is in active use.
 
-## Inventory
+## Inventory v2 — Purchasing & Traceability
 
-When the Inventory module is implemented, a new `inventory_items` table will reference `products.id` and `stores.id`. The `products.sku` column is the hook — Inventory uses it as the linking key. No changes to the `products` table are required.
+The Inventory core is implemented (see `ingredients`, `recipes`, `recipe_items`, `stock_movements` above) — it connected to the existing schema exactly as this section originally predicted: new tables plus event subscriptions, with zero changes to `products` or `orders`. The v2 extension (Suppliers, Purchase Orders, Lots/expiry, inter-store transfers, structured count sessions) follows the same pattern: `suppliers`, `purchase_orders`, `purchase_order_items`, `stock_lots` and `count_sessions` tables will reference `ingredients.id`, and every physical effect lands in the existing `stock_movements` ledger (a received purchase = ENTRY movements; an expired lot = LOSS movements; a transfer = paired EXIT/ENTRY). No changes to the v1 tables are required.
 
 ## Loyalty Program
 

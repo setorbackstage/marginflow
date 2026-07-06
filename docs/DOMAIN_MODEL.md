@@ -570,6 +570,101 @@ An Invoice is a fiscal document generated for a completed and paid Order. It ser
 
 ---
 
+## Ingredient
+
+**Purpose**
+An Ingredient is a raw material (insumo) tracked by the Inventory module: flour, mozzarella, tomato sauce, packaging. Ingredients are what the Store buys, stores, and consumes — they are never sold directly. Selling is always done through Products; the Recipe (ficha técnica) is the bridge between the two.
+
+**Responsibilities**
+- Carries the current stock balance (denormalized, always equal to the sum of its Stock Movements).
+- Carries the current unit cost, used to compute Recipe costs and snapshot movement costs.
+- Defines the minimum stock threshold that drives low-stock alerts.
+- Is always expressed in a single base unit — `G` (grams), `ML` (milliliters), or `UN` (units). Recipes always reference quantities in the Ingredient's own base unit. There is no unit conversion anywhere in the domain; presentation layers may display kg/L by dividing by 1000.
+
+**Main Attributes**
+- `id`
+- `store_id`
+- `name` — unique per store
+- `unit` — `G`, `ML`, `UN` (base units only; immutable after creation)
+- `current_stock` — decimal quantity in base units. May be negative (see Inventory Rules)
+- `min_stock` — optional low-stock threshold. Null disables the alert for this ingredient
+- `cost_per_unit` — decimal cost in **cents per base unit** (e.g., flour at R$ 5,00/kg = 0.5 cents/g). This is the only monetary field in the system that is not an integer, because per-gram costs are fractional cents; it is a cost input, never a charged amount
+- `status` — `active`, `inactive`
+- `created_at`, `updated_at`
+
+**Relationships**
+- Belongs to one **Store**
+- Has many **Stock Movements**
+- Appears in many **Recipes** (via Recipe Items)
+
+---
+
+## Recipe (Ficha Técnica)
+
+**Purpose**
+A Recipe is the technical sheet (ficha técnica) of a Product: the list of Ingredients and quantities consumed to produce it. It is the source of the Product's cost and the driver of automatic stock consumption when an Order is confirmed.
+
+**Responsibilities**
+- Maps one Product to the Ingredients it consumes.
+- Defines the yield (rendimento): how many units of the Product one execution of the recipe produces.
+- Defines per-ingredient waste percentages (perdas) applied on top of the nominal quantity.
+- Provides the computed cost: recipe cost, cost per product unit, and margin against the Product's price.
+
+**Main Attributes**
+- `id`
+- `store_id`
+- `product_id` — one Recipe per Product (unique)
+- `yield_quantity` — units of Product produced per recipe execution (default 1)
+- `notes`
+- `created_at`, `updated_at`
+
+**Recipe Item attributes**
+- `id`
+- `recipe_id`
+- `ingredient_id` — unique per recipe
+- `quantity` — amount consumed per recipe execution, in the Ingredient's base unit
+- `waste_pct` — percentage loss applied on top of `quantity` (0–100, default 0)
+
+**Derived values (never stored)**
+- Effective consumption per Product unit = `quantity × (1 + waste_pct/100) ÷ yield_quantity`
+- Recipe cost per Product unit = Σ over items of (effective consumption × ingredient `cost_per_unit`)
+
+**Relationships**
+- Belongs to one **Store**
+- Belongs to one **Product** (1:1)
+- Has many **Recipe Items**, each referencing one **Ingredient**
+
+---
+
+## Stock Movement
+
+**Purpose**
+A Stock Movement is one immutable, append-only ledger entry that changes an Ingredient's stock balance. The Ingredient's `current_stock` is always the sum of its movements — movements are never edited or deleted; corrections are made by appending an `ADJUSTMENT`.
+
+**Responsibilities**
+- Records every stock change with its type, signed quantity, and the unit cost at the time of the movement (the cost snapshot that feeds CMV).
+- Links automatic movements (`SALE_CONSUMPTION`, `SALE_REVERSAL`) to the Order that caused them, with a uniqueness guarantee that makes consumption idempotent.
+- Records who performed manual movements and why.
+
+**Main Attributes**
+- `id`
+- `store_id`
+- `ingredient_id`
+- `type` — `entry` (purchase/receipt), `exit` (manual withdrawal), `adjustment` (count correction, signed), `loss` (breakage/spoilage), `sale_consumption` (automatic, on order confirmation), `sale_reversal` (automatic, on qualifying cancellation)
+- `quantity_delta` — signed decimal in the Ingredient's base unit. Positive for `entry`/`sale_reversal`, negative for `exit`/`loss`/`sale_consumption`, either sign for `adjustment`; never zero
+- `unit_cost` — snapshot of the Ingredient's `cost_per_unit` at movement time (cents per base unit). CMV is computed from these snapshots
+- `order_id` — set only for `sale_consumption`/`sale_reversal`
+- `reason` — required for `adjustment` and `loss`
+- `created_by_user_id` — null for automatic movements
+- `created_at` (no `updated_at` — movements are immutable)
+
+**Relationships**
+- Belongs to one **Store**
+- Belongs to one **Ingredient**
+- Optionally references one **Order**
+
+---
+
 # Business Workflows
 
 ## 1. Customer Journey
@@ -742,6 +837,47 @@ Payment is processed after the Order is ready or delivered, depending on the Sto
 
 ---
 
+## 6. Inventory Workflow
+
+Stock is consumed automatically at order confirmation — the moment the kitchen commits to producing the order — and replenished by manual entries.
+
+```
+1. Store registers Ingredients (unit, cost, minimum stock).
+
+2. Store builds the Recipe (ficha técnica) of each Product:
+   → ingredients, quantities, waste percentages, yield.
+
+3. Goods arrive → operator records an ENTRY movement:
+   → current_stock increases; unit cost may be updated on the Ingredient.
+
+4. An Order is CONFIRMED:
+   → Inventory consumes the order.confirmed event.
+   → For each order item whose Product has a Recipe, effective ingredient
+     consumption is computed (quantity × (1 + waste_pct/100) ÷ yield × item qty).
+   → Quantities are aggregated per Ingredient across all items.
+   → One SALE_CONSUMPTION movement per Ingredient is written, linked to the
+     Order, in the same transaction that confirms the Order.
+   → current_stock decreases. Products without a Recipe are skipped silently.
+
+5. The Order is later READY / DELIVERED:
+   → No stock effect. Consumption happened at confirmation.
+
+6. The Order is CANCELLED:
+   → If previousStatus = CONFIRMED (kitchen had not started): Inventory writes
+     mirroring SALE_REVERSAL movements and current_stock is restored.
+   → If previousStatus = PREPARING or later: no reversal — the ingredients
+     were physically consumed.
+
+7. Stock drops below min_stock at any point:
+   → The ingredient enters the low-stock alert list (dashboard + inventory screen).
+
+8. Periodic physical count:
+   → Differences are recorded as ADJUSTMENT movements with a reason.
+   → Spoilage/breakage is recorded as LOSS movements with a reason.
+```
+
+---
+
 # Business Rules
 
 The following rules are enforced by the system and must never be violated. They represent non-negotiable constraints derived from operational, legal, and data-integrity requirements.
@@ -834,6 +970,26 @@ The following rules are enforced by the system and must never be violated. They 
 
 36. **An Invoice is immutable after issuance.** Corrections require cancelling the original Invoice and issuing a new one. The access_key (chave de acesso) uniquely identifies each fiscal document.
 
+## Inventory Rules
+
+37. **Stock Movements are immutable and append-only.** A movement is never edited or deleted. Corrections are made by appending an `ADJUSTMENT` movement with a mandatory reason.
+
+38. **An Ingredient's `current_stock` always equals the sum of its movements' `quantity_delta`.** The denormalized balance is updated in the same database transaction that inserts the movement — never separately.
+
+39. **Automatic consumption happens exactly once per Order, at confirmation.** Inventory consumes `order.confirmed` and writes at most one `SALE_CONSUMPTION` movement per (Order, Ingredient) pair — enforced by a uniqueness constraint, making the consumer idempotent under event redelivery. `READY` and `DELIVERED` have no stock effect.
+
+40. **Cancellation reverses stock only if the kitchen had not started.** On `order.cancelled` with `previousStatus = CONFIRMED`, Inventory writes mirroring `SALE_REVERSAL` movements (idempotent, same uniqueness rule). With `previousStatus` of `PREPARING` or later, no reversal occurs — the ingredients were physically consumed.
+
+41. **Automatic consumption never blocks an Order and may drive stock negative.** Operational reality wins over bookkeeping: a confirmed sale is always consumed, even into negative stock (which signals a count error and appears as an alert). Manual movements are the opposite: an `EXIT`, `LOSS`, or negative `ADJUSTMENT` that would result in negative stock is rejected (`INSUFFICIENT_STOCK`).
+
+42. **A Product without a Recipe is silently skipped by automatic consumption.** Recipes are opt-in per product; their absence is not an error and never blocks an order.
+
+43. **Modifiers do not consume stock.** In this version, only the Product's own Recipe drives consumption. Modifier-level recipes are a future extension.
+
+44. **An Ingredient referenced by any Recipe cannot be deleted.** It must first be removed from all Recipes; deactivation (`inactive`) is the non-destructive alternative and stops new recipe references without breaking existing ones.
+
+45. **CMV is computed from movement cost snapshots, never from current costs.** Each `SALE_CONSUMPTION`/`SALE_REVERSAL` movement records the Ingredient's `cost_per_unit` at the time it was written. CMV for a period = Σ(|quantity_delta| × unit_cost) of consumptions minus reversals in that period. Changing an Ingredient's cost never rewrites history.
+
 ---
 
 # Future Modules
@@ -842,11 +998,11 @@ The following domains are not part of the current MVP. They are documented here 
 
 ---
 
-## Inventory
+## Inventory v2 — Purchasing & Traceability
 
-**Domain**: Tracks the quantity of raw materials and finished goods available at a Store.
+**Domain**: The Inventory core (Ingredients, Recipes, Stock Movements, automatic consumption, CMV, low-stock alerts) is part of the current system — see Core Entities and Inventory Rules above. This future module extends it with the purchasing and traceability layer: Suppliers, Purchase Orders, receiving against orders, Lots/Batches, expiry-date tracking and expiry alerts, transfers between Stores, and structured physical-count sessions (inventário) that generate `ADJUSTMENT` movements in bulk.
 
-**How it connects without creating dependencies**: Inventory subscribes to Order completion events to decrement stock. Products expose an `sku` field that Inventory uses as a reference key. Neither module imports the other's internal code — they communicate through events or a shared service contract.
+**How it connects without creating dependencies**: Everything lands in the existing `stock_movements` ledger — a received Purchase Order produces `ENTRY` movements, a transfer produces paired `EXIT`/`ENTRY` movements, an expired lot produces `LOSS` movements. The v1 core needs no schema changes; v2 adds its own tables that reference `ingredients.id`.
 
 ---
 
@@ -922,14 +1078,15 @@ Every domain transition that matters to another domain is expressed as a domain 
 
 | Event | Produced by | Consumed by |
 |---|---|---|
-| `order.confirmed` | Orders | Kitchen |
+| `order.confirmed` | Orders | Kitchen, Inventory |
 | `kitchen_ticket.ready` | Kitchen | Delivery, Orders |
 | `order.ready` *(derived)* | Orders, after consuming `kitchen_ticket.ready` | (future: Analytics, Notifications) |
 | `delivery.delivered` | Delivery | Orders |
 | `order.delivered` *(derived)* | Orders, after consuming `delivery.delivered` | CRM, Reports, Analytics |
 | `payment.paid` | Payments | Finance, Invoice, Loyalty |
 | `order.completed` | Orders | CRM, Reports, Analytics |
-| `product.stock_changed` | Inventory | Products |
+| `stock.movement_created` | Inventory | (future: Analytics) |
+| `stock.low` | Inventory | (future: Notifications) |
 | `coupon.applied` | Coupons | Orders |
 
 > Kitchen and Delivery each publish exactly one raw event per transition they own (`kitchen_ticket.ready`, `delivery.delivered`, and so on). Orders consumes those raw events, advances its own status, and republishes an Order-shaped derived event for consumers that should never need to know Kitchen or Delivery exist. No module ever consumes both a raw event and its derived echo for the same transition. The full event catalog — including `order.out_for_delivery`, `order.cancelled`, and every payload — is the authoritative one in `API_SPEC.md`; this table is illustrative, not exhaustive.
