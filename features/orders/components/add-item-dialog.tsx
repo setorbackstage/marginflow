@@ -145,6 +145,9 @@ export function AddItemDialog({
         </div>
 
         <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
           <Button onClick={handleAdd} disabled={missingRequired || isLoading}>
             Adicionar · {formatCents(unitTotal * quantity)}
           </Button>

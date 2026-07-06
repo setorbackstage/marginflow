@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Package, MoreHorizontal, Pencil, Trash2, Layers, FolderPen, ClipboardList } from "lucide-react"
+import Image from "next/image"
+import { Plus, Package, MoreHorizontal, Pencil, Trash2, Layers, FolderPen, ClipboardList, Copy, ImageOff } from "lucide-react"
 
 import { useCan } from "@/features/auth"
 import {
@@ -14,18 +15,26 @@ import {
   ModifierGroupsSheet,
   PRODUCT_STATUS_CONFIG,
 } from "@/features/products"
-import type { Category, ProductListItem } from "@/features/products/types"
+import type { Category, ProductListItem, ProductSort } from "@/features/products/types"
 import { PageHeader } from "@/components/app-shell/page-container"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
-import { RecipeSheet } from "@/features/inventory"
+import { RecipeSheet, useRecipesPresence } from "@/features/inventory"
 import { EmptyState, ErrorState, StatusBadge, PaginationBar, SearchBar, ConfirmDialog } from "@/components/shared"
 import { formatCents } from "@/lib/format"
 import { useDebouncedValue } from "@/hooks"
 import { cn } from "@/lib/utils"
+
+const SORT_OPTIONS: { value: ProductSort; label: string }[] = [
+  { value: "sort_order", label: "Ordem manual" },
+  { value: "name", label: "Nome" },
+  { value: "price", label: "Preço" },
+  { value: "created_at", label: "Mais recentes" },
+]
 
 export default function ProductsPage() {
   const canCreate = useCan("products:create")
@@ -35,18 +44,24 @@ export default function ProductsPage() {
   const [selectedCategoryId, setSelectedCategoryId] = React.useState<string | undefined>(undefined)
   const [searchInput, setSearchInput] = React.useState("")
   const search = useDebouncedValue(searchInput)
+  const [sort, setSort] = React.useState<ProductSort>("sort_order")
   const [page, setPage] = React.useState(1)
 
   const categories = useCategories()
-  const products = useProducts({ page, categoryId: selectedCategoryId, search: search || undefined })
+  const products = useProducts({ page, categoryId: selectedCategoryId, search: search || undefined, sort })
   const deleteProduct = useDeleteProduct()
   const deleteCategory = useDeleteCategory()
+  const canViewInventory = useCan("inventory:view")
+  const recipePresence = useRecipesPresence(canViewInventory ? (products.data?.items.map((p) => p.id) ?? []) : [])
 
   const [categoryDialog, setCategoryDialog] = React.useState<{ open: boolean; category: Category | null }>({ open: false, category: null })
-  const [productDialog, setProductDialog] = React.useState<{ open: boolean; product: ProductListItem | null }>({ open: false, product: null })
+  const [productDialog, setProductDialog] = React.useState<{ open: boolean; product: ProductListItem | null; duplicateFrom: ProductListItem | null }>({
+    open: false,
+    product: null,
+    duplicateFrom: null,
+  })
   const [modifiersFor, setModifiersFor] = React.useState<ProductListItem | null>(null)
   const [recipeFor, setRecipeFor] = React.useState<ProductListItem | null>(null)
-  const canViewInventory = useCan("inventory:view")
   const [deleteProductTarget, setDeleteProductTarget] = React.useState<ProductListItem | null>(null)
   const [deleteCategoryTarget, setDeleteCategoryTarget] = React.useState<Category | null>(null)
 
@@ -71,7 +86,7 @@ export default function ProductsPage() {
                 <FolderPen data-icon="inline-start" />
                 Nova categoria
               </Button>
-              <Button size="sm" onClick={() => setProductDialog({ open: true, product: null })}>
+              <Button size="sm" onClick={() => setProductDialog({ open: true, product: null, duplicateFrom: null })}>
                 <Plus data-icon="inline-start" />
                 Novo produto
               </Button>
@@ -144,7 +159,28 @@ export default function ProductsPage() {
 
         {/* Products table */}
         <div className="space-y-4">
-          <SearchBar value={searchInput} onChange={handleSearchChange} placeholder="Buscar produto por nome ou SKU..." />
+          <div className="flex flex-wrap items-center gap-3">
+            <SearchBar value={searchInput} onChange={handleSearchChange} placeholder="Buscar produto por nome ou SKU..." />
+            <Select
+              value={sort}
+              onValueChange={(value) => {
+                if (!value) return
+                setSort(value as ProductSort)
+                setPage(1)
+              }}
+            >
+              <SelectTrigger className="w-44">
+                <SelectValue>{(v: string | null) => SORT_OPTIONS.find((o) => o.value === v)?.label}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           {products.isLoading ? (
             <div className="space-y-2">
@@ -160,10 +196,12 @@ export default function ProductsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-14" />
                       <TableHead>Produto</TableHead>
                       <TableHead>Categoria</TableHead>
                       <TableHead>Preço</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Ficha técnica</TableHead>
                       <TableHead>Modificadores</TableHead>
                       <TableHead className="w-10" />
                     </TableRow>
@@ -171,11 +209,36 @@ export default function ProductsPage() {
                   <TableBody>
                     {products.data.items.map((product) => (
                       <TableRow key={product.id}>
+                        <TableCell>
+                          {product.imageUrl ? (
+                            <div className="relative size-10 overflow-hidden rounded-lg border">
+                              <Image src={product.imageUrl} alt={product.name} fill sizes="40px" className="object-cover" unoptimized />
+                            </div>
+                          ) : (
+                            <div className="flex size-10 items-center justify-center rounded-lg border border-dashed bg-muted/40 text-muted-foreground">
+                              <ImageOff className="size-4" />
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell className="text-muted-foreground">{product.categoryName}</TableCell>
                         <TableCell className="tabular-nums">{formatCents(product.price)}</TableCell>
                         <TableCell>
                           <StatusBadge status={product.status} config={PRODUCT_STATUS_CONFIG} />
+                        </TableCell>
+                        <TableCell>
+                          {!canViewInventory ? (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          ) : recipePresence.get(product.id) === true ? (
+                            <Badge variant="secondary" className="gap-1">
+                              <ClipboardList className="size-3" />
+                              Definida
+                            </Badge>
+                          ) : recipePresence.get(product.id) === false ? (
+                            <span className="text-xs text-muted-foreground">Não definida</span>
+                          ) : (
+                            <Skeleton className="h-5 w-16" />
+                          )}
                         </TableCell>
                         <TableCell>
                           {product.modifierGroupCount > 0 ? (
@@ -201,9 +264,15 @@ export default function ProductsPage() {
                                 </DropdownMenuItem>
                               ) : null}
                               {canEdit ? (
-                                <DropdownMenuItem onClick={() => setProductDialog({ open: true, product })}>
+                                <DropdownMenuItem onClick={() => setProductDialog({ open: true, product, duplicateFrom: null })}>
                                   <Pencil data-icon="inline-start" />
                                   Editar
+                                </DropdownMenuItem>
+                              ) : null}
+                              {canCreate ? (
+                                <DropdownMenuItem onClick={() => setProductDialog({ open: true, product: null, duplicateFrom: product })}>
+                                  <Copy data-icon="inline-start" />
+                                  Duplicar
                                 </DropdownMenuItem>
                               ) : null}
                               {canDelete ? (
@@ -229,7 +298,7 @@ export default function ProductsPage() {
               description={search || selectedCategoryId ? "Ajuste os filtros ou a busca." : "Comece criando o primeiro produto do cardápio."}
               action={
                 canCreate && !search && !selectedCategoryId ? (
-                  <Button size="sm" onClick={() => setProductDialog({ open: true, product: null })}>
+                  <Button size="sm" onClick={() => setProductDialog({ open: true, product: null, duplicateFrom: null })}>
                     <Plus data-icon="inline-start" />
                     Novo produto
                   </Button>
@@ -249,6 +318,7 @@ export default function ProductsPage() {
         open={productDialog.open}
         onOpenChange={(open) => setProductDialog((s) => ({ ...s, open }))}
         product={productDialog.product}
+        duplicateFrom={productDialog.duplicateFrom}
         categories={categories.data ?? []}
         defaultCategoryId={selectedCategoryId}
       />

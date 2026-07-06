@@ -112,6 +112,9 @@ export function AssignCourierDialog({ open, onOpenChange, delivery }: { open: bo
             </Field>
           </FieldGroup>
           <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={assignCourier.isPending}>
               {assignCourier.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
               Salvar

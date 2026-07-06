@@ -9,6 +9,7 @@ import {
   useMovements,
   useStockAlerts,
   useDeleteIngredient,
+  useInventoryValue,
   IngredientFormDialog,
   MovementFormDialog,
   INGREDIENT_STATUS_CONFIG,
@@ -21,13 +22,14 @@ import type { Ingredient, MovementType } from "@/features/inventory/types"
 import { PageHeader } from "@/components/app-shell/page-container"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { EmptyState, ErrorState, StatusBadge, PaginationBar, SearchBar, ConfirmDialog } from "@/components/shared"
-import { formatDateTime } from "@/lib/format"
+import { formatCents, formatDateTime } from "@/lib/format"
 import { useDebouncedValue } from "@/hooks"
 import { cn } from "@/lib/utils"
 
@@ -56,6 +58,7 @@ function IngredientsTab({
   const [page, setPage] = React.useState(1)
 
   const ingredients = useIngredients({ page, search: search || undefined, lowStock: lowStockOnly || undefined })
+  const inventoryValue = useInventoryValue()
   const deleteIngredient = useDeleteIngredient()
 
   const [formDialog, setFormDialog] = React.useState<{ open: boolean; ingredient: Ingredient | null }>({ open: false, ingredient: null })
@@ -63,6 +66,26 @@ function IngredientsTab({
 
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">Valor em estoque</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {inventoryValue.isLoading ? (
+            <Skeleton className="h-8 w-32" />
+          ) : inventoryValue.isError ? (
+            <span className="text-sm text-destructive">Erro ao carregar</span>
+          ) : (
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-semibold tabular-nums">{formatCents(inventoryValue.data?.total ?? 0)}</span>
+              {inventoryValue.data?.isApproximate ? (
+                <span className="text-xs text-muted-foreground">(aproximado, mais de 100 insumos ativos)</span>
+              ) : null}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="flex flex-wrap items-center gap-3">
         <SearchBar
           value={searchInput}
@@ -109,6 +132,7 @@ function IngredientsTab({
                   <TableHead>Saldo</TableHead>
                   <TableHead>Mínimo</TableHead>
                   <TableHead>Custo</TableHead>
+                  <TableHead>Valor em estoque</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
@@ -132,6 +156,9 @@ function IngredientsTab({
                     </TableCell>
                     <TableCell className="tabular-nums text-muted-foreground">
                       {formatUnitCost(ingredient.costPerUnit, ingredient.unit)}
+                    </TableCell>
+                    <TableCell className="tabular-nums text-muted-foreground">
+                      {formatCents(Math.max(0, ingredient.currentStock) * ingredient.costPerUnit)}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={ingredient.status} config={INGREDIENT_STATUS_CONFIG} />

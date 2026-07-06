@@ -1,21 +1,63 @@
 "use client"
 
 import Link from "next/link"
-import { ReceiptText, Truck, ChefHat, ArrowRight, Store, TriangleAlert } from "lucide-react"
+import {
+  ReceiptText,
+  Users,
+  Package,
+  Wallet,
+  Truck,
+  ChefHat,
+  CreditCard,
+  ArrowRight,
+  Store,
+  TriangleAlert,
+  Clock,
+} from "lucide-react"
 
 import { useAuth, useCan } from "@/features/auth"
-import { useDashboardCounts } from "@/features/dashboard/hooks"
-import { useStockAlerts, formatQuantity } from "@/features/inventory"
+import { useDashboardCounts, useDashboardOrdersToday, useRecentOrders, useRecentStockMovements } from "@/features/dashboard/hooks"
+import { useStockAlerts, formatQuantity, MOVEMENT_TYPE_CONFIG } from "@/features/inventory"
+import { ORDER_STATUS_CONFIG } from "@/features/orders"
 import { PageHeader } from "@/components/app-shell/page-container"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
+import { StatusBadge, EmptyState } from "@/components/shared"
+import { formatCents, formatRelative } from "@/lib/format"
 
 interface Kpi {
   label: string
   value: number | undefined
   icon: typeof ReceiptText
   href: string
+  isLoading: boolean
+  isError: boolean
+}
+
+function KpiCard({ kpi }: { kpi: Kpi }) {
+  return (
+    <Link href={kpi.href} className="group">
+      <Card className="transition-colors group-hover:border-primary/40">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
+          <kpi.icon className="size-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          {kpi.isLoading ? (
+            <Skeleton className="h-8 w-16" />
+          ) : kpi.isError ? (
+            <span className="text-sm text-destructive">Erro ao carregar</span>
+          ) : (
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-semibold tabular-nums">{kpi.value ?? 0}</span>
+              <ArrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </Link>
+  )
 }
 
 /**
@@ -52,18 +94,162 @@ function StockAlertsCard() {
   )
 }
 
+function RecentOrdersCard() {
+  const recentOrders = useRecentOrders(5)
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-sm font-medium">Últimos pedidos</CardTitle>
+        <Link href="/orders" className="text-xs text-muted-foreground hover:text-foreground">
+          Ver todos
+        </Link>
+      </CardHeader>
+      <CardContent>
+        {recentOrders.isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        ) : recentOrders.isError ? (
+          <p className="text-sm text-destructive">Erro ao carregar pedidos.</p>
+        ) : recentOrders.data && recentOrders.data.items.length > 0 ? (
+          <div className="divide-y">
+            {recentOrders.data.items.map((order) => (
+              <Link
+                key={order.id}
+                href={`/orders/${order.id}`}
+                className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:bg-muted/50"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    #{order.number} — {order.customerName ?? "Cliente avulso"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{formatRelative(order.createdAt)}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-sm font-medium tabular-nums">{formatCents(order.grandTotal)}</span>
+                  <StatusBadge status={order.status} config={ORDER_STATUS_CONFIG} />
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <p className="py-4 text-center text-sm text-muted-foreground">Nenhum pedido ainda.</p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function RecentActivityCard() {
+  const movements = useRecentStockMovements(5)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-medium">Atividade recente no estoque</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {movements.isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        ) : movements.isError ? (
+          <p className="text-sm text-destructive">Erro ao carregar movimentações.</p>
+        ) : movements.data && movements.data.items.length > 0 ? (
+          <div className="divide-y">
+            {movements.data.items.map((movement) => (
+              <div key={movement.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Clock className="size-3.5 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{movement.ingredientName}</p>
+                    <p className="text-xs text-muted-foreground">{formatRelative(movement.createdAt)}</p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-sm tabular-nums text-muted-foreground">
+                    {movement.quantityDelta > 0 ? "+" : ""}
+                    {formatQuantity(movement.quantityDelta, movement.ingredientUnit)}
+                  </span>
+                  <StatusBadge status={movement.type} config={MOVEMENT_TYPE_CONFIG} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState icon={Package} title="Sem atividade recente" description="Movimentações de estoque aparecem aqui." />
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function DashboardPage() {
   const { session, activeMembership } = useAuth()
   const counts = useDashboardCounts()
+  const ordersToday = useDashboardOrdersToday()
   const canViewInventory = useCan("inventory:view")
+  const canViewFinance = useCan("finance:view")
 
   const firstName = session.user.name?.split(" ")[0] ?? "operador"
 
   const kpis: Kpi[] = [
-    { label: "Pedidos", value: counts.data?.orders, icon: ReceiptText, href: "/orders" },
-    { label: "Entregas", value: counts.data?.deliveries, icon: Truck, href: "/delivery" },
-    { label: "Cozinha", value: counts.data?.kitchen, icon: ChefHat, href: "/kitchen" },
+    {
+      label: "Pedidos hoje",
+      value: ordersToday.data?.total,
+      icon: ReceiptText,
+      href: "/orders",
+      isLoading: ordersToday.isLoading,
+      isError: ordersToday.isError,
+    },
+    {
+      label: "Cozinha ativa",
+      value: counts.data?.kitchenActive,
+      icon: ChefHat,
+      href: "/kitchen",
+      isLoading: counts.isLoading,
+      isError: counts.isError,
+    },
+    {
+      label: "Entregas ativas",
+      value: counts.data?.activeDeliveries,
+      icon: Truck,
+      href: "/delivery",
+      isLoading: counts.isLoading,
+      isError: counts.isError,
+    },
+    {
+      label: "Clientes",
+      value: counts.data?.customers,
+      icon: Users,
+      href: "/customers",
+      isLoading: counts.isLoading,
+      isError: counts.isError,
+    },
+    {
+      label: "Produtos ativos",
+      value: counts.data?.activeProducts,
+      icon: Package,
+      href: "/products",
+      isLoading: counts.isLoading,
+      isError: counts.isError,
+    },
   ]
+  if (canViewFinance) {
+    kpis.push({
+      label: "Pagamentos pendentes",
+      value: counts.data?.pendingPayments,
+      icon: CreditCard,
+      href: "/finance",
+      isLoading: counts.isLoading,
+      isError: counts.isError,
+    })
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -89,30 +275,51 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
+      {canViewFinance ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Receita hoje</CardTitle>
+              <Wallet className="size-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {ordersToday.isLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : ordersToday.isError ? (
+                <span className="text-sm text-destructive">Erro ao carregar</span>
+              ) : (
+                <span className="text-3xl font-semibold tabular-nums">{formatCents(ordersToday.data?.grossRevenue ?? 0)}</span>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Ticket médio hoje</CardTitle>
+              <ReceiptText className="size-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {ordersToday.isLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : ordersToday.isError ? (
+                <span className="text-sm text-destructive">Erro ao carregar</span>
+              ) : (
+                <span className="text-3xl font-semibold tabular-nums">{formatCents(ordersToday.data?.averageTicket ?? 0)}</span>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {kpis.map((kpi) => (
-          <Link key={kpi.label} href={kpi.href} className="group">
-            <Card className="transition-colors group-hover:border-primary/40">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
-                <kpi.icon className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {counts.isLoading ? (
-                  <Skeleton className="h-8 w-16" />
-                ) : counts.isError ? (
-                  <span className="text-sm text-destructive">Erro ao carregar</span>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <span className="text-3xl font-semibold tabular-nums">{kpi.value ?? 0}</span>
-                    <ArrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </Link>
+          <KpiCard key={kpi.label} kpi={kpi} />
         ))}
         {canViewInventory ? <StockAlertsCard /> : null}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <RecentOrdersCard />
+        {canViewInventory ? <RecentActivityCard /> : null}
       </div>
     </div>
   )

@@ -186,6 +186,9 @@ export function IngredientFormDialog({
             </div>
           </FieldGroup>
           <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={isPending}>
               {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
               {isEdit ? "Salvar" : "Criar insumo"}

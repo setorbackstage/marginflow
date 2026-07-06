@@ -26,7 +26,7 @@ export const ingredientsApi = {
     api.getPage<Ingredient>(
       `/stores/${storeId}/inventory/ingredients${qs({
         page: params.page ?? 1,
-        perPage: 20,
+        perPage: params.perPage ?? 20,
         search: params.search,
         status: params.status,
         lowStock: params.lowStock ? "true" : undefined,

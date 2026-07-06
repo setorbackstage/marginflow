@@ -98,9 +98,13 @@ export interface ModifierInput {
   isActive?: boolean
 }
 
+export type ProductSort = "sort_order" | "name" | "price" | "created_at"
+
 export interface ProductListParams {
   page?: number
   categoryId?: string
   status?: ProductStatus
   search?: string
+  sort?: ProductSort
+  order?: "asc" | "desc"
 }

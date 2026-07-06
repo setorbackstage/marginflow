@@ -33,6 +33,7 @@ export interface IngredientInput {
 
 export interface IngredientListParams {
   page?: number
+  perPage?: number
   search?: string
   status?: IngredientStatus
   lowStock?: boolean

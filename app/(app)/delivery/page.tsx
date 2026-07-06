@@ -1,11 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { Truck, User, Loader2, ArrowRight, X } from "lucide-react"
+import { Truck, User, Phone, Clock, Loader2, ArrowRight, X } from "lucide-react"
 
 import { useCan } from "@/features/auth"
 import { useDeliveries, useUpdateDeliveryStatus, AssignCourierDialog, DELIVERY_STATUS_CONFIG } from "@/features/delivery"
 import type { Delivery, DeliveryStatus } from "@/features/delivery/types"
+import { useOrdersByIds } from "@/features/orders"
 import { PageHeader } from "@/components/app-shell/page-container"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -13,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { EmptyState, ErrorState, KanbanColumn, KanbanCard, StatusBadge } from "@/components/shared"
+import { formatRelative } from "@/lib/format"
+import { cn } from "@/lib/utils"
 
 const COLUMNS: { status: DeliveryStatus; title: string; nextStatus?: DeliveryStatus; actionLabel?: string }[] = [
   { status: "AWAITING_PICKUP", title: "Aguardando", nextStatus: "DISPATCHED", actionLabel: "Despachar" },
@@ -22,7 +25,26 @@ const COLUMNS: { status: DeliveryStatus; title: string; nextStatus?: DeliverySta
   { status: "FAILED", title: "Falhou" },
 ]
 
-function DeliveryCard({ delivery, nextStatus, actionLabel }: { delivery: Delivery; nextStatus?: DeliveryStatus; actionLabel?: string }) {
+/** Minutes elapsed since the delivery entered the active flow. */
+function minutesSince(isoDate: string): number {
+  return Math.floor((Date.now() - new Date(isoDate).getTime()) / 60_000)
+}
+
+const URGENT_MINUTES_THRESHOLD = 30
+
+function DeliveryCard({
+  delivery,
+  customerName,
+  customerPhone,
+  nextStatus,
+  actionLabel,
+}: {
+  delivery: Delivery
+  customerName: string | null
+  customerPhone: string | null
+  nextStatus?: DeliveryStatus
+  actionLabel?: string
+}) {
   const canUpdate = useCan("delivery:update_status")
   const canAssign = useCan("delivery:assign_courier")
   const updateStatus = useUpdateDeliveryStatus()
@@ -31,16 +53,35 @@ function DeliveryCard({ delivery, nextStatus, actionLabel }: { delivery: Deliver
   const [failReason, setFailReason] = React.useState("")
 
   const canFail = (delivery.status === "DISPATCHED" || delivery.status === "IN_TRANSIT") && canUpdate
+  const isActive = delivery.status !== "DELIVERED" && delivery.status !== "FAILED" && delivery.status !== "RETURNED"
+  const elapsedMinutes = minutesSince(delivery.createdAt)
+  const isUrgent = isActive && elapsedMinutes >= URGENT_MINUTES_THRESHOLD
 
   return (
     <>
-      <KanbanCard>
+      <KanbanCard className={cn(isUrgent && "border-destructive/50")}>
         <div className="flex items-start justify-between gap-2">
           <p className="font-medium">Pedido #{delivery.orderNumber}</p>
           <StatusBadge status={delivery.status} config={DELIVERY_STATUS_CONFIG} />
         </div>
+        {customerName ? (
+          <p className="mt-1 flex items-center gap-1.5 text-xs">
+            <User className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="truncate">{customerName}</span>
+          </p>
+        ) : null}
+        {customerPhone ? (
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Phone className="size-3.5 shrink-0" />
+            {customerPhone}
+          </p>
+        ) : null}
         <p className="mt-1 text-xs text-muted-foreground">
           {delivery.deliveryAddress.street}, {delivery.deliveryAddress.number} — {delivery.deliveryAddress.neighborhood}
+        </p>
+        <p className={cn("mt-1 flex items-center gap-1.5 text-xs", isUrgent ? "font-medium text-destructive" : "text-muted-foreground")}>
+          <Clock className="size-3.5 shrink-0" />
+          {formatRelative(delivery.createdAt)}
         </p>
 
         {delivery.courierName ? (
@@ -119,6 +160,8 @@ function DeliveryCard({ delivery, nextStatus, actionLabel }: { delivery: Deliver
 
 export default function DeliveryPage() {
   const deliveries = useDeliveries()
+  const orderIds = deliveries.data?.items.map((d) => d.orderId) ?? []
+  const ordersById = useOrdersByIds(orderIds)
 
   return (
     <div className="flex flex-col gap-6">
@@ -139,7 +182,14 @@ export default function DeliveryPage() {
             return (
               <KanbanColumn key={column.status} title={column.title} count={columnDeliveries.length}>
                 {columnDeliveries.map((delivery) => (
-                  <DeliveryCard key={delivery.id} delivery={delivery} nextStatus={column.nextStatus} actionLabel={column.actionLabel} />
+                  <DeliveryCard
+                    key={delivery.id}
+                    delivery={delivery}
+                    customerName={ordersById.get(delivery.orderId)?.customer?.name ?? null}
+                    customerPhone={ordersById.get(delivery.orderId)?.customer?.phone ?? null}
+                    nextStatus={column.nextStatus}
+                    actionLabel={column.actionLabel}
+                  />
                 ))}
                 {columnDeliveries.length === 0 ? <p className="px-1 py-6 text-center text-xs text-muted-foreground">Nenhuma entrega</p> : null}
               </KanbanColumn>

@@ -127,6 +127,9 @@ export function OrderPaymentCard({ order }: { order: OrderDetail }) {
             </div>
           </div>
           <DialogFooter>
+            <Button variant="outline" onClick={() => setRefundOpen(false)}>
+              Cancelar
+            </Button>
             <Button
               variant="destructive"
               disabled={!refundAmount || refundReason.trim().length < 10 || refundPayment.isPending}

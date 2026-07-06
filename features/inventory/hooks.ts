@@ -1,6 +1,6 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueries, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { isApiError } from "@/lib/api"
 import { useActiveStoreId } from "@/features/auth"
@@ -37,6 +37,32 @@ export function useIngredients(params: IngredientListParams) {
     enabled: Boolean(storeId),
     queryFn: () => ingredientsApi.list(storeId, params),
     placeholderData: keepPreviousData,
+  })
+}
+
+export interface InventoryValue {
+  /** Σ currentStock × costPerUnit over active ingredients, in decimal cents. */
+  total: number
+  /** True when the store has more active ingredients than fit in one 100-item page (approximation). */
+  isApproximate: boolean
+}
+
+/**
+ * "Valor em estoque" — no aggregate endpoint exists, so this reads one
+ * large page (the API's max perPage) and sums client-side. Flags itself as
+ * approximate past 100 active ingredients rather than silently under-count.
+ */
+export function useInventoryValue() {
+  const storeId = useActiveStoreId()
+  return useQuery({
+    queryKey: keys.ingredients(storeId).concat("total-value"),
+    enabled: Boolean(storeId),
+    queryFn: async (): Promise<InventoryValue> => {
+      const page = await ingredientsApi.list(storeId, { page: 1, perPage: 100, status: "ACTIVE" })
+      // Negative stock (a count error, Business Rule 41) never contributes negative value.
+      const total = page.items.reduce((sum, ingredient) => sum + Math.max(0, ingredient.currentStock) * ingredient.costPerUnit, 0)
+      return { total, isApproximate: page.pagination.total > page.items.length }
+    },
   })
 }
 
@@ -152,6 +178,37 @@ export function useRecipe(productId: string | undefined) {
       }
     },
   })
+}
+
+/**
+ * Bulk "does this product have a ficha técnica?" check for a visible page of
+ * products (bounded — one page, never the whole catalog). Uses the exact
+ * same query key as `useRecipe`, so opening a product's RecipeSheet later
+ * reuses this cache instead of refetching.
+ */
+export function useRecipesPresence(productIds: string[]) {
+  const storeId = useActiveStoreId()
+  const results = useQueries({
+    queries: productIds.map((productId) => ({
+      queryKey: keys.recipe(storeId, productId),
+      enabled: Boolean(storeId),
+      staleTime: 60_000,
+      queryFn: async () => {
+        try {
+          return await recipesApi.get(storeId, productId)
+        } catch (error) {
+          if (isApiError(error) && error.code === "RECIPE_NOT_FOUND") return null
+          throw error
+        }
+      },
+    })),
+  })
+  const presence = new Map<string, boolean>()
+  productIds.forEach((productId, index) => {
+    const result = results[index]
+    if (result.data !== undefined) presence.set(productId, result.data !== null)
+  })
+  return presence
 }
 
 export function useUpsertRecipe(productId: string) {

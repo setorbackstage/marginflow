@@ -1,25 +1,53 @@
 "use client"
 
+import * as React from "react"
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Base UI's TabsPanel decides when to unmount an inactive panel by waiting
+ * for its CSS open/close animation to finish (`useOpenChangeComplete` /
+ * `getAnimations()`). Panels here have no CSS transition, and in practice
+ * that wait never resolves in time — switching tabs leaves the previous
+ * panel's `hidden` attribute unset, so both panels render stacked and
+ * visible. Tracking the active value ourselves and gating `TabsContent`'s
+ * children on it sidesteps that teardown entirely; the underlying
+ * `TabsPrimitive.Panel` (aria attributes, keyboard nav, hidden/inert) is
+ * untouched, so every existing call site keeps working unchanged.
+ */
+const TabsActiveValueContext = React.createContext<unknown>(undefined)
+
 function Tabs({
   className,
   orientation = "horizontal",
+  value,
+  defaultValue,
+  onValueChange,
   ...props
 }: TabsPrimitive.Root.Props) {
+  const [uncontrolledValue, setUncontrolledValue] = React.useState(defaultValue)
+  const activeValue = value !== undefined ? value : uncontrolledValue
+
   return (
-    <TabsPrimitive.Root
-      data-slot="tabs"
-      data-orientation={orientation}
-      className={cn(
-        "group/tabs flex gap-2 data-horizontal:flex-col",
-        className
-      )}
-      {...props}
-    />
+    <TabsActiveValueContext.Provider value={activeValue}>
+      <TabsPrimitive.Root
+        data-slot="tabs"
+        data-orientation={orientation}
+        className={cn(
+          "group/tabs flex gap-2 data-horizontal:flex-col",
+          className
+        )}
+        value={value}
+        defaultValue={defaultValue}
+        onValueChange={(newValue, eventDetails) => {
+          setUncontrolledValue(newValue)
+          onValueChange?.(newValue, eventDetails)
+        }}
+        {...props}
+      />
+    </TabsActiveValueContext.Provider>
   )
 }
 
@@ -69,13 +97,17 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   )
 }
 
-function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
+function TabsContent({ className, value, children, ...props }: TabsPrimitive.Panel.Props) {
+  const activeValue = React.useContext(TabsActiveValueContext)
   return (
     <TabsPrimitive.Panel
       data-slot="tabs-content"
+      value={value}
       className={cn("flex-1 text-sm outline-none", className)}
       {...props}
-    />
+    >
+      {activeValue === value ? children : null}
+    </TabsPrimitive.Panel>
   )
 }
 

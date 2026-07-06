@@ -1,10 +1,10 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueries, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { useActiveStoreId } from "@/features/auth"
 import { ordersApi } from "./api"
-import type { CreateOrderInput, OrderListParams, UpdateOrderItemInput } from "./types"
+import type { CreateOrderInput, OrderDetail, OrderListParams, UpdateOrderItemInput } from "./types"
 
 const keys = {
   list: (storeId: string, params: OrderListParams) => ["orders", storeId, params] as const,
@@ -35,6 +35,31 @@ export function useOrder(orderId: string | undefined) {
     queryFn: () => ordersApi.get(storeId, orderId as string),
     refetchInterval: 10_000,
   })
+}
+
+/**
+ * Bulk customer lookup for a bounded set of orders (e.g. the active
+ * deliveries kanban — never the whole order history). There is no
+ * customer name/phone on the Delivery response itself (API_SPEC.md), so
+ * this reuses the exact `useOrder` query key/fetch, sharing its cache
+ * instead of adding a new request shape.
+ */
+export function useOrdersByIds(orderIds: string[]) {
+  const storeId = useActiveStoreId()
+  const results = useQueries({
+    queries: orderIds.map((orderId) => ({
+      queryKey: keys.detail(storeId, orderId),
+      enabled: Boolean(storeId),
+      staleTime: 10_000,
+      queryFn: () => ordersApi.get(storeId, orderId),
+    })),
+  })
+  const byId = new Map<string, OrderDetail>()
+  orderIds.forEach((orderId, index) => {
+    const data = results[index].data
+    if (data) byId.set(orderId, data)
+  })
+  return byId
 }
 
 export function useOrderTimeline(orderId: string | undefined) {

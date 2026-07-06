@@ -32,7 +32,15 @@ export const categoriesApi = {
 export const productsApi = {
   list: (storeId: string, params: ProductListParams): Promise<Page<ProductListItem>> =>
     api.getPage<ProductListItem>(
-      `/stores/${storeId}/products${qs({ page: params.page ?? 1, limit: 20, categoryId: params.categoryId, status: params.status, search: params.search })}`,
+      `/stores/${storeId}/products${qs({
+        page: params.page ?? 1,
+        limit: 20,
+        categoryId: params.categoryId,
+        status: params.status,
+        search: params.search,
+        sort: params.sort,
+        order: params.order,
+      })}`,
     ),
   get: (storeId: string, productId: string) => api.get<ProductDetail>(`/stores/${storeId}/products/${productId}`),
   create: (storeId: string, input: ProductInput) => api.post<ProductDetail>(`/stores/${storeId}/products`, input),

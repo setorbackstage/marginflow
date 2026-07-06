@@ -1,10 +1,20 @@
 "use client"
 
 import * as React from "react"
-import { Plus, BookOpenText, Layers, Loader2 } from "lucide-react"
+import { Plus, BookOpenText, Layers, Eye, Loader2 } from "lucide-react"
 
 import { useCan } from "@/features/auth"
-import { useMenus, usePublishMenu, useUnpublishMenu, useDeleteMenu, MenuFormDialog, MenuSectionsSheet, MENU_STATUS_CONFIG, MENU_CHANNEL_LABEL } from "@/features/menus"
+import {
+  useMenus,
+  usePublishMenu,
+  useUnpublishMenu,
+  useDeleteMenu,
+  MenuFormDialog,
+  MenuSectionsSheet,
+  MenuPreviewSheet,
+  MENU_STATUS_CONFIG,
+  MENU_CHANNEL_LABEL,
+} from "@/features/menus"
 import { PageHeader } from "@/components/app-shell/page-container"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +34,7 @@ export default function MenuPage() {
 
   const [formOpen, setFormOpen] = React.useState(false)
   const [sectionsMenuId, setSectionsMenuId] = React.useState<string | null>(null)
+  const [previewMenuId, setPreviewMenuId] = React.useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = React.useState<{ id: string; name: string } | null>(null)
 
   return (
@@ -68,6 +79,10 @@ export default function MenuPage() {
                       Seções
                     </Button>
                   ) : null}
+                  <Button variant="outline" size="sm" onClick={() => setPreviewMenuId(menu.id)}>
+                    <Eye data-icon="inline-start" />
+                    Preview
+                  </Button>
                   {canPublish ? (
                     menu.status === "ACTIVE" ? (
                       <Button
@@ -116,6 +131,10 @@ export default function MenuPage() {
 
       {sectionsMenuId ? (
         <MenuSectionsSheet open={!!sectionsMenuId} onOpenChange={(o) => !o && setSectionsMenuId(null)} menuId={sectionsMenuId} />
+      ) : null}
+
+      {previewMenuId ? (
+        <MenuPreviewSheet open={!!previewMenuId} onOpenChange={(o) => !o && setPreviewMenuId(null)} menuId={previewMenuId} />
       ) : null}
 
       <ConfirmDialog

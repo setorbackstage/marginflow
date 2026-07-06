@@ -29,6 +29,7 @@ const productSchema = z.object({
   description: z.string().max(1000).optional(),
   price: z.number().min(0, "Preço deve ser positivo"),
   sku: z.string().max(50).optional(),
+  imageUrl: z.string().max(2000).optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "OUT_OF_STOCK"]),
 })
 
@@ -38,16 +39,20 @@ export function ProductFormDialog({
   open,
   onOpenChange,
   product,
+  duplicateFrom,
   categories,
   defaultCategoryId,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   product?: ProductListItem | null
+  /** Prefills a new (non-edit) product from an existing one — "Duplicar produto". */
+  duplicateFrom?: ProductListItem | null
   categories: Category[]
   defaultCategoryId?: string
 }) {
   const isEdit = Boolean(product)
+  const source = product ?? duplicateFrom
   const create = useCreateProduct()
   const update = useUpdateProduct()
   const isPending = create.isPending || update.isPending
@@ -60,21 +65,22 @@ export function ProductFormDialog({
     formState: { errors },
   } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
-    defaultValues: { categoryId: "", name: "", description: "", price: 0, sku: "", status: "ACTIVE" },
+    defaultValues: { categoryId: "", name: "", description: "", price: 0, sku: "", imageUrl: "", status: "ACTIVE" },
   })
 
   React.useEffect(() => {
     if (open) {
       reset({
-        categoryId: product?.categoryId ?? defaultCategoryId ?? "",
-        name: product?.name ?? "",
-        description: product?.description ?? "",
-        price: product ? product.price / 100 : 0,
-        sku: product?.sku ?? "",
-        status: product?.status ?? "ACTIVE",
+        categoryId: source?.categoryId ?? defaultCategoryId ?? "",
+        name: duplicateFrom ? `${duplicateFrom.name} (cópia)` : source?.name ?? "",
+        description: source?.description ?? "",
+        price: source ? source.price / 100 : 0,
+        sku: "",
+        imageUrl: source?.imageUrl ?? "",
+        status: duplicateFrom ? "ACTIVE" : (source?.status ?? "ACTIVE"),
       })
     }
-  }, [open, product, defaultCategoryId, reset])
+  }, [open, source, duplicateFrom, defaultCategoryId, reset])
 
   const onSubmit = handleSubmit((values) => {
     const input = {
@@ -83,6 +89,7 @@ export function ProductFormDialog({
       description: values.description || null,
       price: Math.round(values.price * 100),
       sku: values.sku || null,
+      imageUrl: values.imageUrl || null,
       status: values.status,
     }
     if (isEdit && product) {
@@ -96,9 +103,13 @@ export function ProductFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar produto" : "Novo produto"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar produto" : duplicateFrom ? "Duplicar produto" : "Novo produto"}</DialogTitle>
           <DialogDescription>
-            {isEdit ? "Atualize os dados do produto." : "Produtos aparecem no cardápio e podem ser vendidos."}
+            {isEdit
+              ? "Atualize os dados do produto."
+              : duplicateFrom
+                ? "Revise os dados antes de criar a cópia — o SKU foi limpo para evitar conflito."
+                : "Produtos aparecem no cardápio e podem ser vendidos."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} noValidate>
@@ -168,10 +179,16 @@ export function ProductFormDialog({
               </Field>
             </div>
 
-            <Field>
-              <FieldLabel htmlFor="product-sku">SKU (opcional)</FieldLabel>
-              <Input id="product-sku" {...register("sku")} />
-            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="product-sku">SKU (opcional)</FieldLabel>
+                <Input id="product-sku" {...register("sku")} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="product-image">URL da imagem (opcional)</FieldLabel>
+                <Input id="product-image" placeholder="https://..." {...register("imageUrl")} />
+              </Field>
+            </div>
 
             <Field>
               <FieldLabel htmlFor="product-description">Descrição</FieldLabel>
@@ -179,6 +196,9 @@ export function ProductFormDialog({
             </Field>
           </FieldGroup>
           <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={isPending}>
               {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
               {isEdit ? "Salvar" : "Criar produto"}

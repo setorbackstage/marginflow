@@ -1,12 +1,13 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueries, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { useActiveStoreId } from "@/features/auth"
 import { categoriesApi, productsApi, modifierGroupsApi, modifiersApi } from "./api"
 import type {
   CategoryInput,
   ProductInput,
+  ProductListItem,
   ProductListParams,
   ModifierGroupInput,
   ModifierInput,
@@ -84,6 +85,31 @@ export function useProducts(params: ProductListParams) {
     queryFn: () => productsApi.list(storeId, params),
     placeholderData: keepPreviousData,
   })
+}
+
+/**
+ * Bulk "active products in this category" lookup for a bounded set of
+ * category ids — used by the menu preview (one menu's visible sections,
+ * never the whole catalog). Reuses `useProducts`'s query key shape so the
+ * Products page cache is shared where params line up.
+ */
+export function useProductsByCategoryIds(categoryIds: string[]) {
+  const storeId = useActiveStoreId()
+  const params = { status: "ACTIVE" as const }
+  const results = useQueries({
+    queries: categoryIds.map((categoryId) => ({
+      queryKey: keys.products(storeId, { ...params, categoryId }),
+      enabled: Boolean(storeId),
+      staleTime: 30_000,
+      queryFn: () => productsApi.list(storeId, { ...params, categoryId }),
+    })),
+  })
+  const byCategory = new Map<string, ProductListItem[]>()
+  categoryIds.forEach((categoryId, index) => {
+    const data = results[index].data
+    if (data) byCategory.set(categoryId, data.items)
+  })
+  return { byCategory, isLoading: results.some((r) => r.isLoading) }
 }
 
 export function useProduct(productId: string | undefined) {
