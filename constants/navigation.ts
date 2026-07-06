@@ -4,6 +4,7 @@ import {
   ChefHat,
   Package,
   BookOpenText,
+  Boxes,
   Users,
   HeartHandshake,
   Truck,
@@ -31,6 +32,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { title: "Produtos", url: "/products", icon: Package },
       { title: "Cardápio", url: "/menu", icon: BookOpenText },
+      { title: "Estoque", url: "/inventory", icon: Boxes },
     ],
   },
   {

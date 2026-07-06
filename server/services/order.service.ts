@@ -514,6 +514,7 @@ async function confirmOrder(db: DbClient, storeId: string, order: Order, opts: U
       type: order.type,
       items: items.map((item) => ({
         orderItemId: item.id,
+        productId: item.productId,
         productName: item.productName,
         quantity: item.quantity,
         modifierSummary: Array.isArray(item.selectedModifiers)

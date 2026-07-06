@@ -172,6 +172,9 @@ model Store {
   paymentAttempts PaymentAttempt[]
   deliveries      Delivery[]
   invoices        Invoice[]
+  ingredients     Ingredient[]
+  recipes         Recipe[]
+  stockMovements  StockMovement[]
 
   @@index([accountId])
   @@map("stores")
@@ -235,6 +238,7 @@ model User {
   refundedPayments     Payment[]               @relation("PaymentRefundedBy")
   refreshTokens        RefreshToken[]
   passwordResetTokens  PasswordResetToken[]
+  stockMovements       StockMovement[]         @relation("StockMovementCreatedBy")
 
   @@map("users")
 }
@@ -506,6 +510,7 @@ model Product {
   category       Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   modifierGroups ModifierGroup[]
   orderItems     OrderItem[]
+  recipe         Recipe?
 
   /// DATA_MODEL.md: UNIQUE (store_id, sku) WHERE sku IS NOT NULL. A plain
   /// @@unique is equivalent here — see file header, point 3a.
@@ -685,6 +690,7 @@ model Order {
   paymentAttempts   PaymentAttempt[]
   delivery          Delivery?
   invoice           Invoice?
+  stockMovements    StockMovement[]
 
   @@unique([storeId, number])
   @@index([storeId, status])
@@ -973,4 +979,134 @@ model Invoice {
   @@unique([storeId, invoiceNumber, series])
   @@index([storeId, status])
   @@map("invoices")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Ingredients
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A raw material (insumo) tracked by Inventory. Bought and consumed, never
+/// sold. `currentStock` is denormalized — always equals the sum of the
+/// ingredient's stock_movements.quantity_delta, maintained in the same
+/// transaction as every movement insert (Business Rule 38).
+model Ingredient {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId      String    @map("store_id") @db.Uuid
+  name         String
+  /// CHECK (unit IN ('G', 'ML', 'UN')). Immutable after creation — changing
+  /// it would silently rescale every recipe and movement.
+  unit         String
+  /// Balance in base units. May be negative (Business Rule 41).
+  currentStock Decimal   @default(0) @map("current_stock") @db.Decimal(14, 3)
+  /// CHECK (min_stock >= 0). Null disables the low-stock alert.
+  minStock     Decimal?  @map("min_stock") @db.Decimal(14, 3)
+  /// CHECK (cost_per_unit >= 0). Cents per base unit — the documented
+  /// exception to the integer-cents convention (fractional cents per gram).
+  costPerUnit  Decimal   @default(0) @map("cost_per_unit") @db.Decimal(14, 6)
+  /// CHECK (status IN ('ACTIVE', 'INACTIVE'))
+  status       String    @default("ACTIVE")
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store          Store           @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  recipeItems    RecipeItem[]
+  stockMovements StockMovement[]
+
+  /// DATA_MODEL.md: UNIQUE (store_id, name) WHERE deleted_at IS NULL. A plain
+  /// @@unique would block reusing a soft-deleted name, so the real partial
+  /// unique index is created via raw SQL in the migration (file header, 3b
+  /// pattern); no @@unique here.
+  @@index([storeId, status])
+  @@map("ingredients")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Recipes (Ficha Técnica)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Ficha técnica header — one per Product. Ingredient lines live in
+/// RecipeItem. Costs are computed at read time from current ingredient
+/// costs, never stored (movement snapshots are the historical record).
+model Recipe {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId       String   @map("store_id") @db.Uuid
+  productId     String   @unique @map("product_id") @db.Uuid
+  /// CHECK (yield_quantity > 0). Units of Product produced per execution.
+  yieldQuantity Decimal  @default(1) @map("yield_quantity") @db.Decimal(10, 3)
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store   Store        @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  product Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  items   RecipeItem[]
+
+  @@index([storeId])
+  @@map("recipes")
+}
+
+/// One ingredient line of a ficha técnica. Effective consumption per product
+/// unit = quantity × (1 + waste_pct/100) ÷ recipe.yield_quantity.
+model RecipeItem {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recipeId     String   @map("recipe_id") @db.Uuid
+  ingredientId String   @map("ingredient_id") @db.Uuid
+  /// CHECK (quantity > 0). In the ingredient's base unit, per recipe execution.
+  quantity     Decimal  @db.Decimal(14, 3)
+  /// CHECK (waste_pct >= 0 AND waste_pct <= 100). Perda applied on top of quantity.
+  wastePct     Decimal  @default(0) @map("waste_pct") @db.Decimal(5, 2)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  recipe     Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+
+  @@unique([recipeId, ingredientId])
+  @@index([ingredientId])
+  @@map("recipe_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Stock Movements
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Immutable, append-only stock ledger (Business Rule 37) — no updatedAt by
+/// design. SALE_CONSUMPTION/SALE_REVERSAL rows are written by the Inventory
+/// event consumers inside the order transaction; the (order_id,
+/// ingredient_id, type) uniqueness makes those consumers idempotent
+/// (Business Rule 39).
+model StockMovement {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId         String   @map("store_id") @db.Uuid
+  ingredientId    String   @map("ingredient_id") @db.Uuid
+  /// CHECK (type IN ('ENTRY', 'EXIT', 'ADJUSTMENT', 'LOSS', 'SALE_CONSUMPTION', 'SALE_REVERSAL'))
+  type            String
+  /// CHECK (quantity_delta <> 0). Sign-per-type CHECK in raw SQL: > 0 for
+  /// ENTRY/SALE_REVERSAL, < 0 for EXIT/LOSS/SALE_CONSUMPTION.
+  quantityDelta   Decimal  @map("quantity_delta") @db.Decimal(14, 3)
+  /// CHECK (unit_cost >= 0). Snapshot of ingredient.cost_per_unit at movement
+  /// time — CMV reads these, never current costs (Business Rule 45).
+  unitCost        Decimal  @map("unit_cost") @db.Decimal(14, 6)
+  /// CHECK: NOT NULL when type IN ('SALE_CONSUMPTION','SALE_REVERSAL'), NULL
+  /// otherwise (raw SQL cross-column CHECK).
+  orderId         String?  @map("order_id") @db.Uuid
+  /// CHECK: NOT NULL when type IN ('ADJUSTMENT', 'LOSS') (raw SQL CHECK).
+  reason          String?
+  /// Operator for manual movements; null for automatic ones.
+  createdByUserId String?  @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  store         Store      @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+  order         Order?     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  createdByUser User?      @relation("StockMovementCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  /// Idempotency for automatic movements. NULL order_id rows (manual) are
+  /// unaffected — PostgreSQL treats NULLs as distinct (file header, 3a).
+  @@unique([orderId, ingredientId, type])
+  @@index([storeId, ingredientId, createdAt(sort: Desc)])
+  @@index([storeId, createdAt(sort: Desc)])
+  @@index([storeId, type, createdAt])
+  @@map("stock_movements")
 }

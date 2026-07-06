@@ -1,10 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { ReceiptText, Truck, ChefHat, ArrowRight, Store } from "lucide-react"
+import { ReceiptText, Truck, ChefHat, ArrowRight, Store, TriangleAlert } from "lucide-react"
 
-import { useAuth } from "@/features/auth"
+import { useAuth, useCan } from "@/features/auth"
 import { useDashboardCounts } from "@/features/dashboard/hooks"
+import { useStockAlerts, formatQuantity } from "@/features/inventory"
 import { PageHeader } from "@/components/app-shell/page-container"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -17,9 +18,44 @@ interface Kpi {
   href: string
 }
 
+/**
+ * Real low-stock data from GET /inventory/alerts — mounted only for users
+ * with inventory:view (the endpoint would 403 otherwise). Hidden while the
+ * store has no active alerts.
+ */
+function StockAlertsCard() {
+  const alerts = useStockAlerts()
+  if (alerts.isLoading || alerts.isError || !alerts.data || alerts.data.length === 0) return null
+
+  return (
+    <Link href="/inventory" className="group">
+      <Card className="border-amber-500/40 transition-colors group-hover:border-amber-500">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">Estoque baixo</CardTitle>
+          <TriangleAlert className="size-4 text-amber-600 dark:text-amber-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <span className="text-3xl font-semibold tabular-nums">{alerts.data.length}</span>
+            <ArrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+          </div>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {alerts.data
+              .slice(0, 2)
+              .map((alert) => `${alert.ingredientName} (${formatQuantity(alert.currentStock, alert.unit)})`)
+              .join(", ")}
+            {alerts.data.length > 2 ? ` e mais ${alerts.data.length - 2}` : ""}
+          </p>
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
+
 export default function DashboardPage() {
   const { session, activeMembership } = useAuth()
   const counts = useDashboardCounts()
+  const canViewInventory = useCan("inventory:view")
 
   const firstName = session.user.name?.split(" ")[0] ?? "operador"
 
@@ -76,6 +112,7 @@ export default function DashboardPage() {
             </Card>
           </Link>
         ))}
+        {canViewInventory ? <StockAlertsCard /> : null}
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Package, MoreHorizontal, Pencil, Trash2, Layers, FolderPen } from "lucide-react"
+import { Plus, Package, MoreHorizontal, Pencil, Trash2, Layers, FolderPen, ClipboardList } from "lucide-react"
 
 import { useCan } from "@/features/auth"
 import {
@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { RecipeSheet } from "@/features/inventory"
 import { EmptyState, ErrorState, StatusBadge, PaginationBar, SearchBar, ConfirmDialog } from "@/components/shared"
 import { formatCents } from "@/lib/format"
 import { useDebouncedValue } from "@/hooks"
@@ -44,6 +45,8 @@ export default function ProductsPage() {
   const [categoryDialog, setCategoryDialog] = React.useState<{ open: boolean; category: Category | null }>({ open: false, category: null })
   const [productDialog, setProductDialog] = React.useState<{ open: boolean; product: ProductListItem | null }>({ open: false, product: null })
   const [modifiersFor, setModifiersFor] = React.useState<ProductListItem | null>(null)
+  const [recipeFor, setRecipeFor] = React.useState<ProductListItem | null>(null)
+  const canViewInventory = useCan("inventory:view")
   const [deleteProductTarget, setDeleteProductTarget] = React.useState<ProductListItem | null>(null)
   const [deleteCategoryTarget, setDeleteCategoryTarget] = React.useState<Category | null>(null)
 
@@ -191,6 +194,12 @@ export default function ProductsPage() {
                                 <Layers data-icon="inline-start" />
                                 Modificadores
                               </DropdownMenuItem>
+                              {canViewInventory ? (
+                                <DropdownMenuItem onClick={() => setRecipeFor(product)}>
+                                  <ClipboardList data-icon="inline-start" />
+                                  Ficha técnica
+                                </DropdownMenuItem>
+                              ) : null}
                               {canEdit ? (
                                 <DropdownMenuItem onClick={() => setProductDialog({ open: true, product })}>
                                   <Pencil data-icon="inline-start" />
@@ -249,6 +258,15 @@ export default function ProductsPage() {
           onOpenChange={(open) => !open && setModifiersFor(null)}
           productId={modifiersFor.id}
           productName={modifiersFor.name}
+        />
+      ) : null}
+      {recipeFor ? (
+        <RecipeSheet
+          open={!!recipeFor}
+          onOpenChange={(open) => !open && setRecipeFor(null)}
+          productId={recipeFor.id}
+          productName={recipeFor.name}
+          productPrice={recipeFor.price}
         />
       ) : null}
 

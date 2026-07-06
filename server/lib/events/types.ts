@@ -25,6 +25,12 @@ export interface OrderCreatedPayload {
 
 export interface OrderConfirmedItemPayload {
   orderItemId: string
+  /**
+   * Additive, non-breaking field (API_SPEC.md Versioning) added for the
+   * Inventory consumer's recipe lookup. Null only if the product was
+   * hard-deleted (historical edge case; products are soft-deleted).
+   */
+  productId: string | null
   productName: string
   quantity: number
   modifierSummary: string[]
@@ -202,6 +208,27 @@ export interface MenuUnpublishedPayload {
   unpublishedAt: string
 }
 
+export interface StockMovementCreatedPayload {
+  movementId: string
+  ingredientId: string
+  ingredientName: string
+  type: string
+  quantityDelta: number
+  unitCost: number
+  /** Ingredient balance immediately after this movement. */
+  currentStock: number
+  /** Null for manual movements. */
+  orderId: string | null
+}
+
+export interface StockLowPayload {
+  ingredientId: string
+  ingredientName: string
+  unit: string
+  currentStock: number
+  minStock: number
+}
+
 export type DomainEvent =
   | EventEnvelope<"order.created", OrderCreatedPayload>
   | EventEnvelope<"order.confirmed", OrderConfirmedPayload>
@@ -222,6 +249,8 @@ export type DomainEvent =
   | EventEnvelope<"membership.invited", MembershipInvitedPayload>
   | EventEnvelope<"menu.published", MenuPublishedPayload>
   | EventEnvelope<"menu.unpublished", MenuUnpublishedPayload>
+  | EventEnvelope<"stock.movement_created", StockMovementCreatedPayload>
+  | EventEnvelope<"stock.low", StockLowPayload>
 
 export type DomainEventType = DomainEvent["eventType"]
 
