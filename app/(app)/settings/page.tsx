@@ -654,23 +654,49 @@ function PrintSettingsSection() {
           </p>
         </div>
 
-        <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
-          <div>
-            <Label htmlFor="auto-print" className="text-sm font-normal">
-              Imprimir automaticamente ao receber pedido
-            </Label>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Gera o comprovante assim que um novo pedido chegar na lista de pedidos ativos.
-            </p>
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Impressão automática</p>
+          <p className="text-xs text-muted-foreground">
+            Quando ativado, abre o diálogo de impressão automaticamente ao chegar um novo pedido.
+          </p>
+
+          <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
+            <div>
+              <Label htmlFor="print-kitchen" className="text-sm font-normal">
+                Comanda da cozinha
+              </Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Itens, quantidades e observações em letra grande. Sem preços.
+              </p>
+            </div>
+            <Switch
+              id="print-kitchen"
+              checked={settings.data.printKitchenTicketOnConfirm}
+              disabled={!canEdit || update.isPending}
+              onCheckedChange={(checked) =>
+                update.mutate({ printKitchenTicketOnConfirm: checked })
+              }
+            />
           </div>
-          <Switch
-            id="auto-print"
-            checked={settings.data.printReceiptOnConfirm}
-            disabled={!canEdit || update.isPending}
-            onCheckedChange={(checked) =>
-              update.mutate({ printReceiptOnConfirm: checked })
-            }
-          />
+
+          <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
+            <div>
+              <Label htmlFor="print-receipt" className="text-sm font-normal">
+                Comprovante do cliente
+              </Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Comprovante completo com itens, totais e informações do pedido.
+              </p>
+            </div>
+            <Switch
+              id="print-receipt"
+              checked={settings.data.printReceiptOnConfirm}
+              disabled={!canEdit || update.isPending}
+              onCheckedChange={(checked) =>
+                update.mutate({ printReceiptOnConfirm: checked })
+              }
+            />
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -196,9 +196,10 @@ model StoreSettings {
   id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   storeId                 String   @unique @map("store_id") @db.Uuid
   autoConfirmOrders       Boolean  @default(false) @map("auto_confirm_orders")
-  printReceiptOnConfirm   Boolean  @default(false) @map("print_receipt_on_confirm")
+  printReceiptOnConfirm        Boolean  @default(false) @map("print_receipt_on_confirm")
+  printKitchenTicketOnConfirm  Boolean  @default(false) @map("print_kitchen_ticket_on_confirm")
   /// CHECK (receipt_format IN ('A4', 'THERMAL_80MM', 'THERMAL_58MM'))
-  receiptFormat           String   @default("THERMAL_80MM") @map("receipt_format")
+  receiptFormat                String   @default("THERMAL_80MM") @map("receipt_format")
   allowScheduledOrders    Boolean  @default(false) @map("allow_scheduled_orders")
   /// CHECK (max_scheduled_days_ahead >= 1)
   maxScheduledDaysAhead   Int      @default(7) @map("max_scheduled_days_ahead")

@@ -16,6 +16,7 @@ interface RouteContext {
 const updateSettingsSchema = z.object({
   autoConfirmOrders: z.boolean().optional(),
   printReceiptOnConfirm: z.boolean().optional(),
+  printKitchenTicketOnConfirm: z.boolean().optional(),
   receiptFormat: z.enum(["A4", "THERMAL_80MM", "THERMAL_58MM"]).optional(),
   allowScheduledOrders: z.boolean().optional(),
   maxScheduledDaysAhead: z.number().int().min(1).optional(),
@@ -39,6 +40,7 @@ function toSettingsResponse(settings: StoreSettings) {
     storeId: settings.storeId,
     autoConfirmOrders: settings.autoConfirmOrders,
     printReceiptOnConfirm: settings.printReceiptOnConfirm,
+    printKitchenTicketOnConfirm: settings.printKitchenTicketOnConfirm,
     receiptFormat: settings.receiptFormat as "A4" | "THERMAL_80MM" | "THERMAL_58MM",
     allowScheduledOrders: settings.allowScheduledOrders,
     maxScheduledDaysAhead: settings.maxScheduledDaysAhead,

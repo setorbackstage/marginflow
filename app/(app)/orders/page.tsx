@@ -41,13 +41,14 @@ export default function OrdersPage() {
 
   const statusParam = statusFilter === "ALL" ? undefined : statusFilter === "ACTIVE" ? ACTIVE_STATUSES : statusFilter
   const orders = useOrders({ page, search: search || undefined, status: statusParam })
-  const { printOrderById } = usePrintOrder()
+  const { printOrderById, printOrderByIdAuto } = usePrintOrder()
   const settings = useStoreSettings()
 
   // Auto-print when a new order appears in the active list
   const seenOrderIdsRef = React.useRef<Set<string> | null>(null)
+  const shouldAutoPrint = settings.data?.printReceiptOnConfirm || settings.data?.printKitchenTicketOnConfirm
   React.useEffect(() => {
-    if (!orders.data || !settings.data?.printReceiptOnConfirm) return
+    if (!orders.data || !shouldAutoPrint) return
     if (statusFilter !== "ACTIVE") return
 
     const currentIds = new Set(orders.data.items.map((o) => o.id))
@@ -60,12 +61,12 @@ export default function OrdersPage() {
 
     for (const order of orders.data.items) {
       if (!seenOrderIdsRef.current.has(order.id)) {
-        printOrderById(order.id)
+        printOrderByIdAuto(order.id)
       }
     }
 
     seenOrderIdsRef.current = currentIds
-  }, [orders.data, settings.data?.printReceiptOnConfirm, statusFilter, printOrderById])
+  }, [orders.data, shouldAutoPrint, statusFilter, printOrderByIdAuto])
 
   const handleFilterChange = (value: typeof statusFilter | null) => {
     if (!value) return
