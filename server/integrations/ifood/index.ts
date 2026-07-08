@@ -8,6 +8,7 @@ export {
   markIfoodOrderReadyToPickup,
   dispatchIfoodOrder,
   requestIfoodCancellation,
+  mapCancellationReason,
 } from "./orders"
 export type { IfoodOrder } from "./orders"
 export { mapIfoodOrder } from "./mapper"

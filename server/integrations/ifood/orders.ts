@@ -120,7 +120,24 @@ export function dispatchIfoodOrder(accessToken: string, orderId: string, deliver
   })
 }
 
-export function requestIfoodCancellation(accessToken: string, orderId: string, reason = "502"): Promise<void> {
+/**
+ * Maps a MarginFlow free-text cancellation reason to an iFood reason code.
+ * iFood codes:
+ *  501 — Restaurant cannot prepare the order
+ *  502 — Customer no longer wants the order
+ *  503 — Restaurant cannot fulfil delivery
+ *  504 — Duplicate order
+ */
+export function mapCancellationReason(reason: string | null | undefined): string {
+  if (!reason) return "501"
+  const r = reason.toLowerCase()
+  if (r.includes("duplicad") || r.includes("duplicate")) return "504"
+  if (r.includes("entrega") || r.includes("delivery") || r.includes("motoboy") || r.includes("courier")) return "503"
+  if (r.includes("cliente") || r.includes("customer") || r.includes("não quer") || r.includes("desistiu")) return "502"
+  return "501"
+}
+
+export function requestIfoodCancellation(accessToken: string, orderId: string, reason = "501"): Promise<void> {
   return ifoodFetch(`/order/v1.0/orders/${orderId}/requestCancellation`, accessToken, {
     method: "POST",
     body: JSON.stringify({ reason }),

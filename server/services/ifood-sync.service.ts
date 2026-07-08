@@ -16,6 +16,7 @@ import {
   markIfoodOrderReadyToPickup,
   dispatchIfoodOrder,
   requestIfoodCancellation,
+  mapCancellationReason,
   mapIfoodOrder,
 } from "../integrations/ifood"
 import type { IfoodEvent } from "../integrations/ifood"
@@ -226,6 +227,22 @@ export async function processIfoodEvents(events: IfoodEvent[]): Promise<void> {
         } else {
           logger.warn("ifood.events.unknown_merchant", { merchantId: event.merchantId })
         }
+      } else if (event.fullCode === "CANCELLED") {
+        // iFood cancelled the order (customer request, platform decision, timeout, etc.)
+        // Sync the cancellation into MarginFlow so operators don't see stale active orders.
+        const integration = await marketplaceIntegrationRepository.findByMerchantId(prisma, "IFOOD", event.merchantId)
+        if (integration) {
+          const { storeId } = integration
+          const order = await orderRepository.findByExternalId(prisma, storeId, event.orderId)
+          if (order && order.status !== "CANCELLED" && order.status !== "DELIVERED") {
+            await orderService.updateStatus(prisma, storeId, order.id, "CANCELLED", {
+              triggeredByUserId: null,
+              reason: "Cancelado pelo iFood",
+              notes: "Cancelamento iniciado pela plataforma iFood.",
+            })
+            logger.info("ifood.events.order_cancelled_by_ifood", { storeId, orderId: order.id })
+          }
+        }
       } else if (event.fullCode === "DISPATCHED" || event.fullCode === "CONCLUDED") {
         const integration = await marketplaceIntegrationRepository.findByMerchantId(prisma, "IFOOD", event.merchantId)
         if (integration) {
@@ -393,9 +410,15 @@ eventBus.on("order.out_for_delivery", "ifood-sync:order.out_for_delivery", async
   )
 })
 
-// order.cancelled → POST /requestCancellation
+// order.cancelled → POST /requestCancellation with mapped reason code
 eventBus.on("order.cancelled", "ifood-sync:order.cancelled", async (event, db) => {
-  await withIfoodAction(db, event.payload.orderId, requestIfoodCancellation, "request_cancellation")
+  const ifoodReason = mapCancellationReason(event.payload.cancelledReason)
+  await withIfoodAction(
+    db,
+    event.payload.orderId,
+    (token, externalId) => requestIfoodCancellation(token, externalId, ifoodReason),
+    "request_cancellation",
+  )
 })
 
 export const ifoodSyncService = { processIfoodEvents, pollAllIfoodStores, ingestIfoodOrder }
