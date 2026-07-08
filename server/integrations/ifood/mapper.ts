@@ -34,6 +34,13 @@ export interface MappedDeliveryAddress {
   longitude: number | null
 }
 
+export interface MappedPayment {
+  /** MarginFlow payment method string */
+  method: string
+  /** true = customer already paid online through iFood; false = collect at delivery */
+  isPrepaid: boolean
+}
+
 export interface MappedMarketplaceOrder {
   externalId: string
   /** "DELIVERY" | "TAKEAWAY" | "DINE_IN" */
@@ -55,6 +62,7 @@ export interface MappedMarketplaceOrder {
   items: MappedOrderItem[]
   /** Whether iFood handles logistics ("IFOOD") or the merchant does ("MERCHANT"). */
   deliveredBy: string | null
+  payment: MappedPayment | null
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -71,6 +79,34 @@ function mapOrderType(ifoodType: string): string {
     case "INDOOR":   return "DINE_IN"
     default:         return "DELIVERY"
   }
+}
+
+/** Maps iFood payment method strings to MarginFlow's payment method enum. */
+const IFOOD_METHOD_TO_MARGINFLOW: Record<string, string> = {
+  CASH:          "CASH",
+  CREDIT:        "CREDIT_CARD",
+  DEBIT:         "DEBIT_CARD",
+  PIX:           "PIX",
+  MEAL_VOUCHER:  "VOUCHER",
+  FOOD_VOUCHER:  "VOUCHER",
+}
+
+function mapPayment(payments: IfoodOrder["payments"]): MappedPayment | null {
+  if (!payments) return null
+
+  const isPrepaid = payments.pending === 0
+
+  if (isPrepaid) {
+    return { method: "ONLINE", isPrepaid: true }
+  }
+
+  // Find the first offline (to-be-collected) method
+  const offlineMethod = payments.methods.find((m) => !m.prepaid)
+  const method = offlineMethod
+    ? (IFOOD_METHOD_TO_MARGINFLOW[offlineMethod.method.toUpperCase()] ?? "CASH")
+    : "CASH"
+
+  return { method, isPrepaid: false }
 }
 
 function mapPhone(phone?: { number?: string; localizer?: string }): string | null {
@@ -149,5 +185,6 @@ export function mapIfoodOrder(ifoodOrder: IfoodOrder): MappedMarketplaceOrder {
     scheduledFor,
     items,
     deliveredBy: ifoodOrder.delivery?.deliveredBy ?? null,
+    payment: mapPayment(ifoodOrder.payments),
   }
 }

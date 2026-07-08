@@ -1,8 +1,10 @@
 import "server-only"
 import type { DbClient } from "../db"
 import { prisma } from "../db"
-import { orderRepository, orderItemRepository, orderStatusTransitionRepository, marketplaceIntegrationRepository } from "../repositories"
+import { orderRepository, orderItemRepository, orderStatusTransitionRepository, marketplaceIntegrationRepository, storeSettingsRepository, paymentRepository } from "../repositories"
 import { eventBus, createEvent, logger } from "../lib"
+import { orderService } from "./order.service"
+import { paymentService } from "./payment.service"
 import { toJsonInput, toNullableJsonInput } from "../lib/json"
 import {
   getIfoodAccessToken,
@@ -33,6 +35,8 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
   const accessToken = await getIfoodAccessToken()
   const ifoodOrder = await fetchIfoodOrder(accessToken, ifoodOrderId)
   const mapped = mapIfoodOrder(ifoodOrder)
+
+  let createdOrderId: string | null = null
 
   await prisma.$transaction(async (tx) => {
     const number = await orderRepository.getNextOrderNumber(tx, storeId)
@@ -97,9 +101,61 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
         }
       })
       .catch(() => undefined) // non-critical
+
+    createdOrderId = order.id
   }, { timeout: 30_000 })
 
   logger.info("ifood.ingest.order_created", { storeId, ifoodOrderId })
+
+  // ── Auto-confirm ──────────────────────────────────────────────────────────
+  // Marketplace orders are created at PENDING (bypassing the DRAFT→PENDING flow
+  // that normally triggers auto-confirm). We replicate the check here.
+  const settings = await storeSettingsRepository.findByStoreId(prisma, storeId)
+
+  if (!createdOrderId) return
+
+  let confirmedOrderId: string | null = null
+  if (settings?.autoConfirmOrders) {
+    try {
+      await orderService.updateStatus(prisma, storeId, createdOrderId, "CONFIRMED", {
+        triggeredByUserId: null,
+        notes: "Auto-confirmado pelo sistema (pedido iFood)",
+      })
+      confirmedOrderId = createdOrderId
+      logger.info("ifood.ingest.auto_confirmed", { storeId, orderId: createdOrderId })
+    } catch (err) {
+      logger.error("ifood.ingest.auto_confirm_error", {
+        storeId,
+        orderId: createdOrderId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  // ── Auto-register payment ─────────────────────────────────────────────────
+  // Only after the order is CONFIRMED (payment API rejects PENDING orders).
+  // - Fully prepaid via iFood (pending === 0): create PAID payment, method ONLINE
+  // - Pay-on-delivery (pending > 0): create PENDING payment with the offline method
+  if (confirmedOrderId && mapped.payment) {
+    try {
+      const { payment } = await paymentService.initiate(prisma, storeId, confirmedOrderId, {
+        method: mapped.payment.method,
+        gateway: "IFOOD",
+      })
+      if (mapped.payment.isPrepaid) {
+        await paymentService.confirm(prisma, storeId, payment.id)
+        logger.info("ifood.ingest.payment_confirmed", { storeId, orderId: confirmedOrderId, method: mapped.payment.method })
+      } else {
+        logger.info("ifood.ingest.payment_pending", { storeId, orderId: confirmedOrderId, method: mapped.payment.method })
+      }
+    } catch (err) {
+      logger.error("ifood.ingest.payment_error", {
+        storeId,
+        orderId: confirmedOrderId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
