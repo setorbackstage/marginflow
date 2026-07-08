@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   description: APP_DESCRIPTION,
   applicationName: APP_NAME,
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icon-32x32.png", sizes: "32x32", type: "image/png" }],
+    icon: [{ url: "/icon-32x32.png", sizes: "32x32", type: "image/png" }, { url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
     apple: "/apple-icon.png",
   },
   openGraph: {

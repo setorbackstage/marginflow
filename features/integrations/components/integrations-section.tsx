@@ -92,131 +92,135 @@ function IfoodSetupGuide() {
   )
 }
 
-function ConnectIfoodCard({ canManage }: { canManage: boolean }) {
-  const connect = useConnectIntegration()
-  const [merchantId, setMerchantId] = React.useState("")
-  const [showGuide, setShowGuide] = React.useState(false)
-
-  const handleConnect = () => {
-    if (!merchantId.trim()) return
-    connect.mutate({ platform: "IFOOD", merchantId: merchantId.trim() }, {
-      onSuccess: () => setMerchantId(""),
-    })
-  }
-
-  return (
-    <div className="rounded-xl border p-4 space-y-3">
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-lg bg-[#ea1d2c]/10">
-          <PlugZap className="size-5 text-[#ea1d2c]" />
-        </div>
-        <div>
-          <p className="text-sm font-medium">iFood</p>
-          <p className="text-xs text-muted-foreground">Receba pedidos direto do marketplace</p>
-        </div>
-      </div>
-
-      <button
-        onClick={() => setShowGuide((s) => !s)}
-        className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground text-left"
-      >
-        {showGuide ? "Ocultar instruções" : "Como conectar?"}
-      </button>
-
-      {showGuide ? <IfoodSetupGuide /> : null}
-
-      {canManage ? (
-        <div className="space-y-2">
-          <div>
-            <Label htmlFor="ifood-merchant-id" className="mb-1.5 text-xs">
-              Merchant ID do restaurante
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                id="ifood-merchant-id"
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                value={merchantId}
-                onChange={(e) => setMerchantId(e.target.value)}
-                className="font-mono text-xs"
-              />
-              <Button
-                size="sm"
-                disabled={!merchantId.trim() || connect.isPending}
-                onClick={handleConnect}
-              >
-                {connect.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-                Conectar
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground">Apenas gerentes e proprietários podem conectar integrações.</p>
-      )}
-    </div>
-  )
-}
-
-function ConnectedIntegrationCard({
+function IfoodIntegrationCard({
   integration,
   canManage,
 }: {
-  integration: MarketplaceIntegration
+  integration: MarketplaceIntegration | null
   canManage: boolean
 }) {
+  const connect = useConnectIntegration()
   const disconnect = useDisconnectIntegration()
+  const [merchantId, setMerchantId] = React.useState("")
+  const [showGuide, setShowGuide] = React.useState(false)
   const [confirmOpen, setConfirmOpen] = React.useState(false)
 
+  const isConnected = integration !== null
+
   return (
-    <div className="rounded-xl border p-4 space-y-3">
-      <div className="flex items-start justify-between gap-3">
+    <div className="rounded-xl border divide-y">
+      {/* Header — always visible */}
+      <div className="flex items-center justify-between gap-3 p-4">
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-lg bg-[#ea1d2c]/10">
-            <Plug className="size-5 text-[#ea1d2c]" />
+            {isConnected ? <Plug className="size-5 text-[#ea1d2c]" /> : <PlugZap className="size-5 text-[#ea1d2c]" />}
           </div>
           <div>
-            <p className="text-sm font-medium">{PLATFORM_LABEL[integration.platform] ?? integration.platform}</p>
-            <p className="font-mono text-xs text-muted-foreground">{integration.merchantId}</p>
+            <p className="text-sm font-medium">iFood</p>
+            {isConnected ? (
+              <p className="font-mono text-xs text-muted-foreground">{integration.merchantId}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Não conectado</p>
+            )}
           </div>
         </div>
-        <StatusBadge status={integration.status} config={INTEGRATION_STATUS_CONFIG} />
+        {isConnected ? (
+          <StatusBadge status={integration.status} config={INTEGRATION_STATUS_CONFIG} />
+        ) : (
+          <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            Desconectado
+          </span>
+        )}
       </div>
 
-      {integration.errorMessage ? (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{integration.errorMessage}</p>
-      ) : null}
+      {/* Connected state: details */}
+      {isConnected && (
+        <>
+          {integration.errorMessage ? (
+            <div className="px-4 py-3">
+              <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{integration.errorMessage}</p>
+            </div>
+          ) : null}
 
-      <div className="rounded-md bg-muted/50 px-3 py-2 space-y-1">
-        <p className="text-xs font-medium">URL do Webhook (configure no Portal do Desenvolvedor iFood)</p>
-        <div className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
-          <span className="flex-1 break-all">{WEBHOOK_URL}</span>
-          <CopyButton text={WEBHOOK_URL} />
+          <div className="px-4 py-3 space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">URL do Webhook</p>
+            <div className="flex items-center gap-1 rounded-md bg-muted/50 px-2 py-1.5 font-mono text-xs text-muted-foreground">
+              <span className="flex-1 break-all">{WEBHOOK_URL}</span>
+              <CopyButton text={WEBHOOK_URL} />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <p className="text-xs text-muted-foreground">
+              {integration.lastSyncAt
+                ? `Última sincronização: ${formatDateTime(integration.lastSyncAt)}`
+                : "Aguardando primeiro pedido..."}
+            </p>
+            {canManage ? (
+              <Button variant="outline" size="sm" onClick={() => setConfirmOpen(true)}>
+                Desconectar
+              </Button>
+            ) : null}
+          </div>
+
+          <ConfirmDialog
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
+            title="Desconectar integração"
+            description="Tem certeza que deseja desconectar o iFood? Os pedidos já importados não serão removidos."
+            confirmLabel="Desconectar"
+            variant="destructive"
+            isLoading={disconnect.isPending}
+            onConfirm={() => disconnect.mutate("IFOOD", { onSuccess: () => setConfirmOpen(false) })}
+          />
+        </>
+      )}
+
+      {/* Not connected state: setup form */}
+      {!isConnected && (
+        <div className="px-4 py-3 space-y-3">
+          <button
+            onClick={() => setShowGuide((s) => !s)}
+            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground text-left"
+          >
+            {showGuide ? "Ocultar instruções" : "Como conectar?"}
+          </button>
+
+          {showGuide ? <IfoodSetupGuide /> : null}
+
+          {canManage ? (
+            <div>
+              <Label htmlFor="ifood-merchant-id" className="mb-1.5 text-xs">
+                Merchant ID do restaurante
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="ifood-merchant-id"
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  value={merchantId}
+                  onChange={(e) => setMerchantId(e.target.value)}
+                  className="font-mono text-xs"
+                />
+                <Button
+                  size="sm"
+                  disabled={!merchantId.trim() || connect.isPending}
+                  onClick={() => {
+                    if (!merchantId.trim()) return
+                    connect.mutate({ platform: "IFOOD", merchantId: merchantId.trim() }, {
+                      onSuccess: () => setMerchantId(""),
+                    })
+                  }}
+                >
+                  {connect.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+                  Conectar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Apenas gerentes e proprietários podem conectar integrações.</p>
+          )}
         </div>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          {integration.lastSyncAt
-            ? `Última sincronização: ${formatDateTime(integration.lastSyncAt)}`
-            : "Aguardando primeiro pedido..."}
-        </p>
-        {canManage ? (
-          <Button variant="outline" size="sm" onClick={() => setConfirmOpen(true)}>
-            Desconectar
-          </Button>
-        ) : null}
-      </div>
-
-      <ConfirmDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        title="Desconectar integração"
-        description={`Tem certeza que deseja desconectar o ${PLATFORM_LABEL[integration.platform] ?? integration.platform}? Os pedidos já importados não serão removidos.`}
-        confirmLabel="Desconectar"
-        variant="destructive"
-        isLoading={disconnect.isPending}
-        onConfirm={() => disconnect.mutate(integration.platform, { onSuccess: () => setConfirmOpen(false) })}
-      />
+      )}
     </div>
   )
 }
@@ -231,7 +235,7 @@ export function IntegrationsSection() {
   if (integrations.isLoading) return <Skeleton className="h-48 w-full" />
   if (integrations.isError) return <ErrorState error={integrations.error} onRetry={() => integrations.refetch()} />
 
-  const ifoodIntegration = integrations.data?.find((i) => i.platform === "IFOOD")
+  const ifoodIntegration = integrations.data?.find((i) => i.platform === "IFOOD") ?? null
 
   return (
     <Card>
@@ -241,12 +245,8 @@ export function IntegrationsSection() {
           Conecte sua loja a plataformas de delivery para receber pedidos automaticamente no MarginFlow.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {ifoodIntegration ? (
-          <ConnectedIntegrationCard integration={ifoodIntegration} canManage={canManage} />
-        ) : (
-          <ConnectIfoodCard canManage={canManage} />
-        )}
+      <CardContent>
+        <IfoodIntegrationCard integration={ifoodIntegration} canManage={canManage} />
       </CardContent>
     </Card>
   )
