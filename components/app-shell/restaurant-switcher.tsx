@@ -1,8 +1,10 @@
 "use client"
 
+import Image from "next/image"
 import { Check, ChevronsUpDown } from "lucide-react"
 
 import { useAuth } from "@/features/auth"
+import { useStore } from "@/features/stores"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +27,14 @@ function initialsOf(name: string): string {
   return (first + second).toUpperCase()
 }
 
-function StoreMark({ name }: { name: string }) {
+function StoreMark({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
+  if (logoUrl) {
+    return (
+      <div className="relative aspect-square size-8 shrink-0 overflow-hidden rounded-md border">
+        <Image src={logoUrl} alt="" fill sizes="32px" className="object-cover" unoptimized />
+      </div>
+    )
+  }
   return (
     <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">
       {initialsOf(name)}
@@ -37,6 +46,8 @@ function StoreMark({ name }: { name: string }) {
 export function RestaurantSwitcher() {
   const { isMobile } = useSidebar()
   const { memberships, activeMembership, setActiveStore } = useAuth()
+  // Branding (logo) is not part of the session/membership shape — fetched separately.
+  const store = useStore()
 
   return (
     <SidebarMenu>
@@ -50,7 +61,7 @@ export function RestaurantSwitcher() {
               />
             }
           >
-            <StoreMark name={activeMembership.storeName} />
+            <StoreMark name={activeMembership.storeName} logoUrl={store.data?.logoUrl} />
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-semibold">{activeMembership.storeName}</span>
               <span className="truncate text-xs text-muted-foreground">{activeMembership.role.displayName}</span>

@@ -23,17 +23,26 @@ async function handleGetTimeline(request: NextRequest, { params }: RouteContext)
   const users = await Promise.all(userIds.map((id) => userService.findById(prisma, id)))
   const userById = new Map(users.filter((u) => u !== null).map((u) => [u.id, u]))
 
+  // Transitions are ordered newest-first (desc). Reverse to compute fromStatus
+  // (each transition's from = the previous transition's status chronologically).
+  const chronological = [...transitions].reverse()
+
   return ok(
-    transitions.map((transition) => {
-      const triggeredByUser = transition.triggeredByUserId ? (userById.get(transition.triggeredByUserId) ?? null) : null
-      return {
-        id: transition.id,
-        status: transition.status,
-        triggeredByUser: triggeredByUser ? { id: triggeredByUser.id, name: triggeredByUser.name } : null,
-        notes: transition.notes,
-        occurredAt: transition.occurredAt,
-      }
-    }),
+    chronological
+      .map((transition, index) => {
+        const triggeredByUser = transition.triggeredByUserId
+          ? (userById.get(transition.triggeredByUserId) ?? null)
+          : null
+        return {
+          id: transition.id,
+          fromStatus: index > 0 ? chronological[index - 1].status : null,
+          status: transition.status,
+          triggeredByUser: triggeredByUser ? { id: triggeredByUser.id, name: triggeredByUser.name } : null,
+          notes: transition.notes,
+          occurredAt: transition.occurredAt,
+        }
+      })
+      .reverse(), // restore newest-first for the response
   )
 }
 

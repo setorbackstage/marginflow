@@ -64,7 +64,7 @@ export const customerService = {
 
 // Business Rule (Customer): total_orders/last_order_at maintained by the service
 // layer on Order completion — DATA_MODEL.md's "Denormalized aggregates" note.
-eventBus.on("order.delivered", async (event, db) => {
+eventBus.on("order.delivered", "customer.service:order.delivered", async (event, db) => {
   const { customerId, deliveredAt } = event.payload
   if (!customerId) return
 
@@ -81,7 +81,7 @@ eventBus.on("order.delivered", async (event, db) => {
 // Business Rule (Customer): total_spent maintained on Payment reaching PAID —
 // not on order.delivered, matching the order.delivered event contract note:
 // "does NOT update total_spent — that waits for payment.paid".
-eventBus.on("payment.paid", async (event, db) => {
+eventBus.on("payment.paid", "customer.service:payment.paid", async (event, db) => {
   const { customerId, amount } = event.payload
   if (!customerId) return
 

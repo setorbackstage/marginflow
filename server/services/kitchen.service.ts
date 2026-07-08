@@ -130,7 +130,7 @@ export const kitchenService = {
 // Business Rule 16: a Kitchen Ticket is created automatically and atomically
 // when an Order reaches CONFIRMED — this listener runs inside the same
 // transaction as the order's status change (see order.service.ts).
-eventBus.on("order.confirmed", async (event, db) => {
+eventBus.on("order.confirmed", "kitchen.service:order.confirmed", async (event, db) => {
   const queuedAt = new Date()
   const ticket = await kitchenTicketRepository.create(db, {
     store: { connect: { id: event.storeId } },
@@ -165,7 +165,7 @@ eventBus.on("order.confirmed", async (event, db) => {
 })
 
 // Business Rule 19: a cancelled Order immediately flags its Kitchen Ticket as CANCELLED.
-eventBus.on("order.cancelled", async (event, db) => {
+eventBus.on("order.cancelled", "kitchen.service:order.cancelled", async (event, db) => {
   const ticket = await kitchenTicketRepository.findByOrderId(db, event.payload.orderId)
   if (!ticket || ticket.status === "READY" || ticket.status === "CANCELLED") return
   await kitchenTicketRepository.update(db, ticket.id, { status: "CANCELLED", cancelledAt: new Date() })

@@ -19,8 +19,20 @@ export const ordersApi = {
   create: (storeId: string, input: CreateOrderInput) => api.post<OrderDetail>(`/stores/${storeId}/orders`, input),
   update: (storeId: string, orderId: string, input: { notes?: string | null; tableNumber?: string | null }) =>
     api.patch<OrderDetail>(`/stores/${storeId}/orders/${orderId}`, input),
-  updateStatus: (storeId: string, orderId: string, status: string, reason?: string, notes?: string) =>
-    api.post<OrderDetail>(`/stores/${storeId}/orders/${orderId}/status`, { status, reason, notes }),
+  updateStatus: (
+    storeId: string,
+    orderId: string,
+    status: string,
+    reason?: string,
+    notes?: string,
+    managerOverride?: { managerEmail: string; managerApprovalPassword: string },
+  ) =>
+    api.post<OrderDetail>(`/stores/${storeId}/orders/${orderId}/status`, {
+      status,
+      reason,
+      notes,
+      ...managerOverride,
+    }),
   timeline: (storeId: string, orderId: string) => api.get<TimelineEntry[]>(`/stores/${storeId}/orders/${orderId}/timeline`),
   addItem: (storeId: string, orderId: string, input: { productId: string; quantity: number; selectedModifiers?: { modifierId: string; modifierGroupId: string }[]; notes?: string | null }) =>
     api.post<{ item: OrderItem }>(`/stores/${storeId}/orders/${orderId}/items`, input),

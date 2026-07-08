@@ -45,6 +45,12 @@ export interface UpdateStoreSettingsInput {
   acceptsVoucher?: boolean
   acceptsOnlinePayment?: boolean
   notificationPreferences?: Prisma.InputJsonValue
+  primaryColor?: string | null
+  secondaryColor?: string | null
+  menuBannerUrl?: string | null
+  description?: string | null
+  instagramHandle?: string | null
+  whatsappNumber?: string | null
 }
 
 async function getStoreOrThrow(db: DbClient, storeId: string): Promise<Store> {

@@ -69,10 +69,13 @@ export { paymentService } from "./payment.service"
 export type { InitiatePaymentInput, RefundPaymentInput } from "./payment.service"
 
 export { ingredientService } from "./ingredient.service"
-export type { CreateIngredientInput, UpdateIngredientInput, LowStockAlert } from "./ingredient.service"
+export type { CreateIngredientInput, UpdateIngredientInput, LowStockAlert, StaleIngredient, ConsumptionInsight } from "./ingredient.service"
 
 export { recipeService } from "./recipe.service"
 export type { UpsertRecipeInput, RecipeItemInput, RecipeWithCosts } from "./recipe.service"
 
 export { stockMovementService } from "./stock-movement.service"
 export type { CreateManualMovementInput, ManualMovementType } from "./stock-movement.service"
+
+export { publicMenuService, toPublicStorefrontDTO } from "./public-menu.service"
+export type { PublicStorefront } from "./public-menu.service"

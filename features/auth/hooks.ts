@@ -2,9 +2,15 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
-import { login, signup, logout, fetchMe } from "./api"
+import { toast } from "sonner"
+import { login, signup, logout, fetchMe, setApprovalPassword } from "./api"
 import { SESSION_KEY } from "./session"
 import type { LoginInput, SignupInput } from "./types"
+import type { SetApprovalPasswordInput } from "./api"
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback
+}
 
 /**
  * Login mutation. On success it warms the session cache (so the app shell has
@@ -48,5 +54,14 @@ export function useLogout() {
       queryClient.clear()
       router.replace("/login")
     },
+  })
+}
+
+/** Sets/replaces the caller's own Business Rule 46 "approval password" — see `PATCH /auth/approval-password`. */
+export function useSetApprovalPassword() {
+  return useMutation({
+    mutationFn: (input: SetApprovalPasswordInput) => setApprovalPassword(input),
+    onSuccess: () => toast.success("Senha de aprovação definida."),
+    onError: (error) => toast.error(errorMessage(error, "Não foi possível definir a senha de aprovação.")),
   })
 }

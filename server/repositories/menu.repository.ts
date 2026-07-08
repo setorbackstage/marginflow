@@ -23,6 +23,15 @@ export const menuRepository = {
     return db.menu.findUnique({ where: { storeId_name: { storeId, name } } })
   },
 
+  /** The public menu page shows a store's single published (`ACTIVE`) menu — earliest-created wins if there's more than one. */
+  findFirstActiveByStore(db: DbClient, storeId: string) {
+    return db.menu.findFirst({
+      where: { storeId, status: "ACTIVE" },
+      orderBy: { createdAt: "asc" },
+      include: { sections: { where: { isVisible: true }, orderBy: { sortOrder: "asc" }, include: { category: true } } },
+    })
+  },
+
   /** Includes a count of the menu's sections — API_SPEC.md's list shape denormalizes `sectionCount` onto each row. */
   findManyByStore(
     db: DbClient,

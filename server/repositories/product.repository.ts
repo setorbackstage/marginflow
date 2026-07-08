@@ -54,6 +54,21 @@ export const productRepository = {
     })
   },
 
+  /** Public menu page: every orderable Product in the store, with its active Modifier Groups/Modifiers, for client-side grouping by category. */
+  findManyPublicByStore(db: DbClient, storeId: string) {
+    return db.product.findMany({
+      where: { storeId, deletedAt: null, status: "ACTIVE", isAvailable: true },
+      orderBy: { sortOrder: "asc" },
+      include: {
+        modifierGroups: {
+          where: { deletedAt: null, isActive: true },
+          orderBy: { sortOrder: "asc" },
+          include: { modifiers: { where: { deletedAt: null, isActive: true }, orderBy: { sortOrder: "asc" } } },
+        },
+      },
+    })
+  },
+
   /**
    * Neutral count with a caller-supplied filter — e.g. used by the Service
    * layer to decide whether a Category can be soft-deleted. This repository

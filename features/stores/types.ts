@@ -37,6 +37,7 @@ export interface UpdateStoreInput {
   name?: string
   phone?: string
   email?: string
+  logoUrl?: string | null
   deliveryFee?: number
   minimumOrderValue?: number
   operatingHours?: WeeklySchedule
@@ -55,6 +56,12 @@ export interface StoreSettings {
   acceptsPix: boolean
   acceptsVoucher: boolean
   acceptsOnlinePayment: boolean
+  primaryColor: string | null
+  secondaryColor: string | null
+  menuBannerUrl: string | null
+  description: string | null
+  instagramHandle: string | null
+  whatsappNumber: string | null
   updatedAt: string
 }
 

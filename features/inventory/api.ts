@@ -4,6 +4,7 @@ import type {
   IngredientDetail,
   IngredientInput,
   IngredientListParams,
+  InventoryInsights,
   LowStockAlert,
   MovementInput,
   MovementListParams,
@@ -29,6 +30,7 @@ export const ingredientsApi = {
         perPage: params.perPage ?? 20,
         search: params.search,
         status: params.status,
+        category: params.category,
         lowStock: params.lowStock ? "true" : undefined,
       })}`,
     ),
@@ -60,6 +62,10 @@ export const movementsApi = {
 
 export const alertsApi = {
   list: (storeId: string) => api.get<LowStockAlert[]>(`/stores/${storeId}/inventory/alerts`),
+}
+
+export const insightsApi = {
+  get: (storeId: string) => api.get<InventoryInsights>(`/stores/${storeId}/inventory/insights`),
 }
 
 export const recipesApi = {

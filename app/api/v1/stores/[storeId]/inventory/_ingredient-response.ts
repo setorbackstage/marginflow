@@ -18,8 +18,9 @@ export function toIngredientResponse(ingredient: Ingredient) {
     currentStock,
     minStock,
     costPerUnit: Number(ingredient.costPerUnit),
-    isLowStock: minStock !== null && currentStock <= minStock,
+    isLowStock: currentStock < 0 || (minStock !== null && currentStock <= minStock),
     status: ingredient.status,
+    category: ingredient.category,
     createdAt: ingredient.createdAt,
     updatedAt: ingredient.updatedAt,
   }

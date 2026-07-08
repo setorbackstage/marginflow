@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import {
   ReceiptText,
   Users,
@@ -16,8 +17,9 @@ import {
 } from "lucide-react"
 
 import { useAuth, useCan } from "@/features/auth"
+import { useStore } from "@/features/stores"
 import { useDashboardCounts, useDashboardOrdersToday, useRecentOrders, useRecentStockMovements } from "@/features/dashboard/hooks"
-import { useStockAlerts, formatQuantity, MOVEMENT_TYPE_CONFIG } from "@/features/inventory"
+import { useStockAlerts, useInventoryValue, useInventoryInsights, formatQuantity, MOVEMENT_TYPE_CONFIG } from "@/features/inventory"
 import { ORDER_STATUS_CONFIG } from "@/features/orders"
 import { PageHeader } from "@/components/app-shell/page-container"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -88,6 +90,76 @@ function StockAlertsCard() {
               .join(", ")}
             {alerts.data.length > 2 ? ` e mais ${alerts.data.length - 2}` : ""}
           </p>
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
+
+/** Sprint 3 Dashboard: total stock value, mirroring the Estoque page's own card. */
+function InventoryValueCard() {
+  const inventoryValue = useInventoryValue()
+  if (inventoryValue.isLoading || inventoryValue.isError) return null
+
+  return (
+    <Link href="/inventory" className="group">
+      <Card className="transition-colors group-hover:border-primary/40">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">Valor em estoque</CardTitle>
+          <Wallet className="size-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <span className="text-3xl font-semibold tabular-nums">{formatCents(inventoryValue.data?.total ?? 0)}</span>
+            <ArrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
+
+/** Sprint 3 Dashboard: ingredients consuming the most stock over the trailing 30 days. */
+function TopConsumedCard() {
+  const insights = useInventoryInsights()
+  if (insights.isLoading || insights.isError || !insights.data || insights.data.topByQuantity.length === 0) return null
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-medium">Ingredientes mais consumidos (30 dias)</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="divide-y">
+          {insights.data.topByQuantity.slice(0, 5).map((item) => (
+            <div key={item.ingredientId} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0">
+              <p className="truncate text-sm font-medium">{item.ingredientName}</p>
+              <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{formatQuantity(item.totalConsumed, item.unit)}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Sprint 3 Dashboard: active products still missing a ficha técnica. */
+function ProductsWithoutRecipeCard() {
+  const insights = useInventoryInsights()
+  if (insights.isLoading || insights.isError || !insights.data || insights.data.productsWithoutRecipe === 0) return null
+
+  return (
+    <Link href="/products" className="group">
+      <Card className="border-amber-500/40 transition-colors group-hover:border-amber-500">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">Produtos sem ficha técnica</CardTitle>
+          <TriangleAlert className="size-4 text-amber-600 dark:text-amber-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <span className="text-3xl font-semibold tabular-nums">{insights.data.productsWithoutRecipe}</span>
+            <ArrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+          </div>
         </CardContent>
       </Card>
     </Link>
@@ -191,6 +263,7 @@ function RecentActivityCard() {
 
 export default function DashboardPage() {
   const { session, activeMembership } = useAuth()
+  const store = useStore()
   const counts = useDashboardCounts()
   const ordersToday = useDashboardOrdersToday()
   const canViewInventory = useCan("inventory:view")
@@ -261,9 +334,15 @@ export default function DashboardPage() {
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
-              <Store className="size-5" />
-            </div>
+            {store.data?.logoUrl ? (
+              <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border">
+                <Image src={store.data.logoUrl} alt="" fill sizes="40px" className="object-cover" unoptimized />
+              </div>
+            ) : (
+              <div className="flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <Store className="size-5" />
+              </div>
+            )}
             <div>
               <p className="text-sm font-medium">{activeMembership.storeName}</p>
               <p className="text-xs text-muted-foreground">
@@ -315,12 +394,20 @@ export default function DashboardPage() {
           <KpiCard key={kpi.label} kpi={kpi} />
         ))}
         {canViewInventory ? <StockAlertsCard /> : null}
+        {canViewInventory ? <InventoryValueCard /> : null}
+        {canViewInventory ? <ProductsWithoutRecipeCard /> : null}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <RecentOrdersCard />
         {canViewInventory ? <RecentActivityCard /> : null}
       </div>
+
+      {canViewInventory ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <TopConsumedCard />
+        </div>
+      ) : null}
     </div>
   )
 }

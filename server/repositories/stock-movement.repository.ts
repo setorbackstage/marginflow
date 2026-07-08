@@ -62,4 +62,26 @@ export const stockMovementRepository = {
     }, 0)
     return Math.round(total)
   },
+
+  /**
+   * Sprint 3 "Alertas" (Maior consumo / Maior custo): raw SALE_CONSUMPTION
+   * rows in [from, to) for JS-side aggregation per ingredient — same
+   * snapshot-reading approach as `sumCmv`, just not pre-summed since the
+   * caller needs a per-ingredient breakdown, not a single total.
+   */
+  findConsumptionByIngredient(db: DbClient, storeId: string, from: Date, to: Date) {
+    return db.stockMovement.findMany({
+      where: { storeId, type: "SALE_CONSUMPTION", createdAt: { gte: from, lt: to } },
+      select: { ingredientId: true, quantityDelta: true, unitCost: true },
+    })
+  },
+
+  /** Sprint 3 "Alertas" (Produto parado): last movement timestamp per ingredient, one grouped query instead of N. */
+  maxCreatedAtByIngredient(db: DbClient, storeId: string) {
+    return db.stockMovement.groupBy({
+      by: ["ingredientId"],
+      where: { storeId },
+      _max: { createdAt: true },
+    })
+  },
 }

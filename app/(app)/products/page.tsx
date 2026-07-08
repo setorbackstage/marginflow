@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Image from "next/image"
-import { Plus, Package, MoreHorizontal, Pencil, Trash2, Layers, FolderPen, ClipboardList, Copy, ImageOff } from "lucide-react"
+import { Plus, Package, MoreHorizontal, Pencil, Trash2, Layers, FolderPen, ClipboardList, Copy, ImageOff, ArrowUp, ArrowDown } from "lucide-react"
 
 import { useCan } from "@/features/auth"
 import {
@@ -10,6 +10,8 @@ import {
   useProducts,
   useDeleteProduct,
   useDeleteCategory,
+  useCreateCategory,
+  useUpdateCategory,
   CategoryFormDialog,
   ProductFormDialog,
   ModifierGroupsSheet,
@@ -51,6 +53,8 @@ export default function ProductsPage() {
   const products = useProducts({ page, categoryId: selectedCategoryId, search: search || undefined, sort })
   const deleteProduct = useDeleteProduct()
   const deleteCategory = useDeleteCategory()
+  const createCategory = useCreateCategory()
+  const updateCategory = useUpdateCategory()
   const canViewInventory = useCan("inventory:view")
   const recipePresence = useRecipesPresence(canViewInventory ? (products.data?.items.map((p) => p.id) ?? []) : [])
 
@@ -114,43 +118,85 @@ export default function ProductsPage() {
               <Skeleton className="h-8 w-full" />
             </div>
           ) : (
-            categories.data?.map((category) => (
-              <div
-                key={category.id}
-                className={cn(
-                  "group flex items-center justify-between rounded-lg px-1 text-sm hover:bg-muted",
-                  selectedCategoryId === category.id && "bg-muted font-medium",
-                )}
-              >
-                <button onClick={() => selectCategory(category.id)} className="flex-1 truncate px-2 py-2 text-left">
-                  {category.name}
-                </button>
-                <span className="pr-1 text-xs text-muted-foreground">{category.productCount}</span>
-                {canEdit ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button variant="ghost" size="icon-xs" className="mr-1 opacity-0 group-hover:opacity-100" aria-label="Ações da categoria" />
-                      }
-                    >
-                      <MoreHorizontal />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => setCategoryDialog({ open: true, category })}>
-                        <Pencil data-icon="inline-start" />
-                        Editar
-                      </DropdownMenuItem>
-                      {canDelete ? (
-                        <DropdownMenuItem variant="destructive" onClick={() => setDeleteCategoryTarget(category)}>
-                          <Trash2 data-icon="inline-start" />
-                          Excluir
+            categories.data?.map((category, index) => {
+              const prev = categories.data![index - 1]
+              const next = categories.data![index + 1]
+              return (
+                <div
+                  key={category.id}
+                  className={cn(
+                    "group flex items-center justify-between rounded-lg px-1 text-sm hover:bg-muted",
+                    selectedCategoryId === category.id && "bg-muted font-medium",
+                  )}
+                >
+                  <button onClick={() => selectCategory(category.id)} className="flex-1 truncate px-2 py-2 text-left">
+                    {category.name}
+                  </button>
+                  <span className="pr-1 text-xs text-muted-foreground">{category.productCount}</span>
+                  {canEdit ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button variant="ghost" size="icon-xs" className="mr-1 opacity-0 group-hover:opacity-100" aria-label="Ações da categoria" />
+                        }
+                      >
+                        <MoreHorizontal />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => setCategoryDialog({ open: true, category })}>
+                          <Pencil data-icon="inline-start" />
+                          Editar
                         </DropdownMenuItem>
-                      ) : null}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : null}
-              </div>
-            ))
+                        <DropdownMenuItem
+                          onClick={() =>
+                            createCategory.mutate({
+                              name: `${category.name} (cópia)`,
+                              description: category.description,
+                              isActive: category.isActive,
+                            })
+                          }
+                        >
+                          <Copy data-icon="inline-start" />
+                          Duplicar
+                        </DropdownMenuItem>
+                        {prev ? (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              // Reassigns sortOrder from array position rather than swapping
+                              // existing values — categories created without an explicit
+                              // sortOrder all default to 0, so swapping raw values would be a
+                              // no-op until the whole list has been through a manual reorder.
+                              updateCategory.mutate({ categoryId: category.id, input: { sortOrder: index - 1 } })
+                              updateCategory.mutate({ categoryId: prev.id, input: { sortOrder: index } })
+                            }}
+                          >
+                            <ArrowUp data-icon="inline-start" />
+                            Mover para cima
+                          </DropdownMenuItem>
+                        ) : null}
+                        {next ? (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              updateCategory.mutate({ categoryId: category.id, input: { sortOrder: index + 1 } })
+                              updateCategory.mutate({ categoryId: next.id, input: { sortOrder: index } })
+                            }}
+                          >
+                            <ArrowDown data-icon="inline-start" />
+                            Mover para baixo
+                          </DropdownMenuItem>
+                        ) : null}
+                        {canDelete ? (
+                          <DropdownMenuItem variant="destructive" onClick={() => setDeleteCategoryTarget(category)}>
+                            <Trash2 data-icon="inline-start" />
+                            Excluir
+                          </DropdownMenuItem>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : null}
+                </div>
+              )
+            })
           )}
           {!categories.isLoading && categories.data?.length === 0 ? (
             <p className="px-2 py-2 text-xs text-muted-foreground">Nenhuma categoria ainda.</p>
@@ -337,6 +383,9 @@ export default function ProductsPage() {
           productId={recipeFor.id}
           productName={recipeFor.name}
           productPrice={recipeFor.price}
+          duplicateCandidates={(products.data?.items ?? [])
+            .filter((p) => p.id !== recipeFor.id)
+            .map((p) => ({ id: p.id, name: p.name }))}
         />
       ) : null}
 

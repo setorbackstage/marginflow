@@ -21,6 +21,7 @@ import {
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field"
 import { useCreateMovement } from "@/features/inventory/hooks"
 import { UNIT_LABEL, formatQuantity } from "@/features/inventory/status"
+import { PurchaseCalculator } from "./purchase-calculator"
 import type { Ingredient } from "@/features/inventory/types"
 
 const MANUAL_TYPE_OPTIONS = [
@@ -39,6 +40,8 @@ const movementSchema = z
     reason: z.string().max(500).optional(),
     /** ENTRY only — R$ per base unit; converted to cents on submit. */
     costPerUnit: z.number().min(0).optional(),
+    /** ENTRY only — folded into `reason` on submit (StockMovement has no dedicated supplier column). */
+    supplier: z.string().max(120).optional(),
   })
   .superRefine((value, ctx) => {
     if (value.type === "ADJUSTMENT" && !value.direction) {
@@ -68,16 +71,17 @@ export function MovementFormDialog({
     register,
     handleSubmit,
     reset,
+    setValue,
     control,
     formState: { errors },
   } = useForm<MovementFormValues>({
     resolver: zodResolver(movementSchema),
-    defaultValues: { ingredientId: "", type: "ENTRY", quantity: 0, reason: "" },
+    defaultValues: { ingredientId: "", type: "ENTRY", quantity: 0, reason: "", supplier: "" },
   })
 
   React.useEffect(() => {
     if (open) {
-      reset({ ingredientId: defaultIngredientId ?? "", type: "ENTRY", quantity: 0, reason: "" })
+      reset({ ingredientId: defaultIngredientId ?? "", type: "ENTRY", quantity: 0, reason: "", supplier: "" })
     }
   }, [open, defaultIngredientId, reset])
 
@@ -87,13 +91,20 @@ export function MovementFormDialog({
   const unitSuffix = selectedIngredient ? UNIT_LABEL[selectedIngredient.unit] : ""
 
   const onSubmit = handleSubmit((values) => {
+    const supplier = values.supplier?.trim()
+    const observation = values.reason?.trim()
+    const combinedReason =
+      values.type === "ENTRY"
+        ? [supplier ? `Fornecedor: ${supplier}` : null, observation || null].filter(Boolean).join(" — ") || null
+        : observation || null
+
     create.mutate(
       {
         ingredientId: values.ingredientId,
         type: values.type,
         quantity: values.quantity,
         direction: values.type === "ADJUSTMENT" ? values.direction : undefined,
-        reason: values.reason?.trim() || null,
+        reason: combinedReason,
         costPerUnit:
           values.type === "ENTRY" && values.costPerUnit !== undefined && !Number.isNaN(values.costPerUnit)
             ? values.costPerUnit * 100
@@ -144,6 +155,16 @@ export function MovementFormDialog({
               />
               <FieldError errors={[errors.ingredientId]} />
             </Field>
+
+            {selectedType === "ENTRY" && selectedIngredient ? (
+              <PurchaseCalculator
+                baseUnit={selectedIngredient.unit}
+                onApply={(result) => {
+                  setValue("quantity", Number(result.quantity.toFixed(3)), { shouldValidate: true })
+                  setValue("costPerUnit", Number(result.costPerUnit.toFixed(4)), { shouldValidate: true })
+                }}
+              />
+            ) : null}
 
             <div className="grid grid-cols-2 gap-3">
               <Field>
@@ -210,21 +231,31 @@ export function MovementFormDialog({
             ) : null}
 
             {selectedType === "ENTRY" ? (
-              <Field>
-                <FieldLabel htmlFor="movement-cost">
-                  Novo custo unitário (R$ por {unitSuffix || "unidade"}, opcional)
-                </FieldLabel>
-                <Input
-                  id="movement-cost"
-                  type="number"
-                  step="0.0001"
-                  min="0"
-                  placeholder="Mantém o custo atual se vazio"
-                  {...register("costPerUnit", {
-                    setValueAs: (value) => (value === "" || value === null ? undefined : Number(value)),
-                  })}
-                />
-              </Field>
+              <>
+                <Field>
+                  <FieldLabel htmlFor="movement-cost">
+                    Preço (R$ por {unitSuffix || "unidade"}, opcional)
+                  </FieldLabel>
+                  <Input
+                    id="movement-cost"
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    placeholder="Mantém o custo atual se vazio"
+                    {...register("costPerUnit", {
+                      setValueAs: (value) => (value === "" || value === null ? undefined : Number(value)),
+                    })}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="movement-supplier">Fornecedor (opcional)</FieldLabel>
+                  <Input id="movement-supplier" placeholder="Ex: Distribuidora Central" {...register("supplier")} />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="movement-reason">Observação (opcional)</FieldLabel>
+                  <Textarea id="movement-reason" rows={2} {...register("reason")} />
+                </Field>
+              </>
             ) : null}
 
             {selectedType === "ADJUSTMENT" || selectedType === "LOSS" ? (

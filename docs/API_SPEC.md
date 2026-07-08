@@ -306,6 +306,50 @@ The refresh token is set as an HTTP-only, Secure, SameSite=Strict cookie named `
 
 ---
 
+## PATCH /api/v1/auth/approval-password
+
+**Purpose:** Set or replace the caller's own "approval password" (Business Rule 46 manager override) — a second credential, separate from the login password, that a MANAGER/OWNER configures for themselves and later types alongside their email at a shared terminal to approve another staff member's cancellation of an order already in preparation (or a dispatched delivery), without exposing their real login password or logging the current user out. See `POST /api/v1/stores/:storeId/orders/:orderId/status`'s "Manager override" business rule.
+
+**Authentication required:** Yes
+
+**Request Body:**
+
+| Field | Type | Required | Validation |
+|---|---|---|---|
+| `currentPassword` | string | Yes | Must match the caller's own login password — confirms the caller is really the account owner before a new approval password can be planted, so a hijacked but still-open session can't silently set one the real owner never chose |
+| `newApprovalPassword` | string | Yes | Minimum 8 characters |
+
+**Request Example:**
+```json
+{
+  "currentPassword": "minhaSenhaDeLogin123",
+  "newApprovalPassword": "aprovacao456"
+}
+```
+
+**Success Response — 200 OK:**
+```json
+{
+  "data": { "success": true }
+}
+```
+
+**Error Responses:**
+
+| Status | Code | When |
+|---|---|---|
+| 401 | `INVALID_CREDENTIALS` | `currentPassword` does not match the caller's login password |
+| 403 | `APPROVAL_PASSWORD_REQUIRES_MANAGER_ROLE` | The caller holds no ACTIVE Membership with an OWNER/MANAGER Role at any store |
+
+**Business Rules:**
+- Only a user who holds an OWNER/MANAGER Role at at least one ACTIVE Membership may set an approval password — kitchen staff, delivery couriers, cashiers, and any other non-manager role are rejected outright, since `verifyManagerCredentials` would never accept the password from them anyway. This is checked at creation time, not just at use time.
+- The approval password is independent per user and unrelated to any specific store; `authorizationService.verifyManagerCredentials` re-checks manager/owner Role membership at the target store on every use.
+- Setting a new approval password overwrites any previous one — there is no history or reuse check.
+
+**Events Produced:** None
+
+---
+
 ## POST /api/v1/auth/forgot-password
 
 **Purpose:** Send a password reset email to the provided address.
@@ -905,6 +949,8 @@ Returns the updated order object (same shape as GET /orders/:orderId).
 | `status` | string | Yes | Target status |
 | `reason` | string | Conditional | Required when transitioning to CANCELLED |
 | `notes` | string | No | Optional operator notes for the audit log |
+| `managerEmail` | string | No | Manager override (Business Rule 46) — a manager/owner's own email, used alongside `managerApprovalPassword` to approve a cancellation on the spot when the acting user isn't a manager themselves |
+| `managerApprovalPassword` | string | No | Manager override — a separate *approval password* the manager configures for themselves via `PATCH /auth/approval-password` (`meService.setApprovalPassword`), distinct from their login password so it's safe to type at a shared terminal in front of other staff. Verified server-side against a MANAGER/OWNER membership at this store; never stored, never logged, no session is created. If the manager hasn't configured one yet, the override is unavailable to them until they do. |
 
 **Allowed Transitions:**
 
@@ -913,7 +959,7 @@ Returns the updated order object (same shape as GET /orders/:orderId).
 | `DRAFT` | `PENDING` | `orders:create` | None |
 | `PENDING` | `CONFIRMED` | `orders:edit` | Creates Kitchen Ticket; emits `order.confirmed`; if `auto_confirm_orders = true`, this happens automatically |
 | `READY` | `DELIVERED` | `orders:edit` | TAKEAWAY orders only — there is no Delivery record for this order type, so Orders is the sole owner of the pickup confirmation. Emits `order.delivered` directly. |
-| Any (before DELIVERED) | `CANCELLED` | `orders:cancel` | Emits `order.cancelled`. Kitchen consumes it and cancels the Kitchen Ticket. Delivery consumes it and cancels/fails the Delivery record. If the Delivery has already reached `DISPATCHED` or later, cancellation additionally requires the acting user to hold manager-level `delivery:update_status`; if absent, the whole request is rejected with `409 DISPATCHED_DELIVERY_CANCEL_REQUIRES_MANAGER` before any state changes. (This check can still block the caller's response today because the event bus is synchronous and in-process — see the note under Event Contracts on what must change if the bus becomes asynchronous.) |
+| Any (before DELIVERED) | `CANCELLED` | `orders:cancel` | Emits `order.cancelled`. Kitchen consumes it and cancels the Kitchen Ticket. Delivery consumes it and cancels/fails the Delivery record. If the Delivery has already reached `DISPATCHED` or later, cancellation additionally requires the acting user to hold manager-level `delivery:update_status`; if absent, the whole request is rejected with `409 DISPATCHED_DELIVERY_CANCEL_REQUIRES_MANAGER` before any state changes. Independently, if the order's own status is already `PREPARING`, `READY`, or `OUT_FOR_DELIVERY` (Business Rule 46), cancellation requires the acting user to hold manager/owner privileges; if absent, the request is rejected with `409 KITCHEN_STARTED_CANCEL_REQUIRES_MANAGER` before any state changes. (Both checks can still block the caller's response today because the event bus is synchronous and in-process — see the note under Event Contracts on what must change if the bus becomes asynchronous.) |
 
 **System-derived transitions (not callable via this endpoint):**
 
@@ -965,11 +1011,15 @@ Returns the updated order object.
 | 409 | `ORDER_ALREADY_DELIVERED` | Cannot transition a delivered order |
 | 409 | `ORDER_ALREADY_CANCELLED` | Cannot transition a cancelled order |
 | 409 | `DISPATCHED_DELIVERY_CANCEL_REQUIRES_MANAGER` | Cancelling a dispatched delivery requires manager role |
+| 409 | `KITCHEN_STARTED_CANCEL_REQUIRES_MANAGER` | Cancelling an order already PREPARING, READY, or OUT_FOR_DELIVERY requires manager/owner role |
+| 403 | `MANAGER_CREDENTIALS_INVALID` | `managerEmail`/`managerApprovalPassword` were supplied but don't match an ACTIVE manager/owner of this store with that approval password configured |
 
 **Business Rules:**
 - All transitions — whether triggered here or derived from Kitchen/Delivery events — are recorded in `order_status_transitions` with the actor's user ID (or `null` for system-triggered transitions) and the timestamp.
 - Operational timestamps (`confirmed_at`, `ready_at`, `delivered_at`, `cancelled_at`) are set once and never overwritten, regardless of whether the transition was client-triggered or event-derived.
 - Order status follows Kitchen Ticket and Delivery status automatically, via the domain events listed in the "System-derived transitions" table above. This endpoint never mutates those three statuses directly.
+- Business Rule 46: cancelling an order whose status is already `PREPARING`, `READY`, or `OUT_FOR_DELIVERY` requires the acting user to hold manager/owner privileges. The stock already consumed for the order is **not** reversed by this cancellation (Business Rule 40) — the ingredients (and the cook's time) are a real loss, so this gate exists to put a manager in the loop before that loss happens, not to prevent it outright.
+- "Manager override": a non-manager can still perform the cancellation by supplying `managerEmail`/`managerApprovalPassword` for any ACTIVE manager/owner of this store. This is deliberately **not** the manager's login password — each manager/owner opts in by setting a separate approval password via `PATCH /auth/approval-password`, so they never have to expose their real account password at a shared terminal in front of other staff. Same generic failure message for "no such user" / "wrong password" / "not a manager here" / "no approval password configured", and it **never creates a session, token, or cookie** — it's a one-shot, in-request approval, not an impersonation or login. Same mechanism applies to `DISPATCHED_DELIVERY_CANCEL_REQUIRES_MANAGER`.
 - `grand_total` cannot change after an order reaches CONFIRMED.
 
 **Events Produced (by this endpoint):**

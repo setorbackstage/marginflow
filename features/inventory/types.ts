@@ -15,6 +15,7 @@ export interface Ingredient {
   costPerUnit: number
   isLowStock: boolean
   status: IngredientStatus
+  category: string | null
   createdAt: string
   updatedAt: string
 }
@@ -29,6 +30,7 @@ export interface IngredientInput {
   costPerUnit?: number
   minStock?: number | null
   status?: IngredientStatus
+  category?: string | null
 }
 
 export interface IngredientListParams {
@@ -36,6 +38,7 @@ export interface IngredientListParams {
   perPage?: number
   search?: string
   status?: IngredientStatus
+  category?: string
   lowStock?: boolean
 }
 
@@ -80,6 +83,29 @@ export interface LowStockAlert {
   currentStock: number
   minStock: number
   severity: AlertSeverity
+}
+
+export interface StaleIngredient {
+  ingredientId: string
+  ingredientName: string
+  unit: IngredientUnit
+  currentStock: number
+  daysSinceLastMovement: number | null
+}
+
+export interface ConsumptionInsight {
+  ingredientId: string
+  ingredientName: string
+  unit: IngredientUnit
+  totalConsumed: number
+  totalCost: number
+}
+
+export interface InventoryInsights {
+  stale: StaleIngredient[]
+  topByQuantity: ConsumptionInsight[]
+  topByCost: ConsumptionInsight[]
+  productsWithoutRecipe: number
 }
 
 export interface RecipeItem {

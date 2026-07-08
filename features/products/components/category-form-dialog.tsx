@@ -28,6 +28,9 @@ const categorySchema = z.object({
   isActive: z.boolean(),
 })
 
+/** Quick-fill suggestions for a first-time menu setup — not an exhaustive list. */
+const NAME_SUGGESTIONS = ["Entradas", "Pratos principais", "Bebidas", "Sobremesas", "Lanches", "Pizzas", "Combos"]
+
 type CategoryFormValues = z.infer<typeof categorySchema>
 
 export function CategoryFormDialog({
@@ -49,6 +52,7 @@ export function CategoryFormDialog({
     handleSubmit,
     reset,
     control,
+    setValue,
     formState: { errors },
   } = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
@@ -89,6 +93,20 @@ export function CategoryFormDialog({
               <FieldLabel htmlFor="category-name">Nome</FieldLabel>
               <Input id="category-name" aria-invalid={!!errors.name} {...register("name")} />
               <FieldError errors={[errors.name]} />
+              {!isEdit ? (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {NAME_SUGGESTIONS.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => setValue("name", suggestion, { shouldValidate: true })}
+                      className="rounded-full border border-input px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </Field>
             <Field>
               <FieldLabel htmlFor="category-description">Descrição</FieldLabel>

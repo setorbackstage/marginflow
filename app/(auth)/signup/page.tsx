@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field"
+import { PhoneInput } from "@/components/shared"
 
 const STORE_TYPE_LABEL: Record<StoreType, string> = {
   RESTAURANT: "Restaurante",
@@ -130,7 +131,13 @@ export default function SignupPage() {
 
                 <Field>
                   <FieldLabel htmlFor="phone">Telefone</FieldLabel>
-                  <Input id="phone" autoComplete="tel" placeholder="+55 11 99999-0000" aria-invalid={!!errors.phone} {...register("phone")} />
+                  <Controller
+                    control={control}
+                    name="phone"
+                    render={({ field }) => (
+                      <PhoneInput id="phone" aria-invalid={!!errors.phone} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />
+                    )}
+                  />
                   <FieldError errors={[errors.phone]} />
                 </Field>
 

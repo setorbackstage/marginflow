@@ -12,3 +12,5 @@ export {
 export { IngredientFormDialog } from "./components/ingredient-form-dialog"
 export { MovementFormDialog } from "./components/movement-form-dialog"
 export { RecipeSheet } from "./components/recipe-sheet"
+export { PurchaseCalculator } from "./components/purchase-calculator"
+export { PACKAGE_TYPES, SIZE_UNIT_OPTIONS, calculatePurchase } from "./purchase-calculator"

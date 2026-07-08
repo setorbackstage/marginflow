@@ -6,7 +6,15 @@ import { Plus, Trash2, ClipboardList, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxCollection,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "@/components/ui/combobox"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Field, FieldLabel } from "@/components/ui/field"
@@ -32,15 +40,23 @@ export function RecipeSheet({
   productId,
   productName,
   productPrice,
+  duplicateCandidates = [],
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   productId: string
   productName: string
   productPrice: number
+  /** Other products to offer as a "duplicate from" source — omit to hide that action. */
+  duplicateCandidates?: { id: string; name: string }[]
 }) {
   const recipe = useRecipe(open ? productId : undefined)
-  const ingredients = useIngredients({ page: 1 })
+  const [duplicateSourceId, setDuplicateSourceId] = React.useState<string | null>(null)
+  const duplicateSource = useRecipe(duplicateSourceId ?? undefined)
+  // `perPage: 100` — the row-level ingredient picker needs every active
+  // ingredient available to search, not just the first page (the plain
+  // `{ page: 1 }` default here silently truncated at 20 before).
+  const ingredients = useIngredients({ page: 1, perPage: 100 })
   const upsert = useUpsertRecipe(productId)
   const deleteRecipe = useDeleteRecipe(productId)
 
@@ -129,6 +145,57 @@ export function RecipeSheet({
               />
             ) : (
               <>
+                {duplicateCandidates.length > 0 ? (
+                  <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+                    <p className="text-xs font-medium text-muted-foreground">Duplicar ficha de outro produto</p>
+                    <Combobox
+                      items={duplicateCandidates.map((p) => ({ value: p.id, label: p.name }))}
+                      value={duplicateSourceId ? { value: duplicateSourceId, label: duplicateCandidates.find((p) => p.id === duplicateSourceId)?.name ?? "" } : null}
+                      onValueChange={(next) => setDuplicateSourceId(next?.value ?? null)}
+                    >
+                      <ComboboxInput placeholder="Buscar produto..." />
+                      <ComboboxContent>
+                        <ComboboxEmpty>Nenhum produto encontrado.</ComboboxEmpty>
+                        <ComboboxList>
+                          <ComboboxCollection>
+                            {(option: { value: string; label: string }) => (
+                              <ComboboxItem key={option.value} value={option}>
+                                {option.label}
+                              </ComboboxItem>
+                            )}
+                          </ComboboxCollection>
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
+                    {duplicateSourceId ? (
+                      duplicateSource.isLoading ? (
+                        <p className="text-xs text-muted-foreground">Carregando ficha...</p>
+                      ) : duplicateSource.data ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs text-muted-foreground">
+                            {duplicateSource.data.items.length} ingrediente(s) encontrados.
+                          </p>
+                          <Button
+                            type="button"
+                            size="xs"
+                            onClick={() => {
+                              const source = duplicateSource.data!
+                              setItems(source.items.map((item) => ({ ingredientId: item.ingredientId, quantity: item.quantity, wastePct: item.wastePct })))
+                              setYieldQuantity(source.yieldQuantity)
+                              setNotes(source.notes ?? "")
+                              setDuplicateSourceId(null)
+                            }}
+                          >
+                            Usar esta ficha
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">Esse produto não tem ficha técnica.</p>
+                      )
+                    ) : null}
+                  </div>
+                ) : null}
+
                 <div className="grid grid-cols-2 gap-3">
                   <Field>
                     <FieldLabel htmlFor="recipe-yield">Rendimento (unidades por receita)</FieldLabel>
@@ -161,25 +228,27 @@ export function RecipeSheet({
                       <div key={index} className="grid grid-cols-[1fr_90px_80px_32px] items-end gap-2 rounded-xl border p-3">
                         <Field>
                           <FieldLabel htmlFor={`recipe-item-ingredient-${index}`}>Insumo</FieldLabel>
-                          <Select
-                            value={item.ingredientId || null}
-                            onValueChange={(value) => value && updateItem(index, { ingredientId: value })}
+                          <Combobox
+                            items={ingredientOptions
+                              .filter((option) => option.id === item.ingredientId || !usedIds.has(option.id))
+                              .map((option) => ({ value: option.id, label: `${option.name} (${UNIT_LABEL[option.unit]})` }))}
+                            value={item.ingredientId ? { value: item.ingredientId, label: ingredient ? `${ingredient.name} (${UNIT_LABEL[ingredient.unit]})` : "" } : null}
+                            onValueChange={(next) => next && updateItem(index, { ingredientId: next.value })}
                           >
-                            <SelectTrigger id={`recipe-item-ingredient-${index}`} className="w-full">
-                              <SelectValue placeholder="Selecione">
-                                {(value: string | null) => ingredientById.get(value ?? "")?.name ?? "Selecione"}
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ingredientOptions
-                                .filter((option) => option.id === item.ingredientId || !usedIds.has(option.id))
-                                .map((option) => (
-                                  <SelectItem key={option.id} value={option.id}>
-                                    {option.name} ({UNIT_LABEL[option.unit]})
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
+                            <ComboboxInput id={`recipe-item-ingredient-${index}`} placeholder="Buscar insumo..." />
+                            <ComboboxContent>
+                              <ComboboxEmpty>Nenhum insumo encontrado.</ComboboxEmpty>
+                              <ComboboxList>
+                                <ComboboxCollection>
+                                  {(option: { value: string; label: string }) => (
+                                    <ComboboxItem key={option.value} value={option}>
+                                      {option.label}
+                                    </ComboboxItem>
+                                  )}
+                                </ComboboxCollection>
+                              </ComboboxList>
+                            </ComboboxContent>
+                          </Combobox>
                         </Field>
                         <Field>
                           <FieldLabel htmlFor={`recipe-item-quantity-${index}`}>

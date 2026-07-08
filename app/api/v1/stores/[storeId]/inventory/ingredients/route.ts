@@ -18,6 +18,7 @@ const listIngredientsQuerySchema = z.object({
   perPage: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().optional(),
   status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+  category: z.string().optional(),
   lowStock: z
     .enum(["true", "false"])
     .optional()
@@ -34,6 +35,7 @@ async function handleListIngredients(request: NextRequest, { params }: RouteCont
   const where: Prisma.IngredientWhereInput = {
     ...(query.search ? { name: { contains: query.search, mode: "insensitive" as const } } : {}),
     ...(query.status ? { status: query.status } : {}),
+    ...(query.category ? { category: query.category } : {}),
     ...(query.lowStock
       ? { minStock: { not: null }, currentStock: { lte: prisma.ingredient.fields.minStock } }
       : {}),
@@ -58,6 +60,7 @@ const createIngredientSchema = z.object({
   costPerUnit: z.number().min(0).optional(),
   minStock: z.number().min(0).nullable().optional(),
   status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+  category: z.string().max(60).nullable().optional(),
 })
 
 async function handleCreateIngredient(request: NextRequest, { params }: RouteContext): Promise<Response> {

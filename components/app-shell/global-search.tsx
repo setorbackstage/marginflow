@@ -1,9 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { Search } from "lucide-react"
+import { Search, Loader2 } from "lucide-react"
 
 import { navGroups } from "@/lib/navigation"
+import { useDebouncedValue } from "@/hooks"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
 import {
@@ -14,6 +15,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
+import { useGlobalSearch } from "./use-global-search"
 
 export function GlobalSearch({
   onNavigate,
@@ -23,6 +25,10 @@ export function GlobalSearch({
   iconOnly?: boolean
 }) {
   const [open, setOpen] = React.useState(false)
+  const [query, setQuery] = React.useState("")
+  const debouncedQuery = useDebouncedValue(query, 250)
+  const search = useGlobalSearch(debouncedQuery)
+  const isSearching = debouncedQuery.trim().length >= 2
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -34,6 +40,16 @@ export function GlobalSearch({
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
   }, [])
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen)
+    if (!nextOpen) setQuery("")
+  }
+
+  const navigate = (url: string, title: string) => {
+    onNavigate(url, title)
+    setOpen(false)
+  }
 
   return (
     <>
@@ -58,27 +74,52 @@ export function GlobalSearch({
         </Button>
       )}
 
-      <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="Search pages, orders, customers…" />
+      <CommandDialog open={open} onOpenChange={handleOpenChange}>
+        <CommandInput
+          value={query}
+          onValueChange={setQuery}
+          placeholder="Buscar produtos, pedidos, clientes, estoque..."
+        />
         <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
-          {navGroups.map((group) => (
-            <CommandGroup key={group.label} heading={group.label}>
-              {group.items.map((item) => (
-                <CommandItem
-                  key={item.title}
-                  value={item.title}
-                  onSelect={() => {
-                    onNavigate(item.url, item.title)
-                    setOpen(false)
-                  }}
-                >
-                  <item.icon />
-                  <span>{item.title}</span>
-                </CommandItem>
+          {isSearching ? (
+            search.isLoading ? (
+              <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                Buscando...
+              </div>
+            ) : search.isError ? (
+              <p className="py-6 text-center text-sm text-destructive">Não foi possível buscar. Tente novamente.</p>
+            ) : search.data && search.data.length > 0 ? (
+              search.data.map((group) => (
+                <CommandGroup key={group.heading} heading={group.heading}>
+                  {group.items.map((item) => (
+                    <CommandItem key={item.id} value={`${group.heading}-${item.id}`} onSelect={() => navigate(item.url, item.title)}>
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate">{item.title}</span>
+                        {item.subtitle ? <span className="truncate text-xs text-muted-foreground">{item.subtitle}</span> : null}
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              ))
+            ) : (
+              <CommandEmpty>Nenhum resultado para &quot;{debouncedQuery}&quot;.</CommandEmpty>
+            )
+          ) : (
+            <>
+              <CommandEmpty>Digite ao menos 2 caracteres para buscar.</CommandEmpty>
+              {navGroups.map((group) => (
+                <CommandGroup key={group.label} heading={group.label}>
+                  {group.items.map((item) => (
+                    <CommandItem key={item.title} value={item.title} onSelect={() => navigate(item.url, item.title)}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
               ))}
-            </CommandGroup>
-          ))}
+            </>
+          )}
         </CommandList>
       </CommandDialog>
     </>

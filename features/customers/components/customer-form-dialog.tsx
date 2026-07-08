@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Loader2 } from "lucide-react"
@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { PhoneInput } from "@/components/shared"
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,7 @@ export function CustomerFormDialog({
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors },
@@ -98,7 +100,13 @@ export function CustomerFormDialog({
             </Field>
             <Field>
               <FieldLabel htmlFor="customer-phone">Telefone</FieldLabel>
-              <Input id="customer-phone" placeholder="+55 11 99999-0000" aria-invalid={!!errors.phone} {...register("phone")} />
+              <Controller
+                control={control}
+                name="phone"
+                render={({ field }) => (
+                  <PhoneInput id="customer-phone" aria-invalid={!!errors.phone} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />
+                )}
+              />
               <FieldError errors={[errors.phone]} />
             </Field>
             <Field>

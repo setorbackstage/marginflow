@@ -3,8 +3,15 @@
 import * as React from "react"
 import { Loader2 } from "lucide-react"
 
-import { useCan } from "@/features/auth"
-import { useStore, useUpdateStore, useStoreSettings, useUpdateStoreSettings, useRoles } from "@/features/stores"
+import { useAuth, useCan, useSetApprovalPassword } from "@/features/auth"
+import {
+  useStore,
+  useUpdateStore,
+  useStoreSettings,
+  useUpdateStoreSettings,
+  useRoles,
+} from "@/features/stores"
+import { TeamSection } from "@/features/team"
 import type { WeeklySchedule, DaySchedule } from "@/types/common"
 import { PageHeader } from "@/components/app-shell/page-container"
 import { Button } from "@/components/ui/button"
@@ -12,10 +19,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { ErrorState } from "@/components/shared"
+import { ErrorState, PhoneInput } from "@/components/shared"
+import { SharePanel } from "@/features/public-menu"
 import { useSyncedState } from "@/hooks"
 
 const WEEKDAYS: { key: keyof WeeklySchedule; label: string }[] = [
@@ -28,52 +42,267 @@ const WEEKDAYS: { key: keyof WeeklySchedule; label: string }[] = [
   { key: "sunday", label: "Domingo" },
 ]
 
+function BrandingSection() {
+  const canEdit = useCan("store:edit")
+  const canEditSettings = useCan("settings:edit")
+  const store = useStore()
+  const settings = useStoreSettings()
+  const updateStore = useUpdateStore()
+  const updateSettings = useUpdateStoreSettings()
+
+  const initialForm = React.useMemo(
+    () => ({
+      name: store.data?.name ?? "",
+      logoUrl: store.data?.logoUrl ?? "",
+      primaryColor: settings.data?.primaryColor ?? "",
+      secondaryColor: settings.data?.secondaryColor ?? "",
+      menuBannerUrl: settings.data?.menuBannerUrl ?? "",
+      description: settings.data?.description ?? "",
+      instagramHandle: settings.data?.instagramHandle ?? "",
+      whatsappNumber: settings.data?.whatsappNumber ?? "",
+    }),
+    [store.data, settings.data],
+  )
+  const [form, setForm] = useSyncedState(initialForm)
+  const setField = <K extends keyof typeof form>(
+    key: K,
+    value: (typeof form)[K],
+  ) => setForm((f) => ({ ...f, [key]: value }))
+
+  if (store.isLoading || settings.isLoading)
+    return <Skeleton className="h-96 w-full" />
+  if (store.isError || !store.data)
+    return <ErrorState error={store.error} onRetry={() => store.refetch()} />
+  if (settings.isError || !settings.data)
+    return (
+      <ErrorState error={settings.error} onRetry={() => settings.refetch()} />
+    )
+
+  const isPending = updateStore.isPending || updateSettings.isPending
+  const canSave = canEdit || canEditSettings
+
+  const handleSave = () => {
+    if (canEdit)
+      updateStore.mutate({ name: form.name, logoUrl: form.logoUrl || null })
+    if (canEditSettings) {
+      updateSettings.mutate({
+        primaryColor: form.primaryColor || null,
+        secondaryColor: form.secondaryColor || null,
+        menuBannerUrl: form.menuBannerUrl || null,
+        description: form.description || null,
+        instagramHandle: form.instagramHandle || null,
+        whatsappNumber: form.whatsappNumber || null,
+      })
+    }
+  }
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Identidade da loja</CardTitle>
+          <CardDescription>
+            Aparece no login, na barra lateral, no painel e no cardápio público.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="brand-name" className="mb-1.5">
+                Nome fantasia
+              </Label>
+              <Input
+                id="brand-name"
+                value={form.name}
+                onChange={(e) => setField("name", e.target.value)}
+                disabled={!canEdit}
+              />
+            </div>
+            <div>
+              <Label htmlFor="brand-logo" className="mb-1.5">
+                URL do logo
+              </Label>
+              <Input
+                id="brand-logo"
+                placeholder="https://..."
+                value={form.logoUrl}
+                onChange={(e) => setField("logoUrl", e.target.value)}
+                disabled={!canEdit}
+              />
+            </div>
+            <div>
+              <Label htmlFor="brand-primary-color" className="mb-1.5">
+                Cor principal
+              </Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  aria-label="Selecionar cor principal"
+                  className="h-8 w-10 shrink-0 cursor-pointer rounded-md border border-input disabled:cursor-not-allowed disabled:opacity-50"
+                  value={
+                    /^#[0-9A-Fa-f]{6}$/.test(form.primaryColor)
+                      ? form.primaryColor
+                      : "#1c6fd2"
+                  }
+                  onChange={(e) => setField("primaryColor", e.target.value)}
+                  disabled={!canEditSettings}
+                />
+                <Input
+                  id="brand-primary-color"
+                  placeholder="#1c6fd2"
+                  value={form.primaryColor}
+                  onChange={(e) => setField("primaryColor", e.target.value)}
+                  disabled={!canEditSettings}
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="brand-secondary-color" className="mb-1.5">
+                Cor secundária
+              </Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  aria-label="Selecionar cor secundária"
+                  className="h-8 w-10 shrink-0 cursor-pointer rounded-md border border-input disabled:cursor-not-allowed disabled:opacity-50"
+                  value={
+                    /^#[0-9A-Fa-f]{6}$/.test(form.secondaryColor)
+                      ? form.secondaryColor
+                      : "#64748b"
+                  }
+                  onChange={(e) => setField("secondaryColor", e.target.value)}
+                  disabled={!canEditSettings}
+                />
+                <Input
+                  id="brand-secondary-color"
+                  placeholder="#64748b"
+                  value={form.secondaryColor}
+                  onChange={(e) => setField("secondaryColor", e.target.value)}
+                  disabled={!canEditSettings}
+                />
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="brand-banner" className="mb-1.5">
+                Banner do cardápio (URL)
+              </Label>
+              <Input
+                id="brand-banner"
+                placeholder="https://..."
+                value={form.menuBannerUrl}
+                onChange={(e) => setField("menuBannerUrl", e.target.value)}
+                disabled={!canEditSettings}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="brand-description" className="mb-1.5">
+                Descrição
+              </Label>
+              <Input
+                id="brand-description"
+                placeholder="Uma frase sobre a sua loja"
+                value={form.description}
+                onChange={(e) => setField("description", e.target.value)}
+                disabled={!canEditSettings}
+              />
+            </div>
+            <div>
+              <Label htmlFor="brand-instagram" className="mb-1.5">
+                Instagram
+              </Label>
+              <Input
+                id="brand-instagram"
+                placeholder="@sualoja"
+                value={form.instagramHandle}
+                onChange={(e) => setField("instagramHandle", e.target.value)}
+                disabled={!canEditSettings}
+              />
+            </div>
+            <div>
+              <Label htmlFor="brand-whatsapp" className="mb-1.5">
+                WhatsApp
+              </Label>
+              <PhoneInput
+                id="brand-whatsapp"
+                value={form.whatsappNumber}
+                onChange={(value) => setField("whatsappNumber", value)}
+                disabled={!canEditSettings}
+              />
+            </div>
+          </div>
+          {canSave ? (
+            <Button size="sm" disabled={isPending} onClick={handleSave}>
+              {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+              Salvar
+            </Button>
+          ) : null}
+        </CardContent>
+      </Card>
+      <SharePanel slug={store.data.slug} />
+    </>
+  )
+}
+
 function StoreInfoSection() {
   const canEdit = useCan("store:edit")
   const store = useStore()
   const update = useUpdateStore()
   const initialForm = React.useMemo(
-    () => ({ name: store.data?.name ?? "", phone: store.data?.phone ?? "", email: store.data?.email ?? "" }),
+    () => ({ phone: store.data?.phone ?? "", email: store.data?.email ?? "" }),
     [store.data],
   )
-  const [{ name, phone, email }, setForm] = useSyncedState(initialForm)
-  const setName = (name: string) => setForm((f) => ({ ...f, name }))
+  const [{ phone, email }, setForm] = useSyncedState(initialForm)
   const setPhone = (phone: string) => setForm((f) => ({ ...f, phone }))
   const setEmail = (email: string) => setForm((f) => ({ ...f, email }))
 
   if (store.isLoading) return <Skeleton className="h-48 w-full" />
-  if (store.isError || !store.data) return <ErrorState error={store.error} onRetry={() => store.refetch()} />
+  if (store.isError || !store.data)
+    return <ErrorState error={store.error} onRetry={() => store.refetch()} />
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Dados da loja</CardTitle>
-        <CardDescription>Informações básicas exibidas para clientes e usados nas notificações.</CardDescription>
+        <CardTitle className="text-sm">Dados de contato</CardTitle>
+        <CardDescription>
+          Usados nas notificações e no atendimento ao cliente. O nome fantasia
+          fica em Marca.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <Label htmlFor="store-name" className="mb-1.5">
-              Nome
-            </Label>
-            <Input id="store-name" value={name} onChange={(e) => setName(e.target.value)} disabled={!canEdit} />
-          </div>
-          <div>
             <Label htmlFor="store-phone" className="mb-1.5">
               Telefone
             </Label>
-            <Input id="store-phone" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={!canEdit} />
+            <PhoneInput
+              id="store-phone"
+              value={phone}
+              onChange={setPhone}
+              disabled={!canEdit}
+            />
           </div>
           <div className="sm:col-span-2">
             <Label htmlFor="store-email" className="mb-1.5">
               E-mail
             </Label>
-            <Input id="store-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!canEdit} />
+            <Input
+              id="store-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={!canEdit}
+            />
           </div>
         </div>
         {canEdit ? (
-          <Button size="sm" disabled={update.isPending} onClick={() => update.mutate({ name, phone, email })}>
-            {update.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+          <Button
+            size="sm"
+            disabled={update.isPending}
+            onClick={() => update.mutate({ phone, email })}
+          >
+            {update.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : null}
             Salvar
           </Button>
         ) : null}
@@ -86,12 +315,19 @@ function OperatingHoursSection() {
   const canEdit = useCan("store:edit")
   const store = useStore()
   const update = useUpdateStore()
-  const [schedule, setSchedule] = useSyncedState<WeeklySchedule | null>(store.data?.operatingHours ?? null)
+  const [schedule, setSchedule] = useSyncedState<WeeklySchedule | null>(
+    store.data?.operatingHours ?? null,
+  )
 
   if (store.isLoading || !schedule) return <Skeleton className="h-64 w-full" />
 
-  const updateDay = (day: keyof WeeklySchedule, patch: Partial<DaySchedule>) => {
-    setSchedule((prev) => (prev ? { ...prev, [day]: { ...prev[day], ...patch } } : prev))
+  const updateDay = (
+    day: keyof WeeklySchedule,
+    patch: Partial<DaySchedule>,
+  ) => {
+    setSchedule((prev) =>
+      prev ? { ...prev, [day]: { ...prev[day], ...patch } } : prev,
+    )
   }
 
   return (
@@ -105,11 +341,19 @@ function OperatingHoursSection() {
           const day = schedule[key]
           const slot = day.slots[0] ?? { open: "09:00", close: "18:00" }
           return (
-            <div key={key} className="flex flex-wrap items-center gap-3 rounded-lg border p-2.5">
+            <div
+              key={key}
+              className="flex flex-wrap items-center gap-3 rounded-lg border p-2.5"
+            >
               <Switch
                 checked={day.isOpen}
                 disabled={!canEdit}
-                onCheckedChange={(checked) => updateDay(key, { isOpen: checked, slots: checked ? [slot] : [] })}
+                onCheckedChange={(checked) =>
+                  updateDay(key, {
+                    isOpen: checked,
+                    slots: checked ? [slot] : [],
+                  })
+                }
               />
               <span className="w-20 text-sm font-medium">{label}</span>
               {day.isOpen ? (
@@ -119,7 +363,11 @@ function OperatingHoursSection() {
                     className="w-28"
                     value={slot.open}
                     disabled={!canEdit}
-                    onChange={(e) => updateDay(key, { slots: [{ ...slot, open: e.target.value }] })}
+                    onChange={(e) =>
+                      updateDay(key, {
+                        slots: [{ ...slot, open: e.target.value }],
+                      })
+                    }
                   />
                   <span className="text-muted-foreground">até</span>
                   <Input
@@ -127,7 +375,11 @@ function OperatingHoursSection() {
                     className="w-28"
                     value={slot.close}
                     disabled={!canEdit}
-                    onChange={(e) => updateDay(key, { slots: [{ ...slot, close: e.target.value }] })}
+                    onChange={(e) =>
+                      updateDay(key, {
+                        slots: [{ ...slot, close: e.target.value }],
+                      })
+                    }
                   />
                 </div>
               ) : (
@@ -137,8 +389,17 @@ function OperatingHoursSection() {
           )
         })}
         {canEdit ? (
-          <Button size="sm" className="mt-2" disabled={update.isPending} onClick={() => schedule && update.mutate({ operatingHours: schedule })}>
-            {update.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+          <Button
+            size="sm"
+            className="mt-2"
+            disabled={update.isPending}
+            onClick={() =>
+              schedule && update.mutate({ operatingHours: schedule })
+            }
+          >
+            {update.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : null}
             Salvar horários
           </Button>
         ) : null}
@@ -148,7 +409,14 @@ function OperatingHoursSection() {
 }
 
 const SETTINGS_TOGGLES: {
-  key: "autoConfirmOrders" | "allowScheduledOrders" | "acceptsCash" | "acceptsCard" | "acceptsPix" | "acceptsVoucher" | "acceptsOnlinePayment"
+  key:
+    | "autoConfirmOrders"
+    | "allowScheduledOrders"
+    | "acceptsCash"
+    | "acceptsCard"
+    | "acceptsPix"
+    | "acceptsVoucher"
+    | "acceptsOnlinePayment"
   label: string
 }[] = [
   { key: "autoConfirmOrders", label: "Confirmar pedidos automaticamente" },
@@ -166,17 +434,25 @@ function StoreSettingsSection() {
   const update = useUpdateStoreSettings()
 
   if (settings.isLoading) return <Skeleton className="h-72 w-full" />
-  if (settings.isError || !settings.data) return <ErrorState error={settings.error} onRetry={() => settings.refetch()} />
+  if (settings.isError || !settings.data)
+    return (
+      <ErrorState error={settings.error} onRetry={() => settings.refetch()} />
+    )
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-sm">Configurações operacionais</CardTitle>
-        <CardDescription>Regras de operação e métodos de pagamento aceitos.</CardDescription>
+        <CardDescription>
+          Regras de operação e métodos de pagamento aceitos.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
         {SETTINGS_TOGGLES.map(({ key, label }) => (
-          <div key={key} className="flex items-center justify-between rounded-lg border p-2.5">
+          <div
+            key={key}
+            className="flex items-center justify-between rounded-lg border p-2.5"
+          >
             <Label htmlFor={`setting-${key}`} className="text-sm font-normal">
               {label}
             </Label>
@@ -193,24 +469,123 @@ function StoreSettingsSection() {
   )
 }
 
-function RolesSection() {
-  const roles = useRoles()
+function ApprovalPasswordSection() {
+  const setApprovalPassword = useSetApprovalPassword()
+  const [currentPassword, setCurrentPassword] = React.useState("")
+  const [newApprovalPassword, setNewApprovalPassword] = React.useState("")
+  const [confirmApprovalPassword, setConfirmApprovalPassword] = React.useState("")
 
-  if (roles.isLoading) return <Skeleton className="h-48 w-full" />
-  if (roles.isError) return <ErrorState error={roles.error} onRetry={() => roles.refetch()} />
+  const mismatch =
+    confirmApprovalPassword.length > 0 && newApprovalPassword !== confirmApprovalPassword
+  const canSubmit =
+    currentPassword.length > 0 && newApprovalPassword.length >= 8 && !mismatch
+
+  const handleSubmit = () => {
+    setApprovalPassword.mutate(
+      { currentPassword, newApprovalPassword },
+      {
+        onSuccess: () => {
+          setCurrentPassword("")
+          setNewApprovalPassword("")
+          setConfirmApprovalPassword("")
+        },
+      },
+    )
+  }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Papéis</CardTitle>
-        <CardDescription>Papéis definem as permissões de cada membro da equipe.</CardDescription>
+        <CardTitle className="text-sm">Senha de aprovação</CardTitle>
+        <CardDescription>
+          Usada apenas para aprovar no balcão o cancelamento de pedidos já em
+          preparo (Regra de Negócio 46). É diferente da sua senha de login —
+          nunca compartilhe esta última com a equipe.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Label htmlFor="approval-current-password" className="mb-1.5">
+              Senha de login atual
+            </Label>
+            <Input
+              id="approval-current-password"
+              type="password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="approval-new-password" className="mb-1.5">
+              Nova senha de aprovação
+            </Label>
+            <Input
+              id="approval-new-password"
+              type="password"
+              autoComplete="new-password"
+              value={newApprovalPassword}
+              onChange={(e) => setNewApprovalPassword(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="approval-confirm-password" className="mb-1.5">
+              Confirmar senha de aprovação
+            </Label>
+            <Input
+              id="approval-confirm-password"
+              type="password"
+              autoComplete="new-password"
+              value={confirmApprovalPassword}
+              onChange={(e) => setConfirmApprovalPassword(e.target.value)}
+            />
+            {mismatch ? (
+              <p className="mt-1 text-xs text-destructive">As senhas não coincidem.</p>
+            ) : null}
+          </div>
+        </div>
+        <Button
+          size="sm"
+          disabled={!canSubmit || setApprovalPassword.isPending}
+          onClick={handleSubmit}
+        >
+          {setApprovalPassword.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : null}
+          Salvar senha de aprovação
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+function RolesSection() {
+  const roles = useRoles()
+
+  if (roles.isLoading) return <Skeleton className="h-48 w-full" />
+  if (roles.isError)
+    return <ErrorState error={roles.error} onRetry={() => roles.refetch()} />
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Perfis disponíveis</CardTitle>
+        <CardDescription>
+          Cada perfil já vem com as permissões certas para a função.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
         {roles.data?.map((role) => (
-          <div key={role.id} className="flex items-center justify-between rounded-lg border p-3">
+          <div
+            key={role.id}
+            className="flex items-center justify-between rounded-lg border p-3"
+          >
             <div>
               <p className="text-sm font-medium">{role.displayName}</p>
-              <p className="text-xs text-muted-foreground">{role.permissions.length} permissões</p>
+              <p className="text-xs text-muted-foreground">
+                {role.permissions.length} permissões
+              </p>
             </div>
             <Badge variant="secondary">
               {role.memberCount} {role.memberCount === 1 ? "membro" : "membros"}
@@ -223,17 +598,27 @@ function RolesSection() {
 }
 
 export default function SettingsPage() {
+  const { isOwnerOrManagerAnywhere } = useAuth()
+
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Configurações" description="Gerencie os dados, horários e papéis da sua loja." />
+      <PageHeader
+        title="Configurações"
+        description="Gerencie os dados, horários e equipe da sua loja."
+      />
 
-      <Tabs defaultValue="store">
+      <Tabs defaultValue="branding">
         <TabsList>
+          <TabsTrigger value="branding">Marca</TabsTrigger>
           <TabsTrigger value="store">Loja</TabsTrigger>
           <TabsTrigger value="hours">Horários</TabsTrigger>
           <TabsTrigger value="operations">Operação</TabsTrigger>
-          <TabsTrigger value="roles">Papéis</TabsTrigger>
+          <TabsTrigger value="team">Equipe</TabsTrigger>
+          {isOwnerOrManagerAnywhere ? <TabsTrigger value="security">Segurança</TabsTrigger> : null}
         </TabsList>
+        <TabsContent value="branding" className="mt-4">
+          <BrandingSection />
+        </TabsContent>
         <TabsContent value="store" className="mt-4">
           <StoreInfoSection />
         </TabsContent>
@@ -243,9 +628,15 @@ export default function SettingsPage() {
         <TabsContent value="operations" className="mt-4">
           <StoreSettingsSection />
         </TabsContent>
-        <TabsContent value="roles" className="mt-4">
+        <TabsContent value="team" className="mt-4 space-y-4">
+          <TeamSection />
           <RolesSection />
         </TabsContent>
+        {isOwnerOrManagerAnywhere ? (
+          <TabsContent value="security" className="mt-4">
+            <ApprovalPasswordSection />
+          </TabsContent>
+        ) : null}
       </Tabs>
     </div>
   )

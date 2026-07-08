@@ -1,8 +1,9 @@
 import "server-only"
 import type { DbClient } from "../db"
 import type { Role } from "../../generated/prisma/client"
-import { membershipRepository, roleRepository } from "../repositories"
+import { membershipRepository, roleRepository, userRepository } from "../repositories"
 import { ForbiddenError } from "../lib/errors"
+import { verifyPassword } from "../lib/auth"
 
 /**
  * Data-driven authorization (RBAC), per DOMAIN_MODEL.md's Role entity:
@@ -51,5 +52,28 @@ export const authorizationService = {
   async isManagerOrOwner(db: DbClient, userId: string, storeId: string): Promise<boolean> {
     const role = await authorizationService.getActiveRole(db, userId, storeId)
     return role?.name === "OWNER" || role?.name === "MANAGER"
+  },
+
+  /**
+   * "Manager override" — verifies `email`+`approvalPassword` belong to a
+   * MANAGER/OWNER of this store, without issuing a session. Lets a
+   * non-manager staff member get a manager's on-the-spot approval (e.g.
+   * Business Rule 46: cancelling an order already in preparation) right at
+   * the terminal, instead of logging out and having the manager log in.
+   *
+   * Deliberately checks `approvalPasswordHash`, NOT the login
+   * `passwordHash` — a manager typing their real account password in front
+   * of a cashier at a shared terminal is a real exposure risk, so this is a
+   * second, separate credential each manager opts into via `meService.
+   * setApprovalPassword`. If they haven't set one, `approvalPasswordHash`
+   * is null and this always fails — same generic outcome as "no such
+   * user" / "wrong password" / "not a manager here", so none of those
+   * cases is distinguishable from the response.
+   */
+  async verifyManagerCredentials(db: DbClient, storeId: string, email: string, approvalPassword: string): Promise<boolean> {
+    const user = await userRepository.findByEmail(db, email)
+    if (!user || user.status !== "ACTIVE" || !user.approvalPasswordHash) return false
+    if (!(await verifyPassword(approvalPassword, user.approvalPasswordHash))) return false
+    return authorizationService.isManagerOrOwner(db, user.id, storeId)
   },
 }

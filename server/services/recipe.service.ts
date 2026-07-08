@@ -153,4 +153,9 @@ export const recipeService = {
     if (!recipe) throw new NotFoundError("RECIPE_NOT_FOUND", "The product has no ficha técnica.")
     await recipeRepository.delete(db, recipe.id)
   },
+
+  /** Sprint 3 Dashboard "Produtos sem ficha" — active, sellable products with no recipe attached yet. */
+  countProductsWithoutRecipe(db: DbClient, storeId: string): Promise<number> {
+    return productRepository.count(db, { storeId, deletedAt: null, status: "ACTIVE", type: "SIMPLE", recipe: null })
+  },
 }

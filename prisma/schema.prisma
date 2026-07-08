@@ -60,6 +60,10 @@ generator client {
   output   = "../generated/prisma"
 }
 
+// Prisma 7 removed `url`/`directUrl` from the schema file entirely (CLI
+// error P1012: "no longer supported in schema files") — the connection URL
+// for schema/migrate commands now lives only in prisma.config.ts's
+// `datasource.url` (see that file for which URL it points to and why).
 datasource db {
   provider = "postgresql"
 }
@@ -204,6 +208,15 @@ model StoreSettings {
   acceptsOnlinePayment    Boolean  @default(false) @map("accepts_online_payment")
   /// Per-event notification channel config: { newOrder: ['IN_APP', 'WHATSAPP'], ... }
   notificationPreferences Json     @default("{}") @map("notification_preferences") @db.JsonB
+  /// CHECK (primary_color ~ '^#[0-9A-Fa-f]{6}$'). Hex color, e.g. "#1c6fd2".
+  primaryColor            String?  @map("primary_color")
+  /// CHECK (secondary_color ~ '^#[0-9A-Fa-f]{6}$')
+  secondaryColor          String?  @map("secondary_color")
+  /// Banner image shown at the top of the (future) public-facing menu page.
+  menuBannerUrl           String?  @map("menu_banner_url")
+  description             String?
+  instagramHandle         String?  @map("instagram_handle")
+  whatsappNumber          String?  @map("whatsapp_number")
   updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -225,6 +238,12 @@ model User {
   avatarUrl    String?   @map("avatar_url")
   /// Hashed password (never plaintext). Null while status = INVITED.
   passwordHash String?   @map("password_hash")
+  /// Hashed "approval password" (never plaintext) — a second, separate
+  /// credential a MANAGER/OWNER may set for on-the-spot approvals (e.g.
+  /// Business Rule 46 manager override) without exposing their real login
+  /// password at a shared terminal. Null until the user configures one;
+  /// the override simply isn't available for that user until they do.
+  approvalPasswordHash String? @map("approval_password_hash")
   /// CHECK (status IN ('ACTIVE', 'INACTIVE', 'INVITED'))
   status       String    @default("INVITED")
   lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(6)
@@ -1005,6 +1024,10 @@ model Ingredient {
   costPerUnit  Decimal   @default(0) @map("cost_per_unit") @db.Decimal(14, 6)
   /// CHECK (status IN ('ACTIVE', 'INACTIVE'))
   status       String    @default("ACTIVE")
+  /// Free-text grouping label (e.g. "Carnes", "Bebidas") — the frontend offers
+  /// suggestions but this is not a closed enum, so restaurants can name their
+  /// own categories. Null = uncategorized.
+  category     String?
   deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)

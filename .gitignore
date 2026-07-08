@@ -25,3 +25,5 @@ node_modules
 
 # TypeScript incremental build cache (redirected into node_modules/.cache, see tsconfig.json)
 *.tsbuildinfo
+
+.vercel

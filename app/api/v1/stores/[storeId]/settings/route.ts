@@ -25,6 +25,12 @@ const updateSettingsSchema = z.object({
   acceptsVoucher: z.boolean().optional(),
   acceptsOnlinePayment: z.boolean().optional(),
   notificationPreferences: z.record(z.string(), z.unknown()).optional(),
+  primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Use um hex de 6 dígitos, ex: #1c6fd2").nullable().optional(),
+  secondaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Use um hex de 6 dígitos, ex: #1c6fd2").nullable().optional(),
+  menuBannerUrl: z.string().max(2000).nullable().optional(),
+  description: z.string().max(1000).nullable().optional(),
+  instagramHandle: z.string().max(60).nullable().optional(),
+  whatsappNumber: z.string().max(30).nullable().optional(),
 })
 
 /** API_SPEC.md `GET /api/v1/stores/:storeId/settings` — response envelope shape. */
@@ -42,6 +48,12 @@ function toSettingsResponse(settings: StoreSettings) {
     acceptsVoucher: settings.acceptsVoucher,
     acceptsOnlinePayment: settings.acceptsOnlinePayment,
     notificationPreferences: settings.notificationPreferences,
+    primaryColor: settings.primaryColor,
+    secondaryColor: settings.secondaryColor,
+    menuBannerUrl: settings.menuBannerUrl,
+    description: settings.description,
+    instagramHandle: settings.instagramHandle,
+    whatsappNumber: settings.whatsappNumber,
     updatedAt: settings.updatedAt,
   }
 }

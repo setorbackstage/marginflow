@@ -52,6 +52,21 @@ async function handleDeleteRecipe(request: NextRequest, { params }: RouteContext
   return noContent()
 }
 
+async function handleMethodNotAllowed(): Promise<Response> {
+  return Response.json(
+    {
+      error: {
+        code: "METHOD_NOT_ALLOWED",
+        message: "Use PUT para criar ou substituir uma ficha técnica.",
+        status: 405,
+        details: [],
+      },
+    },
+    { status: 405 },
+  )
+}
+
 export const GET = compose(withRequestContext, withErrorHandling)(handleGetRecipe)
+export const POST = handleMethodNotAllowed
 export const PUT = compose(withRequestContext, withErrorHandling)(handleUpsertRecipe)
 export const DELETE = compose(withRequestContext, withErrorHandling)(handleDeleteRecipe)

@@ -1,13 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Boxes, MoreHorizontal, Pencil, Trash2, ArrowLeftRight, TriangleAlert } from "lucide-react"
+import { Plus, Boxes, MoreHorizontal, Pencil, Trash2, ArrowLeftRight, TriangleAlert, FileScan } from "lucide-react"
 
 import { useCan } from "@/features/auth"
 import {
   useIngredients,
   useMovements,
   useStockAlerts,
+  useInventoryInsights,
   useDeleteIngredient,
   useInventoryValue,
   IngredientFormDialog,
@@ -107,7 +108,16 @@ function IngredientsTab({
           Estoque baixo
         </Button>
         {canManage ? (
-          <Button size="sm" className="ml-auto" onClick={() => setFormDialog({ open: true, ingredient: null })}>
+          <Button size="sm" variant="outline" className="ml-auto" disabled>
+            <FileScan data-icon="inline-start" />
+            Importar Nota Fiscal
+            <Badge variant="secondary" className="ml-1">
+              Em breve
+            </Badge>
+          </Button>
+        ) : null}
+        {canManage ? (
+          <Button size="sm" onClick={() => setFormDialog({ open: true, ingredient: null })}>
             <Plus data-icon="inline-start" />
             Novo insumo
           </Button>
@@ -129,6 +139,7 @@ function IngredientsTab({
               <TableHeader>
                 <TableRow>
                   <TableHead>Insumo</TableHead>
+                  <TableHead>Categoria</TableHead>
                   <TableHead>Saldo</TableHead>
                   <TableHead>Mínimo</TableHead>
                   <TableHead>Custo</TableHead>
@@ -141,6 +152,9 @@ function IngredientsTab({
                 {ingredients.data.items.map((ingredient) => (
                   <TableRow key={ingredient.id}>
                     <TableCell className="font-medium">{ingredient.name}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {ingredient.category ? <Badge variant="secondary">{ingredient.category}</Badge> : "—"}
+                    </TableCell>
                     <TableCell
                       className={cn(
                         "tabular-nums",
@@ -353,51 +367,129 @@ function MovementsTab({ canAdjust, onNewMovement }: { canAdjust: boolean; onNewM
 
 function AlertsTab() {
   const alerts = useStockAlerts()
+  const insights = useInventoryInsights()
 
-  return alerts.isLoading ? (
-    <div className="space-y-2">
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-10 w-full" />
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="mb-2 text-sm font-medium">Estoque crítico</h3>
+        {alerts.isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : alerts.isError ? (
+          <ErrorState error={alerts.error} onRetry={() => alerts.refetch()} />
+        ) : alerts.data && alerts.data.length > 0 ? (
+          <div className="rounded-xl border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Insumo</TableHead>
+                  <TableHead>Severidade</TableHead>
+                  <TableHead>Saldo atual</TableHead>
+                  <TableHead>Mínimo configurado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {alerts.data.map((alert) => (
+                  <TableRow key={alert.ingredientId}>
+                    <TableCell className="font-medium">{alert.ingredientName}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={alert.severity} config={ALERT_SEVERITY_CONFIG} />
+                    </TableCell>
+                    <TableCell
+                      className={cn("tabular-nums", alert.currentStock < 0 ? "font-semibold text-destructive" : "font-medium")}
+                    >
+                      {formatQuantity(alert.currentStock, alert.unit)}
+                    </TableCell>
+                    <TableCell className="tabular-nums text-muted-foreground">
+                      {formatQuantity(alert.minStock, alert.unit)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={TriangleAlert}
+            title="Nenhum alerta ativo"
+            description="Todos os insumos com mínimo configurado estão acima do limite."
+          />
+        )}
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-sm font-medium">Produtos parados</h3>
+        <p className="mb-2 text-xs text-muted-foreground">Insumos ativos sem nenhuma movimentação nos últimos 30 dias.</p>
+        {insights.isLoading ? (
+          <Skeleton className="h-10 w-full" />
+        ) : insights.data && insights.data.stale.length > 0 ? (
+          <div className="rounded-xl border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Insumo</TableHead>
+                  <TableHead>Saldo atual</TableHead>
+                  <TableHead>Última movimentação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {insights.data.stale.map((item) => (
+                  <TableRow key={item.ingredientId}>
+                    <TableCell className="font-medium">{item.ingredientName}</TableCell>
+                    <TableCell className="tabular-nums text-muted-foreground">{formatQuantity(item.currentStock, item.unit)}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {item.daysSinceLastMovement === null ? "Nunca movimentado" : `Há ${item.daysSinceLastMovement} dias`}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Nenhum insumo parado.</p>
+        )}
+      </div>
+
+      <div className="grid gap-6 sm:grid-cols-2">
+        <div>
+          <h3 className="mb-2 text-sm font-medium">Maior consumo (30 dias)</h3>
+          {insights.isLoading ? (
+            <Skeleton className="h-10 w-full" />
+          ) : insights.data && insights.data.topByQuantity.length > 0 ? (
+            <div className="divide-y rounded-xl border">
+              {insights.data.topByQuantity.map((item) => (
+                <div key={item.ingredientId} className="flex items-center justify-between px-3 py-2 text-sm">
+                  <span className="font-medium">{item.ingredientName}</span>
+                  <span className="tabular-nums text-muted-foreground">{formatQuantity(item.totalConsumed, item.unit)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Sem consumo registrado.</p>
+          )}
+        </div>
+        <div>
+          <h3 className="mb-2 text-sm font-medium">Maior custo (30 dias)</h3>
+          {insights.isLoading ? (
+            <Skeleton className="h-10 w-full" />
+          ) : insights.data && insights.data.topByCost.length > 0 ? (
+            <div className="divide-y rounded-xl border">
+              {insights.data.topByCost.map((item) => (
+                <div key={item.ingredientId} className="flex items-center justify-between px-3 py-2 text-sm">
+                  <span className="font-medium">{item.ingredientName}</span>
+                  <span className="tabular-nums text-muted-foreground">{formatCents(item.totalCost)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Sem custo registrado.</p>
+          )}
+        </div>
+      </div>
     </div>
-  ) : alerts.isError ? (
-    <ErrorState error={alerts.error} onRetry={() => alerts.refetch()} />
-  ) : alerts.data && alerts.data.length > 0 ? (
-    <div className="rounded-xl border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Insumo</TableHead>
-            <TableHead>Severidade</TableHead>
-            <TableHead>Saldo atual</TableHead>
-            <TableHead>Mínimo configurado</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {alerts.data.map((alert) => (
-            <TableRow key={alert.ingredientId}>
-              <TableCell className="font-medium">{alert.ingredientName}</TableCell>
-              <TableCell>
-                <StatusBadge status={alert.severity} config={ALERT_SEVERITY_CONFIG} />
-              </TableCell>
-              <TableCell
-                className={cn("tabular-nums", alert.currentStock < 0 ? "font-semibold text-destructive" : "font-medium")}
-              >
-                {formatQuantity(alert.currentStock, alert.unit)}
-              </TableCell>
-              <TableCell className="tabular-nums text-muted-foreground">
-                {formatQuantity(alert.minStock, alert.unit)}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  ) : (
-    <EmptyState
-      icon={TriangleAlert}
-      title="Nenhum alerta ativo"
-      description="Todos os insumos com mínimo configurado estão acima do limite."
-    />
   )
 }
 
@@ -408,7 +500,7 @@ export default function InventoryPage() {
   const [movementDialog, setMovementDialog] = React.useState<{ open: boolean; ingredientId?: string }>({ open: false })
   const alerts = useStockAlerts()
   // Full (unpaginated-enough) list for the movement dialog's ingredient select.
-  const allIngredients = useIngredients({ page: 1 })
+  const allIngredients = useIngredients({ page: 1, perPage: 100 })
 
   return (
     <div className="flex flex-col gap-6">

@@ -1,7 +1,7 @@
 import "server-only"
 import type { DbClient } from "../db"
 import type { Ingredient, Prisma } from "../../generated/prisma/client"
-import { ingredientRepository, recipeRepository } from "../repositories"
+import { ingredientRepository, recipeRepository, stockMovementRepository } from "../repositories"
 import { ConflictError, NotFoundError } from "../lib/errors"
 
 export interface CreateIngredientInput {
@@ -10,6 +10,7 @@ export interface CreateIngredientInput {
   costPerUnit?: number
   minStock?: number | null
   status?: "ACTIVE" | "INACTIVE"
+  category?: string | null
 }
 
 /** `unit` is immutable and `currentStock` only changes through movements. */
@@ -49,6 +50,26 @@ function toSeverity(currentStock: number): AlertSeverity {
 }
 
 const SEVERITY_ORDER: Record<AlertSeverity, number> = { NEGATIVE: 0, OUT: 1, LOW: 2 }
+
+const STALE_DAYS = 30
+const INSIGHT_WINDOW_DAYS = 30
+const INSIGHT_LIMIT = 5
+
+export interface StaleIngredient {
+  ingredientId: string
+  ingredientName: string
+  unit: string
+  currentStock: number
+  daysSinceLastMovement: number | null
+}
+
+export interface ConsumptionInsight {
+  ingredientId: string
+  ingredientName: string
+  unit: string
+  totalConsumed: number
+  totalCost: number
+}
 
 export const ingredientService = {
   getById: getIngredientOrThrow,
@@ -95,6 +116,7 @@ export const ingredientService = {
       costPerUnit: input.costPerUnit ?? 0,
       minStock: input.minStock ?? null,
       status: input.status ?? "ACTIVE",
+      category: input.category ?? null,
       store: { connect: { id: storeId } },
     })
   },
@@ -107,7 +129,72 @@ export const ingredientService = {
       ...(input.costPerUnit !== undefined ? { costPerUnit: input.costPerUnit } : {}),
       ...(input.minStock !== undefined ? { minStock: input.minStock } : {}),
       ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.category !== undefined ? { category: input.category } : {}),
     })
+  },
+
+  /**
+   * Sprint 3 "Alertas" (Produto parado): active ingredients with no stock
+   * movement in the last `STALE_DAYS` days (or none ever) — a purely
+   * read-derived signal, no new table, same spirit as `listAlerts`.
+   */
+  async listStale(db: DbClient, storeId: string): Promise<StaleIngredient[]> {
+    const cutoff = new Date(Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000)
+    const [candidates, lastMovements] = await Promise.all([
+      ingredientRepository.findManyByStore(db, storeId, { where: { status: "ACTIVE" } }),
+      stockMovementRepository.maxCreatedAtByIngredient(db, storeId),
+    ])
+    const lastMovementById = new Map(lastMovements.map((row) => [row.ingredientId, row._max.createdAt]))
+
+    return candidates
+      .map((ingredient) => ({ ingredient, lastMovementAt: lastMovementById.get(ingredient.id) ?? null }))
+      .filter(({ lastMovementAt }) => !lastMovementAt || lastMovementAt < cutoff)
+      .map(({ ingredient, lastMovementAt }) => ({
+        ingredientId: ingredient.id,
+        ingredientName: ingredient.name,
+        unit: ingredient.unit,
+        currentStock: Number(ingredient.currentStock),
+        daysSinceLastMovement: lastMovementAt ? Math.floor((Date.now() - lastMovementAt.getTime()) / (24 * 60 * 60 * 1000)) : null,
+      }))
+      .sort((a, b) => (b.daysSinceLastMovement ?? Infinity) - (a.daysSinceLastMovement ?? Infinity))
+  },
+
+  /** Sprint 3 "Alertas" (Maior consumo / Maior custo) over the trailing `INSIGHT_WINDOW_DAYS`. */
+  async listTopConsumption(db: DbClient, storeId: string): Promise<{ byQuantity: ConsumptionInsight[]; byCost: ConsumptionInsight[] }> {
+    const from = new Date(Date.now() - INSIGHT_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+    const rows = await stockMovementRepository.findConsumptionByIngredient(db, storeId, from, new Date())
+
+    const totals = new Map<string, { totalConsumed: number; totalCost: number }>()
+    for (const row of rows) {
+      const consumed = Math.abs(Number(row.quantityDelta))
+      const cost = consumed * Number(row.unitCost)
+      const current = totals.get(row.ingredientId) ?? { totalConsumed: 0, totalCost: 0 }
+      totals.set(row.ingredientId, { totalConsumed: current.totalConsumed + consumed, totalCost: current.totalCost + cost })
+    }
+    if (totals.size === 0) return { byQuantity: [], byCost: [] }
+
+    const ingredients = await ingredientRepository.findManyByIds(db, storeId, [...totals.keys()])
+    const ingredientById = new Map(ingredients.map((ingredient) => [ingredient.id, ingredient]))
+
+    const insights: ConsumptionInsight[] = [...totals.entries()]
+      .map(([ingredientId, totalsForIngredient]) => {
+        const ingredient = ingredientById.get(ingredientId)
+        return ingredient
+          ? {
+              ingredientId,
+              ingredientName: ingredient.name,
+              unit: ingredient.unit,
+              totalConsumed: totalsForIngredient.totalConsumed,
+              totalCost: Math.round(totalsForIngredient.totalCost),
+            }
+          : null
+      })
+      .filter((insight): insight is ConsumptionInsight => insight !== null)
+
+    return {
+      byQuantity: [...insights].sort((a, b) => b.totalConsumed - a.totalConsumed).slice(0, INSIGHT_LIMIT),
+      byCost: [...insights].sort((a, b) => b.totalCost - a.totalCost).slice(0, INSIGHT_LIMIT),
+    }
   },
 
   /** Business Rule 44: blocked while any recipe references the ingredient. */

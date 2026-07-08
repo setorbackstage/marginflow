@@ -162,7 +162,7 @@ export const stockMovementService = {
 // existing SALE_CONSUMPTION movements for the order short-circuit the
 // consumer, and the (order_id, ingredient_id, type) unique index backs the
 // same guarantee at the database level.
-eventBus.on("order.confirmed", async (event, db) => {
+eventBus.on("order.confirmed", "stock-movement.service:order.confirmed", async (event, db) => {
   const existing = await stockMovementRepository.findManyByOrder(db, event.payload.orderId, "SALE_CONSUMPTION")
   if (existing.length > 0) return
 
@@ -203,7 +203,7 @@ eventBus.on("order.confirmed", async (event, db) => {
 // (previousStatus = CONFIRMED). Mirrors the order's SALE_CONSUMPTION
 // movements, reusing their cost snapshots so CMV nets to zero for the
 // cancelled order. Idempotent: existing reversals short-circuit.
-eventBus.on("order.cancelled", async (event, db) => {
+eventBus.on("order.cancelled", "stock-movement.service:order.cancelled", async (event, db) => {
   if (event.payload.previousStatus !== "CONFIRMED") return
 
   const consumptions = await stockMovementRepository.findManyByOrder(db, event.payload.orderId, "SALE_CONSUMPTION")

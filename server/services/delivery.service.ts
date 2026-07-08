@@ -139,7 +139,7 @@ export const deliveryService = {
 
 // Business Rule 20: Delivery only begins after the Kitchen Ticket reaches READY,
 // and only for DELIVERY orders — the raw event carries the address snapshot.
-eventBus.on("kitchen_ticket.ready", async (event, db) => {
+eventBus.on("kitchen_ticket.ready", "delivery.service:kitchen_ticket.ready", async (event, db) => {
   if (event.payload.orderType !== "DELIVERY" || !event.payload.deliveryAddressSnapshot) return
 
   const createdAt = new Date()
@@ -166,7 +166,7 @@ eventBus.on("kitchen_ticket.ready", async (event, db) => {
 // Business Rule 22: cancelling an Order cancels/fails its Delivery — a
 // dispatched delivery requires the Controller-resolved manager approval
 // carried on the event payload (see events/types.ts `OrderCancelledPayload`).
-eventBus.on("order.cancelled", async (event, db) => {
+eventBus.on("order.cancelled", "delivery.service:order.cancelled", async (event, db) => {
   const delivery = await deliveryRepository.findByOrderId(db, event.payload.orderId)
   if (!delivery || !ACTIVE_DELIVERY_STATUSES.includes(delivery.status)) return
 

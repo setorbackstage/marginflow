@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { orderService, deliveryService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody, BadRequestError, ConflictError, requireUuidParams } from "@/server/lib"
+import { requireAuth, parseJsonBody, BadRequestError, ConflictError, ForbiddenError, requireUuidParams } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 import { getOrderWithDetailsOrThrow, toOrderResponse } from "../../_order-response"
 
@@ -16,6 +16,10 @@ const updateStatusSchema = z.object({
   status: z.enum(["DRAFT", "PENDING", "CONFIRMED", "PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED"]),
   reason: z.string().optional(),
   notes: z.string().optional(),
+  /** Business Rule 46 "manager override" — lets a non-manager get on-the-spot approval without switching sessions. */
+  managerEmail: z.string().optional(),
+  /** The manager's separate *approval* password (`meService.setApprovalPassword`) — never their login password. */
+  managerApprovalPassword: z.string().optional(),
 })
 
 /** API_SPEC.md "Allowed Transitions" table — the only targets this endpoint itself accepts. */
@@ -41,18 +45,43 @@ async function handleUpdateStatus(request: NextRequest, { params }: RouteContext
   await authorizationService.requirePermission(prisma, actor.userId, storeId, permission)
 
   // Confirms the order belongs to this store before any mutation (Store Isolation).
-  await getOrderWithDetailsOrThrow(storeId, orderId)
+  const existingOrder = await getOrderWithDetailsOrThrow(storeId, orderId)
 
   let isManagerApproved = false
   if (input.status === "CANCELLED") {
     const delivery = await deliveryService.findByOrderId(prisma, orderId)
     const dispatchedOrLater = delivery !== null && delivery.status !== "AWAITING_PICKUP"
-    if (dispatchedOrLater) {
+    // Business Rule 46: cancelling once the kitchen has already started
+    // (PREPARING/READY/OUT_FOR_DELIVERY) is a real, unrecoverable loss —
+    // Business Rule 40 does not reverse the stock already consumed. This is
+    // a fast pre-check only; `cancelOrder` in order.service.ts is the
+    // authoritative enforcement (see the comment there for why).
+    const kitchenStarted = ["PREPARING", "READY", "OUT_FOR_DELIVERY"].includes(existingOrder.status)
+    if (dispatchedOrLater || kitchenStarted) {
       isManagerApproved = await authorizationService.isManagerOrOwner(prisma, actor.userId, storeId)
+
+      // Manager override: the acting user isn't a manager themselves, but a
+      // manager present at the terminal can approve on the spot with their
+      // email + separate *approval* password (meService.setApprovalPassword)
+      // — never their login password, so it's safe to type in front of staff.
+      if (!isManagerApproved && input.managerEmail && input.managerApprovalPassword) {
+        isManagerApproved = await authorizationService.verifyManagerCredentials(
+          prisma,
+          storeId,
+          input.managerEmail,
+          input.managerApprovalPassword,
+        )
+        if (!isManagerApproved) {
+          throw new ForbiddenError("MANAGER_CREDENTIALS_INVALID", "Manager email or approval password is incorrect.")
+        }
+      }
+
       if (!isManagerApproved) {
         throw new ConflictError(
-          "DISPATCHED_DELIVERY_CANCEL_REQUIRES_MANAGER",
-          "Cancelling a dispatched delivery requires manager role.",
+          kitchenStarted ? "KITCHEN_STARTED_CANCEL_REQUIRES_MANAGER" : "DISPATCHED_DELIVERY_CANCEL_REQUIRES_MANAGER",
+          kitchenStarted
+            ? "Cancelling an order already in preparation requires manager or owner approval."
+            : "Cancelling a dispatched delivery requires manager role.",
         )
       }
     }

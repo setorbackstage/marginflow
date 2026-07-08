@@ -40,6 +40,7 @@ const updateIngredientSchema = z.object({
   costPerUnit: z.number().min(0).optional(),
   minStock: z.number().min(0).nullable().optional(),
   status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+  category: z.string().max(60).nullable().optional(),
 })
 
 async function handleUpdateIngredient(request: NextRequest, { params }: RouteContext): Promise<Response> {

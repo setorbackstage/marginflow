@@ -1,6 +1,11 @@
 import { api, setAccessToken, clearAccessToken } from "@/lib/api"
 import type { LoginInput, SignupInput, Session } from "./types"
 
+export interface SetApprovalPasswordInput {
+  currentPassword: string
+  newApprovalPassword: string
+}
+
 interface LoginResponse {
   accessToken: string
 }
@@ -29,4 +34,9 @@ export async function logout(): Promise<void> {
   } finally {
     clearAccessToken()
   }
+}
+
+/** `PATCH /auth/approval-password` — sets/replaces the caller's Business Rule 46 manager-override password. */
+export function setApprovalPassword(input: SetApprovalPasswordInput): Promise<void> {
+  return api.patch("/auth/approval-password", input)
 }

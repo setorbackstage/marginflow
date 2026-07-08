@@ -65,3 +65,40 @@ export const ALL_PERMISSIONS: readonly string[] = [
   "inventory:manage",
   "inventory:adjust",
 ]
+
+/**
+ * API_SPEC.md's Authorization → "Built-in Roles and their default Permission
+ * sets" table. Copied verbatim from the doc — not invented here. Used to
+ * provision every store's full role catalog at signup (see
+ * signup.service.ts); previously only OWNER was provisioned, leaving no
+ * assignable role for `POST /team/invite` to grant on a freshly signed-up
+ * store (the endpoint explicitly rejects assigning OWNER via invitation).
+ */
+export const BUILT_IN_ROLES: readonly { name: string; displayName: string; permissions: readonly string[] }[] = [
+  { name: "OWNER", displayName: "Proprietário", permissions: ALL_PERMISSIONS },
+  {
+    name: "MANAGER",
+    displayName: "Gerente",
+    permissions: ALL_PERMISSIONS.filter((p) => !p.startsWith("billing:") && p !== "users:remove"),
+  },
+  {
+    name: "CASHIER",
+    displayName: "Caixa",
+    permissions: ["orders:view", "orders:create", "orders:edit", "orders:cancel", "customers:view", "customers:create"],
+  },
+  {
+    name: "KITCHEN_ATTENDANT",
+    displayName: "Cozinha",
+    permissions: ["kitchen:view", "kitchen:update_status", "orders:view"],
+  },
+  {
+    name: "DELIVERY_COORDINATOR",
+    displayName: "Entregador",
+    permissions: ["delivery:view", "delivery:assign_courier", "delivery:update_status", "orders:view"],
+  },
+  {
+    name: "ANALYST",
+    displayName: "Atendente",
+    permissions: ["reports:view", "reports:export", "finance:view", "orders:view", "products:view", "customers:view", "inventory:view"],
+  },
+]

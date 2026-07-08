@@ -89,15 +89,41 @@ export function useCreateOrder() {
   })
 }
 
+const ORDER_STATUS_TOAST: Record<string, string> = {
+  PENDING: "Pedido enviado.",
+  CONFIRMED: "Pedido confirmado.",
+  CANCELLED: "Pedido cancelado.",
+  DELIVERED: "Pedido entregue.",
+}
+
 export function useUpdateOrderStatus(orderId: string) {
   const storeId = useActiveStoreId()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ status, reason, notes }: { status: string; reason?: string; notes?: string }) =>
-      ordersApi.updateStatus(storeId, orderId, status, reason, notes),
-    onSuccess: () => {
+    mutationFn: ({
+      status,
+      reason,
+      notes,
+      managerEmail,
+      managerApprovalPassword,
+    }: {
+      status: string
+      reason?: string
+      notes?: string
+      managerEmail?: string
+      managerApprovalPassword?: string
+    }) =>
+      ordersApi.updateStatus(
+        storeId,
+        orderId,
+        status,
+        reason,
+        notes,
+        managerEmail && managerApprovalPassword ? { managerEmail, managerApprovalPassword } : undefined,
+      ),
+    onSuccess: (_data, variables) => {
       invalidateOrder(queryClient, storeId, orderId)
-      toast.success("Status do pedido atualizado.")
+      toast.success(ORDER_STATUS_TOAST[variables.status] ?? "Status do pedido atualizado.")
     },
     onError: (error) => toast.error(errorMessage(error, "Não foi possível atualizar o status.")),
   })

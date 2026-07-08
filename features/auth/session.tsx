@@ -17,6 +17,8 @@ interface SessionContextValue {
   /** True when the active store's role grants `permission`. */
   can: (permission: string) => boolean
   isOwnerOrManager: boolean
+  /** True when the user holds an OWNER/MANAGER role at *any* store, not just the active one — used for user-level (not store-scoped) gates like the approval password. */
+  isOwnerOrManagerAnywhere: boolean
 }
 
 const SessionContext = React.createContext<SessionContextValue | null>(null)
@@ -55,6 +57,7 @@ export function SessionProvider({ session, children }: { session: Session; child
       setActiveStore,
       can: (permission: string) => permissions.has(permission),
       isOwnerOrManager: roleName === "OWNER" || roleName === "MANAGER",
+      isOwnerOrManagerAnywhere: session.memberships.some((m) => m.role.name === "OWNER" || m.role.name === "MANAGER"),
     }
   }, [session, activeMembership, setActiveStore])
 

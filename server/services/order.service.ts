@@ -72,6 +72,9 @@ const CLIENT_TRANSITIONS: Record<string, string[]> = {
   PENDING: ["CONFIRMED"],
 }
 
+/** Business Rule 46: statuses at which the kitchen has already spent ingredients/time on the order. */
+const KITCHEN_STARTED_STATUSES = ["PREPARING", "READY", "OUT_FOR_DELIVERY"]
+
 // ─────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────
@@ -569,6 +572,20 @@ async function cancelOrder(db: DbClient, storeId: string, order: Order, opts: Up
   if (!opts.triggeredByUserId) {
     throw new BadRequestError("CANCELLATION_ACTOR_REQUIRED", "Cancelling an order requires identifying the acting user.")
   }
+  // Business Rule 46: once the kitchen has started (PREPARING/READY) or the
+  // order is already OUT_FOR_DELIVERY, the ingredients (and the cook's time)
+  // are already spent — Business Rule 40 deliberately does not reverse that
+  // stock consumption on cancellation, so a late cancellation is a real,
+  // unrecoverable loss. Requiring manager/owner approval here is the
+  // authoritative gate (mirrors the DISPATCHED_DELIVERY_CANCEL_REQUIRES_MANAGER
+  // pattern in delivery.service.ts) — it cannot be bypassed by any caller,
+  // since `cancelOrder` is the single path every cancellation goes through.
+  if (KITCHEN_STARTED_STATUSES.includes(order.status) && !opts.isManagerApproved) {
+    throw new ConflictError(
+      "KITCHEN_STARTED_CANCEL_REQUIRES_MANAGER",
+      "Cancelling an order already in preparation requires manager or owner approval.",
+    )
+  }
 
   const previousStatus = order.status
   const cancelledAt = new Date()
@@ -602,7 +619,7 @@ async function cancelOrder(db: DbClient, storeId: string, order: Order, opts: Up
 // derived, Order-shaped event where API_SPEC.md documents one.
 // ─────────────────────────────────────────────────────────────────────────
 
-eventBus.on("kitchen_ticket.status_changed", async (event, db) => {
+eventBus.on("kitchen_ticket.status_changed", "order.service:kitchen_ticket.status_changed", async (event, db) => {
   if (event.payload.newStatus !== "PREPARING") return
   const order = await orderRepository.findById(db, event.payload.orderId)
   if (!order || order.status !== "CONFIRMED") return
@@ -610,7 +627,7 @@ eventBus.on("kitchen_ticket.status_changed", async (event, db) => {
   await recordTransition(db, order.id, "PREPARING", null)
 })
 
-eventBus.on("kitchen_ticket.ready", async (event, db) => {
+eventBus.on("kitchen_ticket.ready", "order.service:kitchen_ticket.ready", async (event, db) => {
   const order = await orderRepository.findById(db, event.payload.orderId)
   if (!order || order.status !== "PREPARING") return
 
@@ -629,7 +646,7 @@ eventBus.on("kitchen_ticket.ready", async (event, db) => {
   )
 })
 
-eventBus.on("delivery.dispatched", async (event, db) => {
+eventBus.on("delivery.dispatched", "order.service:delivery.dispatched", async (event, db) => {
   const order = await orderRepository.findById(db, event.payload.orderId)
   if (!order || order.status !== "READY") return
 
@@ -646,7 +663,7 @@ eventBus.on("delivery.dispatched", async (event, db) => {
   )
 })
 
-eventBus.on("delivery.delivered", async (event, db) => {
+eventBus.on("delivery.delivered", "order.service:delivery.delivered", async (event, db) => {
   const order = await orderRepository.findById(db, event.payload.orderId)
   if (!order || order.status !== "OUT_FOR_DELIVERY") return
 

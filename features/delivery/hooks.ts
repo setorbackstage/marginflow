@@ -43,13 +43,23 @@ export function useAssignCourier() {
   })
 }
 
+const DELIVERY_STATUS_TOAST: Record<string, string> = {
+  DISPATCHED: "Entrega despachada.",
+  IN_TRANSIT: "Entrega iniciada.",
+  DELIVERED: "Entrega concluída.",
+  FAILED: "Entrega marcada como falha.",
+}
+
 export function useUpdateDeliveryStatus() {
   const storeId = useActiveStoreId()
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ deliveryId, status, reason }: { deliveryId: string; status: string; reason?: string }) =>
       deliveryApi.updateStatus(storeId, deliveryId, status, reason),
-    onSuccess: () => invalidate(queryClient, storeId),
+    onSuccess: (_data, variables) => {
+      invalidate(queryClient, storeId)
+      toast.success(DELIVERY_STATUS_TOAST[variables.status] ?? "Status da entrega atualizado.")
+    },
     onError: (error) => toast.error(errorMessage(error, "Não foi possível atualizar o status da entrega.")),
   })
 }

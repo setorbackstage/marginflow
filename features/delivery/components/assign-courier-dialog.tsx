@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field"
+import { PhoneInput } from "@/components/shared"
 import { useAssignCourier } from "@/features/delivery/hooks"
 import type { Delivery } from "@/features/delivery/types"
 
@@ -108,7 +109,13 @@ export function AssignCourierDialog({ open, onOpenChange, delivery }: { open: bo
             </Field>
             <Field>
               <FieldLabel htmlFor="courier-phone">Telefone (opcional)</FieldLabel>
-              <Input id="courier-phone" {...register("courierPhone")} />
+              <Controller
+                control={control}
+                name="courierPhone"
+                render={({ field }) => (
+                  <PhoneInput id="courier-phone" value={field.value ?? ""} onChange={field.onChange} onBlur={field.onBlur} />
+                )}
+              />
             </Field>
           </FieldGroup>
           <DialogFooter className="mt-4">

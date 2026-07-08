@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueries, useQueryClient, keepPreviousData } f
 import { toast } from "sonner"
 import { isApiError } from "@/lib/api"
 import { useActiveStoreId } from "@/features/auth"
-import { ingredientsApi, movementsApi, alertsApi, recipesApi } from "./api"
+import { ingredientsApi, movementsApi, alertsApi, insightsApi, recipesApi } from "./api"
 import type { IngredientInput, IngredientListParams, MovementInput, MovementListParams, RecipeInput } from "./types"
 
 const keys = {
@@ -14,6 +14,7 @@ const keys = {
   movements: (storeId: string) => ["stock-movements", storeId] as const,
   movementList: (storeId: string, params: MovementListParams) => ["stock-movements", storeId, params] as const,
   alerts: (storeId: string) => ["stock-alerts", storeId] as const,
+  insights: (storeId: string) => ["stock-insights", storeId] as const,
   recipe: (storeId: string, productId: string) => ["recipes", storeId, productId] as const,
 }
 
@@ -132,14 +133,21 @@ export function useMovements(params: MovementListParams) {
   })
 }
 
+const MOVEMENT_TYPE_TOAST: Record<string, string> = {
+  ENTRY: "Entrada de estoque registrada.",
+  EXIT: "Saída de estoque registrada.",
+  LOSS: "Perda de estoque registrada.",
+  ADJUSTMENT: "Ajuste de estoque registrado.",
+}
+
 export function useCreateMovement() {
   const storeId = useActiveStoreId()
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: MovementInput) => movementsApi.create(storeId, input),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       invalidateStock(queryClient, storeId)
-      toast.success("Movimentação registrada.")
+      toast.success(MOVEMENT_TYPE_TOAST[variables.type] ?? "Movimentação registrada.")
     },
     onError: (error) =>
       toast.error(
@@ -158,6 +166,16 @@ export function useStockAlerts() {
     queryKey: keys.alerts(storeId),
     enabled: Boolean(storeId),
     queryFn: () => alertsApi.list(storeId),
+  })
+}
+
+/** Sprint 3 "Alertas": stale ingredients + consumption/cost leaders, trailing 30 days. */
+export function useInventoryInsights() {
+  const storeId = useActiveStoreId()
+  return useQuery({
+    queryKey: keys.insights(storeId),
+    enabled: Boolean(storeId),
+    queryFn: () => insightsApi.get(storeId),
   })
 }
 

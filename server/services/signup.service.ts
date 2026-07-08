@@ -10,7 +10,7 @@ import {
   refreshTokenRepository,
 } from "../repositories"
 import { ConflictError } from "../lib/errors"
-import { ALL_PERMISSIONS } from "../lib/permissions"
+import { BUILT_IN_ROLES } from "../lib/permissions"
 import { slugify } from "../lib/slug"
 import { toJsonInput } from "../lib/json"
 import { signAccessToken, generateRawToken, hashToken, REFRESH_TOKEN_TTL_SECONDS } from "../lib/auth"
@@ -62,12 +62,13 @@ async function findAvailableSlug(db: DbClient, storeName: string): Promise<strin
 
 /**
  * `POST /auth/signup`. Provisions a brand-new tenant end-to-end: Account
- * (billing unit), Store, StoreSettings, the store's OWNER Role (all
- * permissions — API_SPEC.md's RBAC table), the User, and an ACTIVE
- * Membership linking them — then issues a session identical in shape to
- * `loginService.login`'s, so the new owner is authenticated immediately
- * without a separate login step. The caller MUST invoke this within
- * `prisma.$transaction` so the whole tenant is created atomically.
+ * (billing unit), Store, StoreSettings, the store's full built-in Role
+ * catalog (API_SPEC.md's RBAC table — OWNER, MANAGER, CASHIER,
+ * KITCHEN_ATTENDANT, DELIVERY_COORDINATOR, ANALYST), the User (as OWNER),
+ * and an ACTIVE Membership linking them — then issues a session identical
+ * in shape to `loginService.login`'s, so the new owner is authenticated
+ * immediately without a separate login step. The caller MUST invoke this
+ * within `prisma.$transaction` so the whole tenant is created atomically.
  */
 export const signupService = {
   async signup(db: DbClient, input: SignupServiceInput): Promise<LoginResult> {
@@ -99,13 +100,21 @@ export const signupService = {
 
     await storeSettingsRepository.create(db, { store: { connect: { id: store.id } } })
 
-    const ownerRole = await roleRepository.create(db, {
-      store: { connect: { id: store.id } },
-      name: "OWNER",
-      displayName: "Proprietário",
-      permissions: [...ALL_PERMISSIONS],
-      isSystemRole: true,
-    })
+    // Provision the full built-in role catalog (API_SPEC.md's RBAC table), not
+    // just OWNER — otherwise a freshly signed-up store has no assignable role
+    // for `POST /team/invite` to grant (OWNER cannot be assigned by invitation).
+    const roles = await Promise.all(
+      BUILT_IN_ROLES.map((role) =>
+        roleRepository.create(db, {
+          store: { connect: { id: store.id } },
+          name: role.name,
+          displayName: role.displayName,
+          permissions: [...role.permissions],
+          isSystemRole: true,
+        }),
+      ),
+    )
+    const ownerRole = roles.find((role) => role.name === "OWNER")!
 
     const user = await userRepository.create(db, {
       name: input.ownerName,
