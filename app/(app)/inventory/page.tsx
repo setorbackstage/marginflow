@@ -267,9 +267,10 @@ function MovementsTab({ canAdjust, onNewMovement }: { canAdjust: boolean; onNewM
             setTypeFilter(value as typeof typeFilter)
             setPage(1)
           }}
+          items={MOVEMENT_FILTER_LABEL}
         >
           <SelectTrigger className="w-52">
-            <SelectValue>{(v: string | null) => MOVEMENT_FILTER_LABEL[v ?? "ALL"]}</SelectValue>
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {Object.entries(MOVEMENT_FILTER_LABEL).map(([value, label]) => (

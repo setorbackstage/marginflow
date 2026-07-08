@@ -164,9 +164,13 @@ export function ProductFormDialog({
                   control={control}
                   name="status"
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      items={Object.fromEntries(Object.entries(PRODUCT_STATUS_CONFIG).map(([k, v]) => [k, v.label]))}
+                    >
                       <SelectTrigger id="product-status" className="w-full">
-                        <SelectValue>{(value: string | null) => (value ? PRODUCT_STATUS_CONFIG[value]?.label : "")}</SelectValue>
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="ACTIVE">Ativo</SelectItem>

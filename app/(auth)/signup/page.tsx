@@ -94,9 +94,9 @@ export default function SignupPage() {
                     control={control}
                     name="storeType"
                     render={({ field }) => (
-                      <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
+                      <Select value={field.value} onValueChange={(v) => v && field.onChange(v)} items={STORE_TYPE_LABEL}>
                         <SelectTrigger id="storeType" className="w-full">
-                          <SelectValue>{(v: string | null) => (v ? STORE_TYPE_LABEL[v as StoreType] : "")}</SelectValue>
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           {Object.entries(STORE_TYPE_LABEL).map(([value, label]) => (

@@ -67,9 +67,9 @@ export function AssignCourierDialog({ open, onOpenChange, delivery }: { open: bo
                 control={control}
                 name="courierType"
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select value={field.value} onValueChange={field.onChange} items={COURIER_TYPE_LABEL}>
                     <SelectTrigger id="courier-type" className="w-full">
-                      <SelectValue>{(v: string | null) => (v ? COURIER_TYPE_LABEL[v] : "")}</SelectValue>
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="INTERNAL">Próprio</SelectItem>
@@ -86,9 +86,9 @@ export function AssignCourierDialog({ open, onOpenChange, delivery }: { open: bo
                   control={control}
                   name="platform"
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select value={field.value} onValueChange={field.onChange} items={PLATFORM_LABEL}>
                       <SelectTrigger id="platform" className="w-full">
-                        <SelectValue placeholder="Selecione">{(v: string | null) => (v ? PLATFORM_LABEL[v] : "")}</SelectValue>
+                        <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
                         {Object.entries(PLATFORM_LABEL).map(([value, label]) => (

@@ -61,9 +61,9 @@ export default function CustomersPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <SearchBar value={searchInput} onChange={handleSearchChange} placeholder="Buscar por nome ou telefone..." />
-        <Select value={statusFilter} onValueChange={handleFilterChange}>
+        <Select value={statusFilter} onValueChange={handleFilterChange} items={STATUS_FILTER_LABEL}>
           <SelectTrigger className="w-44">
-            <SelectValue>{(value: string | null) => STATUS_FILTER_LABEL[value ?? "ALL"]}</SelectValue>
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Todos os status</SelectItem>

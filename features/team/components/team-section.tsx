@@ -94,6 +94,7 @@ export function TeamSection() {
                           <Select
                             value={member.role.id}
                             onValueChange={(roleId) => roleId && changeRole.mutate({ userId: member.userId, roleId })}
+                            items={assignableRoles.map((r) => ({ value: r.id, label: r.displayName }))}
                           >
                             <SelectTrigger className="w-40" size="sm">
                               <SelectValue />

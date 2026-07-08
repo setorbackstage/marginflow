@@ -107,9 +107,9 @@ export function AddressFormDialog({
                   control={control}
                   name="label"
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select value={field.value} onValueChange={field.onChange} items={ADDRESS_LABEL_TEXT}>
                       <SelectTrigger id="address-label" className="w-full">
-                        <SelectValue>{(value: string | null) => (value ? ADDRESS_LABEL_TEXT[value] : "")}</SelectValue>
+                        <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="HOME">Casa</SelectItem>

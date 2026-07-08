@@ -50,9 +50,9 @@ export function OrderPaymentCard({ order }: { order: OrderDetail }) {
             <div className="flex items-end gap-2">
               <div className="flex-1">
                 <Label className="mb-1.5">Forma de pagamento</Label>
-                <Select value={method} onValueChange={(v) => v && setMethod(v)}>
+                <Select value={method} onValueChange={(v) => v && setMethod(v)} items={PAYMENT_METHOD_LABEL}>
                   <SelectTrigger className="w-full">
-                    <SelectValue>{(v: string | null) => (v ? PAYMENT_METHOD_LABEL[v] : "")}</SelectValue>
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(PAYMENT_METHOD_LABEL).map(([value, label]) => (

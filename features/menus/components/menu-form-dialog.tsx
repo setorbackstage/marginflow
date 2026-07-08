@@ -69,9 +69,9 @@ export function MenuFormDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 control={control}
                 name="channel"
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select value={field.value} onValueChange={field.onChange} items={MENU_CHANNEL_LABEL}>
                     <SelectTrigger id="menu-channel" className="w-full">
-                      <SelectValue>{(v: string | null) => (v ? MENU_CHANNEL_LABEL[v] : "")}</SelectValue>
+                      <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
                       {Object.entries(MENU_CHANNEL_LABEL).map(([value, label]) => (

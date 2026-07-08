@@ -94,9 +94,9 @@ export default function OrdersPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <SearchBar value={searchInput} onChange={handleSearchChange} placeholder="Buscar por número ou cliente..." />
-        <Select value={statusFilter} onValueChange={handleFilterChange}>
+        <Select value={statusFilter} onValueChange={handleFilterChange} items={STATUS_FILTER_LABEL}>
           <SelectTrigger className="w-48">
-            <SelectValue>{(v: string | null) => STATUS_FILTER_LABEL[v ?? "ALL"]}</SelectValue>
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {Object.entries(STATUS_FILTER_LABEL).map(([value, label]) => (

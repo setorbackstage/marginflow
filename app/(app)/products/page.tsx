@@ -214,9 +214,10 @@ export default function ProductsPage() {
                 setSort(value as ProductSort)
                 setPage(1)
               }}
+              items={SORT_OPTIONS}
             >
               <SelectTrigger className="w-44">
-                <SelectValue>{(v: string | null) => SORT_OPTIONS.find((o) => o.value === v)?.label}</SelectValue>
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {SORT_OPTIONS.map((option) => (

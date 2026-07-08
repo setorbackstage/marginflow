@@ -635,6 +635,7 @@ function PrintSettingsSection() {
               update.mutate({ receiptFormat: val as "A4" | "THERMAL_80MM" | "THERMAL_58MM" })
             }}
             disabled={!canEdit || update.isPending}
+            items={RECEIPT_FORMAT_LABELS}
           >
             <SelectTrigger id="receipt-format" className="w-56">
               <SelectValue placeholder="Selecione" />

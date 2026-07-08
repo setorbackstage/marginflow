@@ -38,9 +38,9 @@ export default function FinancePage() {
     <div className="flex flex-col gap-6">
       <PageHeader title="Financeiro" description="Histórico de pagamentos, confirmações e reembolsos." />
 
-      <Select value={statusFilter} onValueChange={handleFilterChange}>
+      <Select value={statusFilter} onValueChange={handleFilterChange} items={STATUS_FILTER_LABEL}>
         <SelectTrigger className="w-56">
-          <SelectValue>{(v: string | null) => STATUS_FILTER_LABEL[v ?? "ALL"]}</SelectValue>
+          <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {Object.entries(STATUS_FILTER_LABEL).map(([value, label]) => (

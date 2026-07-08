@@ -178,9 +178,9 @@ export function CreateOrderDialog({ open, onOpenChange }: { open: boolean; onOpe
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="mb-1.5">Tipo</Label>
-                <Select value={type} onValueChange={(v) => v && setType(v as OrderType)}>
+                <Select value={type} onValueChange={(v) => v && setType(v as OrderType)} items={ORDER_TYPE_LABEL}>
                   <SelectTrigger className="w-full">
-                    <SelectValue>{(v: string | null) => (v ? ORDER_TYPE_LABEL[v] : "")}</SelectValue>
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="TAKEAWAY">Retirada</SelectItem>
@@ -191,9 +191,9 @@ export function CreateOrderDialog({ open, onOpenChange }: { open: boolean; onOpe
               </div>
               <div>
                 <Label className="mb-1.5">Canal</Label>
-                <Select value={channel} onValueChange={(v) => v && setChannel(v as OrderChannel)}>
+                <Select value={channel} onValueChange={(v) => v && setChannel(v as OrderChannel)} items={ORDER_CHANNEL_LABEL}>
                   <SelectTrigger className="w-full">
-                    <SelectValue>{(v: string | null) => (v ? ORDER_CHANNEL_LABEL[v] : "")}</SelectValue>
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(ORDER_CHANNEL_LABEL).map(([value, label]) => (

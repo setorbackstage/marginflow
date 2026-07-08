@@ -88,7 +88,11 @@ export function InviteMemberDialog({
                 control={control}
                 name="roleId"
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value || undefined}
+                    onValueChange={field.onChange}
+                    items={roles.map((r) => ({ value: r.id, label: r.displayName }))}
+                  >
                     <SelectTrigger id="invite-role" className="w-full">
                       <SelectValue placeholder="Selecione um perfil" />
                     </SelectTrigger>
