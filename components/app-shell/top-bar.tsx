@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 
 import {
   Breadcrumb,
@@ -36,7 +37,7 @@ export function TopBar({
                 onClick={() => onNavigate("/", "Dashboard")}
                 className="cursor-pointer"
               >
-                MarginFlow OS
+                <Image src="/logo-mark.png" alt="MarginFlow OS" width={20} height={20} className="dark:invert" />
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator className="hidden sm:block" />

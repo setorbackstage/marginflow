@@ -1,11 +1,12 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
-import { Loader2, UtensilsCrossed } from "lucide-react"
+import { Loader2 } from "lucide-react"
 
 import { useSignup, type StoreType } from "@/features/auth"
 import { isApiError } from "@/lib/api"
@@ -66,11 +67,8 @@ export default function SignupPage() {
   return (
     <div className="flex min-h-svh items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            <UtensilsCrossed className="size-5" />
-          </div>
-          <h1 className="text-xl font-semibold tracking-tight">MarginFlow</h1>
+        <div className="flex flex-col items-center gap-3 text-center">
+          <Image src="/logo-full.png" alt="MarginFlow OS" width={220} height={56} className="dark:invert" priority />
           <p className="text-sm text-muted-foreground">Crie a conta da sua loja em poucos minutos</p>
         </div>
 
