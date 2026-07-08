@@ -48,7 +48,7 @@ export interface StoreSettings {
   storeId: string
   autoConfirmOrders: boolean
   printReceiptOnConfirm: boolean
-  receiptFormat: string
+  receiptFormat: "A4" | "THERMAL_80MM" | "THERMAL_58MM"
   allowScheduledOrders: boolean
   maxScheduledDaysAhead: number
   acceptsCash: boolean

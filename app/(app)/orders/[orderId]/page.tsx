@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Plus, Trash2, MapPin, Loader2 } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, MapPin, Loader2, Printer } from "lucide-react"
 
 import { useCan } from "@/features/auth"
 import {
@@ -27,7 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { ConfirmDialog, ErrorState, StatusBadge, SearchBar } from "@/components/shared"
 import { formatCents, formatDateTime } from "@/lib/format"
-import { useDebouncedValue } from "@/hooks"
+import { useDebouncedValue, usePrintOrder } from "@/hooks"
 
 const EDITABLE_STATUSES = ["DRAFT", "PENDING"]
 
@@ -38,6 +38,7 @@ export default function OrderDetailPage() {
 
   const order = useOrder(params.orderId)
   const removeItem = useRemoveOrderItem(params.orderId)
+  const { printOrder } = usePrintOrder()
 
   const [addProductSearch, setAddProductSearch] = React.useState("")
   const debouncedSearch = useDebouncedValue(addProductSearch)
@@ -84,6 +85,10 @@ export default function OrderDetailPage() {
           description={`${ORDER_TYPE_LABEL[data.type]} · ${ORDER_CHANNEL_LABEL[data.channel]} · ${formatDateTime(data.createdAt)}`}
           actions={
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => printOrder(data)}>
+                <Printer data-icon="inline-start" />
+                Reimprimir
+              </Button>
               <StatusBadge status={data.status} config={ORDER_STATUS_CONFIG} />
             </div>
           }

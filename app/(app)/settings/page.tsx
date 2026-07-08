@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ErrorState, PhoneInput } from "@/components/shared"
 import { SharePanel } from "@/features/public-menu"
 import { useSyncedState } from "@/hooks"
@@ -597,6 +598,83 @@ function RolesSection() {
   )
 }
 
+const RECEIPT_FORMAT_LABELS: Record<string, string> = {
+  THERMAL_58MM: "58 mm (bobina pequena)",
+  THERMAL_80MM: "80 mm (bobina padrão)",
+  A4: "A4 (impressora comum)",
+}
+
+function PrintSettingsSection() {
+  const canEdit = useCan("settings:edit")
+  const settings = useStoreSettings()
+  const update = useUpdateStoreSettings()
+
+  if (settings.isLoading) return <Skeleton className="h-48 w-full" />
+  if (settings.isError || !settings.data)
+    return (
+      <ErrorState error={settings.error} onRetry={() => settings.refetch()} />
+    )
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Configurações de impressão</CardTitle>
+        <CardDescription>
+          Defina a largura do papel da sua impressora e o comportamento de impressão automática.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label htmlFor="receipt-format" className="mb-1.5">
+            Largura do papel
+          </Label>
+          <Select
+            value={settings.data.receiptFormat}
+            onValueChange={(val) => {
+              if (!val) return
+              update.mutate({ receiptFormat: val as "A4" | "THERMAL_80MM" | "THERMAL_58MM" })
+            }}
+            disabled={!canEdit || update.isPending}
+          >
+            <SelectTrigger id="receipt-format" className="w-56">
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(RECEIPT_FORMAT_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            A impressora de cada dispositivo determina o tamanho real do papel. Configure aqui o formato do comprovante.
+          </p>
+        </div>
+
+        <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
+          <div>
+            <Label htmlFor="auto-print" className="text-sm font-normal">
+              Imprimir automaticamente ao receber pedido
+            </Label>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Gera o comprovante assim que um novo pedido chegar na lista de pedidos ativos.
+            </p>
+          </div>
+          <Switch
+            id="auto-print"
+            checked={settings.data.printReceiptOnConfirm}
+            disabled={!canEdit || update.isPending}
+            onCheckedChange={(checked) =>
+              update.mutate({ printReceiptOnConfirm: checked })
+            }
+          />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function SettingsPage() {
   const { isOwnerOrManagerAnywhere } = useAuth()
 
@@ -614,6 +692,7 @@ export default function SettingsPage() {
           <TabsTrigger value="hours">Horários</TabsTrigger>
           <TabsTrigger value="operations">Operação</TabsTrigger>
           <TabsTrigger value="team">Equipe</TabsTrigger>
+          <TabsTrigger value="print">Impressão</TabsTrigger>
           {isOwnerOrManagerAnywhere ? <TabsTrigger value="security">Segurança</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="branding" className="mt-4">
@@ -627,6 +706,9 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="operations" className="mt-4">
           <StoreSettingsSection />
+        </TabsContent>
+        <TabsContent value="print" className="mt-4">
+          <PrintSettingsSection />
         </TabsContent>
         <TabsContent value="team" className="mt-4 space-y-4">
           <TeamSection />
