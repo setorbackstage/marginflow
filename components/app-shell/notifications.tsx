@@ -15,20 +15,20 @@ import {
 
 const items = [
   {
-    title: "New order #4821",
-    description: "Table 12 · 3 items · $48.20",
-    time: "2m",
+    title: "Novo pedido #4821",
+    description: "Mesa 12 · 3 itens · R$ 48,20",
+    time: "2min",
     unread: true,
   },
   {
-    title: "Low stock alert",
-    description: "Mozzarella is running low",
-    time: "18m",
+    title: "Estoque baixo",
+    description: "Mussarela está acabando",
+    time: "18min",
     unread: true,
   },
   {
-    title: "Delivery completed",
-    description: "Order #4790 delivered on time",
+    title: "Entrega concluída",
+    description: "Pedido #4790 entregue no prazo",
     time: "1h",
     unread: false,
   },
@@ -44,7 +44,7 @@ export function Notifications() {
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
+            aria-label={`Notificações${unread ? `, ${unread} não lidas` : ""}`}
             className="relative"
           />
         }
@@ -57,9 +57,9 @@ export function Notifications() {
       <DropdownMenuContent align="end" sideOffset={8} className="w-80 rounded-lg">
         <DropdownMenuGroup>
           <DropdownMenuLabel className="flex items-center justify-between text-sm font-medium text-foreground">
-            Notifications
+            Notificações
             <span className="text-xs font-normal text-muted-foreground">
-              {unread} unread
+              {unread} não lidas
             </span>
           </DropdownMenuLabel>
         </DropdownMenuGroup>
@@ -85,7 +85,7 @@ export function Notifications() {
         ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem className="justify-center text-sm font-medium text-primary">
-          View all notifications
+          Ver todas as notificações
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -57,7 +57,7 @@ export function GlobalSearch({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Search"
+          aria-label="Buscar"
           onClick={() => setOpen(true)}
         >
           <Search />
@@ -69,7 +69,7 @@ export function GlobalSearch({
           className="h-8 w-full justify-start gap-2 px-2.5 text-muted-foreground sm:w-64 lg:w-72"
         >
           <Search className="text-muted-foreground" />
-          <span className="flex-1 text-left text-sm font-normal">Search…</span>
+          <span className="flex-1 text-left text-sm font-normal">Buscar…</span>
           <Kbd className="hidden sm:inline-flex">⌘K</Kbd>
         </Button>
       )}

@@ -31,15 +31,15 @@ export function ThemeToggle() {
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Toggle theme"
+            aria-label="Alternar tema"
             onClick={() => setTheme(isDark ? "light" : "dark")}
           />
         }
       >
         {mounted && isDark ? <Moon /> : <Sun />}
-        <span className="sr-only">Toggle theme</span>
+        <span className="sr-only">Alternar tema</span>
       </TooltipTrigger>
-      <TooltipContent>Toggle theme</TooltipContent>
+      <TooltipContent>Alternar tema</TooltipContent>
     </Tooltip>
   )
 }
