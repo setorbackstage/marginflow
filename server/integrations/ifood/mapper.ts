@@ -83,8 +83,8 @@ function mapPhone(phone?: { number?: string; localizer?: string }): string | nul
 
 export function mapIfoodOrder(ifoodOrder: IfoodOrder): MappedMarketplaceOrder {
   const items: MappedOrderItem[] = ifoodOrder.items.map((item) => {
-    const modifiers: MappedModifier[] = item.optionGroups.flatMap((group) =>
-      group.options.map((opt) => ({
+    const modifiers: MappedModifier[] = (item.optionGroups ?? []).flatMap((group) =>
+      (group.options ?? []).map((opt) => ({
         name: opt.name,
         priceAdjustment: toCents(opt.addition),
       })),

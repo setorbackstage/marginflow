@@ -13,8 +13,8 @@ interface RouteContext {
 const SUPPORTED_PLATFORMS = ["IFOOD", "RAPPI", "UBER_EATS"]
 
 async function handleDisconnect(req: NextRequest, ctx: RouteContext) {
-  const { storeId } = requireUuidParams(await ctx.params)
-  const { platform } = await ctx.params
+  const { storeId, platform } = await ctx.params
+  requireUuidParams({ storeId })
 
   if (!SUPPORTED_PLATFORMS.includes(platform.toUpperCase())) {
     throw new ValidationError([{ field: "platform", message: `Unknown platform: ${platform}` }])
