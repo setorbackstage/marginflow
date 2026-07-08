@@ -23,7 +23,8 @@ export function useOrders(params: OrderListParams) {
     enabled: Boolean(storeId),
     queryFn: () => ordersApi.list(storeId, params),
     placeholderData: keepPreviousData,
-    refetchInterval: 15_000,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: false,
   })
 }
 
