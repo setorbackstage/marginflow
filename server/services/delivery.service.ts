@@ -1,7 +1,7 @@
 import "server-only"
 import type { DbClient } from "../db"
 import type { Delivery, Prisma } from "../../generated/prisma/client"
-import { deliveryRepository } from "../repositories"
+import { deliveryRepository, orderRepository } from "../repositories"
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../lib/errors"
 import { eventBus, createEvent } from "../lib/events"
 import { toJsonInput } from "../lib/json"
@@ -143,13 +143,24 @@ eventBus.on("kitchen_ticket.ready", "delivery.service:kitchen_ticket.ready", asy
   if (event.payload.orderType !== "DELIVERY" || !event.payload.deliveryAddressSnapshot) return
 
   const createdAt = new Date()
-  const delivery = await deliveryRepository.create(db, {
+  let delivery = await deliveryRepository.create(db, {
     order: { connect: { id: event.payload.orderId } },
     store: { connect: { id: event.storeId } },
     status: "AWAITING_PICKUP",
     deliveryAddress: toJsonInput(event.payload.deliveryAddressSnapshot),
     createdAt,
   })
+
+  // Auto-assign iFood platform courier when the order is handled by iFood logistics
+  const order = await orderRepository.findById(db, event.payload.orderId)
+  if (order?.deliveredBy === "IFOOD") {
+    delivery = await deliveryRepository.update(db, delivery.id, {
+      courierName: "Entregador iFood",
+      courierPhone: null,
+      courierType: "PLATFORM",
+      platform: "IFOOD",
+    })
+  }
 
   await eventBus.publish(
     createEvent("delivery.created", event.storeId, null, {

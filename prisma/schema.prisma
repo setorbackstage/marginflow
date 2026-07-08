@@ -690,6 +690,8 @@ model Order {
   grandTotal        Int       @default(0) @map("grand_total")
   /// External order ID from a marketplace (e.g. iFood order UUID). Null for non-marketplace orders.
   externalId        String?   @map("external_id")
+  /// Who handles the delivery for marketplace orders: 'MERCHANT' (store's own courier) or 'IFOOD' (platform courier). Null for non-marketplace orders.
+  deliveredBy       String?   @map("delivered_by")
   notes             String?
   scheduledFor      DateTime? @map("scheduled_for") @db.Timestamptz(6)
   /// Mandatory when status = CANCELLED (application-level rule, not a DB CHECK).

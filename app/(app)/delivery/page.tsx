@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { Truck, User, Phone, Clock, Loader2, ArrowRight, X } from "lucide-react"
+import { Truck, User, Phone, Clock, Loader2, ArrowRight, X, ExternalLink } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 import { useCan } from "@/features/auth"
 import { useDeliveries, useUpdateDeliveryStatus, AssignCourierDialog, DELIVERY_STATUS_CONFIG } from "@/features/delivery"
@@ -9,6 +10,7 @@ import type { Delivery, DeliveryStatus } from "@/features/delivery/types"
 import { useOrdersByIds } from "@/features/orders"
 import { PageHeader } from "@/components/app-shell/page-container"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -45,6 +47,7 @@ function DeliveryCard({
   nextStatus?: DeliveryStatus
   actionLabel?: string
 }) {
+  const router = useRouter()
   const canUpdate = useCan("delivery:update_status")
   const canAssign = useCan("delivery:assign_courier")
   const updateStatus = useUpdateDeliveryStatus()
@@ -52,6 +55,7 @@ function DeliveryCard({
   const [failOpen, setFailOpen] = React.useState(false)
   const [failReason, setFailReason] = React.useState("")
 
+  const isPlatformDelivery = delivery.courierType === "PLATFORM"
   const canFail = (delivery.status === "DISPATCHED" || delivery.status === "IN_TRANSIT") && canUpdate
   const isActive = delivery.status !== "DELIVERED" && delivery.status !== "FAILED" && delivery.status !== "RETURNED"
   const elapsedMinutes = minutesSince(delivery.createdAt)
@@ -84,7 +88,13 @@ function DeliveryCard({
           {formatRelative(delivery.createdAt)}
         </p>
 
-        {delivery.courierName ? (
+        {isPlatformDelivery ? (
+          <div className="mt-2">
+            <Badge variant="secondary" className="text-xs">
+              {delivery.platform === "IFOOD" ? "iFood" : delivery.platform} — entrega pela plataforma
+            </Badge>
+          </div>
+        ) : delivery.courierName ? (
           <p className="mt-2 flex items-center gap-1.5 text-xs">
             <User className="size-3.5 text-muted-foreground" />
             {delivery.courierName}
@@ -116,10 +126,16 @@ function DeliveryCard({
               Falhar
             </Button>
           ) : null}
+          {delivery.status === "DELIVERED" && !isPlatformDelivery ? (
+            <Button size="sm" variant="outline" className="flex-1" onClick={() => router.push(`/orders/${delivery.orderId}`)}>
+              <ExternalLink data-icon="inline-start" />
+              Ver pedido
+            </Button>
+          ) : null}
         </div>
       </KanbanCard>
 
-      {canAssign ? <AssignCourierDialog open={assignOpen} onOpenChange={setAssignOpen} delivery={delivery} /> : null}
+      {canAssign && !isPlatformDelivery ? <AssignCourierDialog open={assignOpen} onOpenChange={setAssignOpen} delivery={delivery} /> : null}
 
       <Dialog open={failOpen} onOpenChange={setFailOpen}>
         <DialogContent>

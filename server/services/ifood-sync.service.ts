@@ -1,10 +1,10 @@
 import "server-only"
 import type { DbClient } from "../db"
 import { prisma } from "../db"
-import { orderRepository, orderItemRepository, orderStatusTransitionRepository, marketplaceIntegrationRepository, storeSettingsRepository, paymentRepository } from "../repositories"
+import { orderRepository, orderItemRepository, orderStatusTransitionRepository, marketplaceIntegrationRepository, storeSettingsRepository, paymentRepository, paymentAttemptRepository, deliveryRepository } from "../repositories"
 import { eventBus, createEvent, logger } from "../lib"
 import { orderService } from "./order.service"
-import { paymentService } from "./payment.service"
+import { deliveryService } from "./delivery.service"
 import { toJsonInput, toNullableJsonInput } from "../lib/json"
 import {
   getIfoodAccessToken,
@@ -55,6 +55,7 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
       grandTotal: mapped.grandTotal,
       notes: mapped.notes,
       scheduledFor: mapped.scheduledFor,
+      deliveredBy: mapped.deliveredBy ?? null,
     })
 
     await orderItemRepository.createMany(
@@ -133,20 +134,63 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
   }
 
   // ── Auto-register payment ─────────────────────────────────────────────────
-  // Only after the order is CONFIRMED (payment API rejects PENDING orders).
-  // - Fully prepaid via iFood (pending === 0): create PAID payment, method ONLINE
-  // - Pay-on-delivery (pending > 0): create PENDING payment with the offline method
+  // Bypass paymentService.initiate (which gates on store settings like
+  // acceptsOnlinePayment). iFood payments are external — they already happened —
+  // so store settings must not block them.
+  // - Fully prepaid via iFood (isPrepaid): create PAID payment immediately
+  // - Pay-on-delivery (COD): create PENDING payment, leave for operator
   if (confirmedOrderId && mapped.payment) {
     try {
-      const { payment } = await paymentService.initiate(prisma, storeId, confirmedOrderId, {
-        method: mapped.payment.method,
-        gateway: "IFOOD",
-      })
-      if (mapped.payment.isPrepaid) {
-        await paymentService.confirm(prisma, storeId, payment.id)
-        logger.info("ifood.ingest.payment_confirmed", { storeId, orderId: confirmedOrderId, method: mapped.payment.method })
-      } else {
-        logger.info("ifood.ingest.payment_pending", { storeId, orderId: confirmedOrderId, method: mapped.payment.method })
+      const order = await orderRepository.findById(prisma, confirmedOrderId)
+      if (order) {
+        const amount = order.grandTotal
+        const method = mapped.payment.method
+        const gateway = "IFOOD"
+        const now = new Date()
+
+        const payment = await paymentRepository.create(prisma, {
+          order: { connect: { id: confirmedOrderId } },
+          store: { connect: { id: storeId } },
+          amount,
+          method,
+          gateway,
+        })
+
+        const attempt = await paymentAttemptRepository.create(prisma, {
+          order: { connect: { id: confirmedOrderId } },
+          store: { connect: { id: storeId } },
+          amount,
+          method,
+          gateway,
+        })
+
+        if (mapped.payment.isPrepaid) {
+          await paymentAttemptRepository.update(prisma, attempt.id, { status: "CAPTURED", resolvedAt: now })
+          await paymentRepository.update(prisma, payment.id, {
+            status: "PAID",
+            paidAt: now,
+            successfulAttempt: { connect: { id: attempt.id } },
+          })
+          await eventBus.publish(
+            createEvent("payment.paid", storeId, null, {
+              paymentId: payment.id,
+              orderId: confirmedOrderId,
+              customerId: order.customerId ?? null,
+              amount,
+              method,
+              gateway,
+              paidAt: now.toISOString(),
+            }),
+            prisma,
+          )
+          logger.info("ifood.ingest.payment_confirmed", { storeId, orderId: confirmedOrderId, method })
+        } else {
+          await eventBus.publish(
+            createEvent("payment.created", storeId, null, { paymentId: payment.id, orderId: confirmedOrderId, amount, method, gateway }),
+            prisma,
+          )
+          logger.info("ifood.ingest.payment_pending", { storeId, orderId: confirmedOrderId, method })
+        }
       }
     } catch (err) {
       logger.error("ifood.ingest.payment_error", {
@@ -178,6 +222,54 @@ export async function processIfoodEvents(events: IfoodEvent[]): Promise<void> {
           await ingestIfoodOrder(integration.storeId, event.orderId)
         } else {
           logger.warn("ifood.events.unknown_merchant", { merchantId: event.merchantId })
+        }
+      } else if (event.fullCode === "DISPATCHED" || event.fullCode === "CONCLUDED") {
+        const integration = await marketplaceIntegrationRepository.findByMerchantId(prisma, "IFOOD", event.merchantId)
+        if (integration) {
+          const { storeId } = integration
+          const order = await orderRepository.findByExternalId(prisma, storeId, event.orderId)
+          if (order && order.deliveredBy === "IFOOD") {
+            const delivery = await deliveryRepository.findByOrderId(prisma, order.id)
+            if (delivery) {
+              if (event.fullCode === "DISPATCHED") {
+                await deliveryService.updateStatus(prisma, storeId, delivery.id, "DISPATCHED", {})
+                logger.info("ifood.events.delivery_dispatched", { storeId, orderId: order.id, deliveryId: delivery.id })
+              } else {
+                // CONCLUDED — mark delivered
+                await deliveryService.updateStatus(prisma, storeId, delivery.id, "DELIVERED", {})
+                logger.info("ifood.events.delivery_delivered", { storeId, orderId: order.id, deliveryId: delivery.id })
+
+                // Auto-confirm COD payment if pending
+                const payment = await paymentRepository.findByOrderId(prisma, order.id)
+                if (payment && payment.status === "PENDING") {
+                  const now = new Date()
+                  const attempts = await paymentAttemptRepository.findManyByOrder(prisma, order.id)
+                  const pendingAttempt = attempts.find((a) => a.status === "PENDING")
+                  if (pendingAttempt) {
+                    await paymentAttemptRepository.update(prisma, pendingAttempt.id, { status: "CAPTURED", resolvedAt: now })
+                  }
+                  await paymentRepository.update(prisma, payment.id, {
+                    status: "PAID",
+                    paidAt: now,
+                    successfulAttempt: pendingAttempt ? { connect: { id: pendingAttempt.id } } : undefined,
+                  })
+                  await eventBus.publish(
+                    createEvent("payment.paid", storeId, null, {
+                      paymentId: payment.id,
+                      orderId: order.id,
+                      customerId: order.customerId ?? null,
+                      amount: payment.amount,
+                      method: payment.method,
+                      gateway: payment.gateway,
+                      paidAt: now.toISOString(),
+                    }),
+                    prisma,
+                  )
+                  logger.info("ifood.events.cod_payment_confirmed", { storeId, orderId: order.id, paymentId: payment.id })
+                }
+              }
+            }
+          }
         }
       }
       // For all other event types we just acknowledge — status changes originate
