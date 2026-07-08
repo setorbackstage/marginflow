@@ -54,12 +54,14 @@ export function Notifications() {
         ) : null}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={8} className="w-80 rounded-lg">
-        <DropdownMenuLabel className="flex items-center justify-between text-sm font-medium text-foreground">
-          Notifications
-          <span className="text-xs font-normal text-muted-foreground">
-            {unread} unread
-          </span>
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex items-center justify-between text-sm font-medium text-foreground">
+            Notifications
+            <span className="text-xs font-normal text-muted-foreground">
+              {unread} unread
+            </span>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         {items.map((item) => (
           <DropdownMenuItem
