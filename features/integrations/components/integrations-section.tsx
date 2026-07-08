@@ -4,7 +4,7 @@ import * as React from "react"
 import { Plug, PlugZap, Loader2, ExternalLink, Copy, Check } from "lucide-react"
 
 import { useCan } from "@/features/auth"
-import { useIntegrations, useConnectIntegration, useDisconnectIntegration } from "@/features/integrations/hooks"
+import { useIntegrations, useConnectIntegration, useDisconnectIntegration, useSetIntegrationPaused } from "@/features/integrations/hooks"
 import type { MarketplaceIntegration } from "@/features/integrations/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -101,6 +101,7 @@ function IfoodIntegrationCard({
 }) {
   const connect = useConnectIntegration()
   const disconnect = useDisconnectIntegration()
+  const setPaused = useSetIntegrationPaused()
   const [merchantId, setMerchantId] = React.useState("")
   const [showGuide, setShowGuide] = React.useState(false)
   const [confirmOpen, setConfirmOpen] = React.useState(false)
@@ -142,6 +143,14 @@ function IfoodIntegrationCard({
             </div>
           ) : null}
 
+          {integration.isPaused ? (
+            <div className="px-4 py-3">
+              <div className="rounded-md bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 px-3 py-2 text-xs text-yellow-800 dark:text-yellow-200">
+                Loja pausada no iFood — não está recebendo pedidos.
+              </div>
+            </div>
+          ) : null}
+
           <div className="px-4 py-3 space-y-1">
             <p className="text-xs font-medium text-muted-foreground">URL do Webhook</p>
             <div className="flex items-center gap-1 rounded-md bg-muted/50 px-2 py-1.5 font-mono text-xs text-muted-foreground">
@@ -156,11 +165,24 @@ function IfoodIntegrationCard({
                 ? `Última sincronização: ${formatDateTime(integration.lastSyncAt)}`
                 : "Aguardando primeiro pedido..."}
             </p>
-            {canManage ? (
-              <Button variant="outline" size="sm" onClick={() => setConfirmOpen(true)}>
-                Desconectar
-              </Button>
-            ) : null}
+            <div className="flex items-center gap-2">
+              {canManage && integration ? (
+                <Button
+                  variant={integration.isPaused ? "default" : "outline"}
+                  size="sm"
+                  disabled={setPaused.isPending}
+                  onClick={() => setPaused.mutate({ platform: "IFOOD", paused: !integration.isPaused })}
+                >
+                  {setPaused.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+                  {integration.isPaused ? "Reabrir loja" : "Pausar loja"}
+                </Button>
+              ) : null}
+              {canManage ? (
+                <Button variant="outline" size="sm" onClick={() => setConfirmOpen(true)}>
+                  Desconectar
+                </Button>
+              ) : null}
+            </div>
           </div>
 
           <ConfirmDialog

@@ -6,6 +6,7 @@ export interface MarketplaceIntegration {
   status: "ACTIVE" | "INACTIVE" | "ERROR"
   lastSyncAt: string | null
   errorMessage: string | null
+  isPaused: boolean
   createdAt: string
   updatedAt: string
 }

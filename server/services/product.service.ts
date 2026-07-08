@@ -1,10 +1,12 @@
 import "server-only"
 import type { DbClient } from "../db"
 import type { Prisma, Product } from "../../generated/prisma/client"
-import { categoryRepository, productRepository, modifierGroupRepository } from "../repositories"
+import { categoryRepository, productRepository, modifierGroupRepository, marketplaceIntegrationRepository } from "../repositories"
 import { BadRequestError, ConflictError, NotFoundError } from "../lib/errors"
 import { toNullableJsonInput } from "../lib/json"
+import { logger } from "../lib"
 import { modifierGroupService } from "./modifier-group.service"
+import { getIfoodAccessToken, setIfoodItemAvailability } from "../integrations/ifood"
 
 export interface CreateProductInput {
   categoryId: string
@@ -13,6 +15,7 @@ export interface CreateProductInput {
   price: number
   imageUrl?: string | null
   sku?: string | null
+  ifoodExternalCode?: string | null
   type?: string
   status?: string
   sortOrder?: number
@@ -79,11 +82,32 @@ export const productService = {
     if (input.sku) await assertSkuAvailable(db, storeId, input.sku, id)
 
     const { categoryId, ...rest } = input
-    return productRepository.update(db, id, {
+    const updatedProduct = await productRepository.update(db, id, {
       ...rest,
       availabilitySchedule: toNullableJsonInput(input.availabilitySchedule),
       ...(categoryId ? { category: { connect: { id: categoryId } } } : {}),
     })
+
+    // Sync availability to iFood if this product has an externalCode and status changed
+    if (input.status !== undefined && updatedProduct.ifoodExternalCode) {
+      const available = updatedProduct.status === "ACTIVE"
+      const integration = await marketplaceIntegrationRepository.findByStorePlatform(db, storeId, "IFOOD")
+      if (integration && !integration.isPaused) {
+        getIfoodAccessToken()
+          .then((token) =>
+            setIfoodItemAvailability(token, integration.merchantId, updatedProduct.ifoodExternalCode!, available)
+          )
+          .then(() => logger.info("ifood.catalog.item_synced", { storeId, productId: updatedProduct.id, available }))
+          .catch((err) =>
+            logger.warn("ifood.catalog.item_sync_failed", {
+              storeId,
+              productId: updatedProduct.id,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          )
+      }
+    }
+    return updatedProduct
   },
 
   /** Cascades soft-delete to all Modifier Groups (and transitively Modifiers) — API_SPEC.md's documented behavior. */

@@ -10,4 +10,7 @@ export const integrationsApi = {
 
   disconnect: (storeId: string, platform: string) =>
     api.del<void>(`/stores/${storeId}/integrations/${platform}`),
+
+  setPaused: (storeId: string, platform: string, paused: boolean) =>
+    api.patch<{ isPaused: boolean }>(`/stores/${storeId}/integrations/${platform}`, { paused }),
 }

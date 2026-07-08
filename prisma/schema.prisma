@@ -513,6 +513,8 @@ model Product {
   price                Int
   imageUrl             String?   @map("image_url")
   sku                  String?
+  /// External item code in the iFood catalog. Set this to enable automatic availability sync.
+  ifoodExternalCode    String?   @map("ifood_external_code")
   /// CHECK (type IN ('SIMPLE', 'COMBO', 'SERVICE_CHARGE'))
   type                 String    @default("SIMPLE")
   /// CHECK (status IN ('ACTIVE', 'INACTIVE', 'OUT_OF_STOCK'))
@@ -1178,6 +1180,7 @@ model MarketplaceIntegration {
   status       String    @default("ACTIVE")
   lastSyncAt   DateTime? @map("last_sync_at") @db.Timestamptz(6)
   errorMessage String?   @map("error_message")
+  isPaused     Boolean   @default(false) @map("is_paused")
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 

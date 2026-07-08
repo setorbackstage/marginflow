@@ -40,4 +40,17 @@ export const marketplaceIntegrationService = {
     }
     await marketplaceIntegrationRepository.delete(db, integration.id)
   },
+
+  async setPaused(
+    db: DbClient,
+    storeId: string,
+    platform: string,
+    paused: boolean,
+  ): Promise<MarketplaceIntegration> {
+    const integration = await marketplaceIntegrationRepository.findByStorePlatform(db, storeId, platform)
+    if (!integration) {
+      throw new NotFoundError("INTEGRATION_NOT_FOUND", `No ${platform} integration found for this store.`)
+    }
+    return marketplaceIntegrationRepository.update(db, integration.id, { isPaused: paused })
+  },
 }

@@ -20,6 +20,7 @@ const updateProductSchema = z.object({
   price: z.number().int().min(0).optional(),
   imageUrl: z.url().nullable().optional(),
   sku: z.string().max(50).nullable().optional(),
+  ifoodExternalCode: z.string().max(100).nullable().optional(),
   categoryId: z.string().min(1).optional(),
   type: z.enum(["SIMPLE", "COMBO", "SERVICE_CHARGE"]).optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "OUT_OF_STOCK"]).optional(),

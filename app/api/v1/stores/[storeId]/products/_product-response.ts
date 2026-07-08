@@ -59,6 +59,7 @@ export function toProductDetailResponse(product: Product & { modifierGroups: (Mo
     price: product.price,
     imageUrl: product.imageUrl,
     sku: product.sku,
+    ifoodExternalCode: product.ifoodExternalCode,
     type: product.type,
     status: product.status,
     isAvailable: product.isAvailable,

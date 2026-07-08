@@ -64,6 +64,7 @@ export interface ModifierGroup {
 }
 
 export interface ProductDetail extends Omit<ProductListItem, "categoryName" | "modifierGroupCount"> {
+  ifoodExternalCode: string | null
   modifierGroups: ModifierGroup[]
   deletedAt: string | null
 }
@@ -75,6 +76,7 @@ export interface ProductInput {
   price: number
   imageUrl?: string | null
   sku?: string | null
+  ifoodExternalCode?: string | null
   type?: ProductType
   status?: ProductStatus
   sortOrder?: number

@@ -48,3 +48,17 @@ export function useDisconnectIntegration() {
     onError: (error) => toast.error(errorMessage(error, "Não foi possível desconectar a integração.")),
   })
 }
+
+export function useSetIntegrationPaused() {
+  const storeId = useActiveStoreId()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ platform, paused }: { platform: string; paused: boolean }) =>
+      integrationsApi.setPaused(storeId, platform, paused),
+    onSuccess: (_, { paused }) => {
+      queryClient.invalidateQueries({ queryKey: keys.list(storeId) })
+      toast.success(paused ? "Loja pausada no iFood." : "Loja reaberta no iFood.")
+    },
+    onError: (error) => toast.error(errorMessage(error, "Não foi possível alterar o status da loja no iFood.")),
+  })
+}

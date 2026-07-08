@@ -31,6 +31,7 @@ const productSchema = z.object({
   sku: z.string().max(50).optional(),
   imageUrl: z.string().max(2000).optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "OUT_OF_STOCK"]),
+  ifoodExternalCode: z.string().max(100).optional(),
 })
 
 type ProductFormValues = z.infer<typeof productSchema>
@@ -65,7 +66,7 @@ export function ProductFormDialog({
     formState: { errors },
   } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
-    defaultValues: { categoryId: "", name: "", description: "", price: 0, sku: "", imageUrl: "", status: "ACTIVE" },
+    defaultValues: { categoryId: "", name: "", description: "", price: 0, sku: "", imageUrl: "", status: "ACTIVE", ifoodExternalCode: "" },
   })
 
   React.useEffect(() => {
@@ -78,6 +79,7 @@ export function ProductFormDialog({
         sku: "",
         imageUrl: source?.imageUrl ?? "",
         status: duplicateFrom ? "ACTIVE" : (source?.status ?? "ACTIVE"),
+        ifoodExternalCode: "",
       })
     }
   }, [open, source, duplicateFrom, defaultCategoryId, reset])
@@ -91,6 +93,7 @@ export function ProductFormDialog({
       sku: values.sku || null,
       imageUrl: values.imageUrl || null,
       status: values.status,
+      ifoodExternalCode: values.ifoodExternalCode || null,
     }
     if (isEdit && product) {
       update.mutate({ productId: product.id, input }, { onSuccess: () => onOpenChange(false) })
@@ -193,6 +196,18 @@ export function ProductFormDialog({
                 <Input id="product-image" placeholder="https://..." {...register("imageUrl")} />
               </Field>
             </div>
+
+            <Field>
+              <FieldLabel htmlFor="product-ifood-external-code">Código iFood (opcional)</FieldLabel>
+              <Input
+                id="product-ifood-external-code"
+                placeholder="ex: abc123"
+                {...register("ifoodExternalCode")}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Código do item no catálogo iFood. Quando preenchido, ativar/desativar o produto aqui também altera no iFood.
+              </p>
+            </Field>
 
             <Field>
               <FieldLabel htmlFor="product-description">Descrição</FieldLabel>

@@ -25,6 +25,7 @@ function toIntegrationResponse(i: MarketplaceIntegration) {
     status: i.status as "ACTIVE" | "INACTIVE" | "ERROR",
     lastSyncAt: i.lastSyncAt,
     errorMessage: i.errorMessage,
+    isPaused: i.isPaused,
     createdAt: i.createdAt,
     updatedAt: i.updatedAt,
   }

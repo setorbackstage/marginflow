@@ -13,3 +13,5 @@ export {
 export type { IfoodOrder } from "./orders"
 export { mapIfoodOrder } from "./mapper"
 export type { MappedMarketplaceOrder } from "./mapper"
+export { pauseIfoodStore, resumeIfoodStore } from "./merchant"
+export { setIfoodItemAvailability } from "./catalog"
