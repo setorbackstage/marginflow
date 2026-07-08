@@ -96,7 +96,7 @@ export function TeamSection() {
                             onValueChange={(roleId) => roleId && changeRole.mutate({ userId: member.userId, roleId })}
                           >
                             <SelectTrigger className="w-40" size="sm">
-                              <SelectValue>{() => assignableRoles.find((r) => r.id === member.role.id)?.displayName ?? member.role.displayName}</SelectValue>
+                              <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                               {assignableRoles.map((role) => (
