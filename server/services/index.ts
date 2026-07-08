@@ -84,3 +84,5 @@ export { marketplaceIntegrationService } from "./marketplace-integration.service
 export type { ConnectMarketplaceInput } from "./marketplace-integration.service"
 
 export { ifoodSyncService, pollAllIfoodStores, processIfoodEvents } from "./ifood-sync.service"
+
+export { passwordAuthService } from "./password-auth.service"

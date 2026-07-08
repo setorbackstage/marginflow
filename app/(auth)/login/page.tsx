@@ -87,6 +87,12 @@ export default function LoginPage() {
                 {errors.password ? <p className="text-xs text-destructive">{errors.password.message}</p> : null}
               </div>
 
+              <div className="flex justify-end">
+                <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground">
+                  Esqueceu a senha?
+                </Link>
+              </div>
+
               <Button type="submit" className="w-full" disabled={login.isPending}>
                 {login.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
                 Entrar

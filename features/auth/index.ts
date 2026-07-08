@@ -1,6 +1,6 @@
 export { SessionProvider, useAuth, useActiveStoreId, useCan, useSessionQuery, SESSION_KEY } from "./session"
 export { AuthGuard } from "./auth-guard"
-export { useLogin, useSignup, useLogout, useSetApprovalPassword } from "./hooks"
-export { login, signup, logout, fetchMe, setApprovalPassword } from "./api"
+export { useLogin, useSignup, useLogout, useSetApprovalPassword, useForgotPassword, useResetPassword, useAcceptInvitation } from "./hooks"
+export { login, signup, logout, fetchMe, setApprovalPassword, forgotPassword, resetPassword, acceptInvitation } from "./api"
 export type { Session, SessionUser, SessionMembership, SessionRole, LoginInput, SignupInput, StoreType } from "./types"
 export type { SetApprovalPasswordInput } from "./api"

@@ -101,7 +101,7 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
           return marketplaceIntegrationRepository.update(tx, integration.id, { lastSyncAt: new Date(), errorMessage: null })
         }
       })
-      .catch(() => undefined) // non-critical
+      .catch((err) => logger.warn("ifood.ingest.last_sync_update_failed", { storeId, error: err instanceof Error ? err.message : String(err) }))
 
     createdOrderId = order.id
   }, { timeout: 30_000 })
@@ -139,9 +139,12 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
   // so store settings must not block them.
   // - Fully prepaid via iFood (isPrepaid): create PAID payment immediately
   // - Pay-on-delivery (COD): create PENDING payment, leave for operator
-  if (confirmedOrderId && mapped.payment) {
+  // Use createdOrderId as fallback so payment is always registered even if
+  // auto-confirm failed (the order still exists and needs its payment recorded).
+  const orderIdForPayment = confirmedOrderId ?? createdOrderId
+  if (orderIdForPayment && mapped.payment) {
     try {
-      const order = await orderRepository.findById(prisma, confirmedOrderId)
+      const order = await orderRepository.findById(prisma, orderIdForPayment)
       if (order) {
         const amount = order.grandTotal
         const method = mapped.payment.method
@@ -149,7 +152,7 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
         const now = new Date()
 
         const payment = await paymentRepository.create(prisma, {
-          order: { connect: { id: confirmedOrderId } },
+          order: { connect: { id: orderIdForPayment } },
           store: { connect: { id: storeId } },
           amount,
           method,
@@ -157,7 +160,7 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
         })
 
         const attempt = await paymentAttemptRepository.create(prisma, {
-          order: { connect: { id: confirmedOrderId } },
+          order: { connect: { id: orderIdForPayment } },
           store: { connect: { id: storeId } },
           amount,
           method,
@@ -174,7 +177,7 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
           await eventBus.publish(
             createEvent("payment.paid", storeId, null, {
               paymentId: payment.id,
-              orderId: confirmedOrderId,
+              orderId: orderIdForPayment,
               customerId: order.customerId ?? null,
               amount,
               method,
@@ -183,19 +186,19 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
             }),
             prisma,
           )
-          logger.info("ifood.ingest.payment_confirmed", { storeId, orderId: confirmedOrderId, method })
+          logger.info("ifood.ingest.payment_confirmed", { storeId, orderId: orderIdForPayment, method })
         } else {
           await eventBus.publish(
-            createEvent("payment.created", storeId, null, { paymentId: payment.id, orderId: confirmedOrderId, amount, method, gateway }),
+            createEvent("payment.created", storeId, null, { paymentId: payment.id, orderId: orderIdForPayment, amount, method, gateway }),
             prisma,
           )
-          logger.info("ifood.ingest.payment_pending", { storeId, orderId: confirmedOrderId, method })
+          logger.info("ifood.ingest.payment_pending", { storeId, orderId: orderIdForPayment, method })
         }
       }
     } catch (err) {
       logger.error("ifood.ingest.payment_error", {
         storeId,
-        orderId: confirmedOrderId,
+        orderId: orderIdForPayment,
         error: err instanceof Error ? err.message : String(err),
       })
     }

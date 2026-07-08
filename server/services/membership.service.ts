@@ -1,7 +1,8 @@
 import "server-only"
+import { createHash } from "crypto"
 import type { DbClient } from "../db"
 import type { Membership, Role, User } from "../../generated/prisma/client"
-import { membershipRepository, roleRepository, userRepository } from "../repositories"
+import { membershipRepository, roleRepository, userRepository, invitationTokenRepository } from "../repositories"
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../lib/errors"
 import { eventBus, createEvent } from "../lib/events"
 import { authorizationService } from "./authorization.service"
@@ -106,6 +107,19 @@ export const membershipService = {
     }
 
     const expiresAt = new Date(now.getTime() + INVITATION_TTL_HOURS * 60 * 60 * 1000)
+
+    // Revoke any previous active invitation tokens for this membership
+    await invitationTokenRepository.revokeAllForMembership(db, membership.id)
+
+    // Generate and persist the invitation token
+    const rawInvitationToken = crypto.randomUUID()
+    const tokenHash = createHash("sha256").update(rawInvitationToken).digest("hex")
+    await invitationTokenRepository.create(db, {
+      membership: { connect: { id: membership.id } },
+      tokenHash,
+      expiresAt,
+    })
+
     await eventBus.publish(
       createEvent("membership.invited", storeId, invitedByUserId, {
         membershipId: membership.id,
@@ -115,7 +129,7 @@ export const membershipService = {
         invitedName: input.name,
         roleName: role.name,
         invitedByUserId,
-        invitationToken: crypto.randomUUID(),
+        invitationToken: rawInvitationToken,
         expiresAt: expiresAt.toISOString(),
       }),
       db,

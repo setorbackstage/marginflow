@@ -40,3 +40,18 @@ export async function logout(): Promise<void> {
 export function setApprovalPassword(input: SetApprovalPasswordInput): Promise<void> {
   return api.patch("/auth/approval-password", input)
 }
+
+/** `POST /auth/forgot-password` — requests a password reset email. Always succeeds to avoid user enumeration. */
+export function forgotPassword(email: string): Promise<void> {
+  return api.post("/auth/forgot-password", { email })
+}
+
+/** `POST /auth/reset-password` — resets the user's password using a token received by email. */
+export function resetPassword(token: string, password: string): Promise<void> {
+  return api.post("/auth/reset-password", { token, password })
+}
+
+/** `POST /auth/accept-invitation` — sets the user's password and activates their membership via an invitation token. */
+export function acceptInvitation(token: string, password: string): Promise<void> {
+  return api.post("/auth/accept-invitation", { token, password })
+}

@@ -1,0 +1,20 @@
+import "server-only"
+import type { NextRequest } from "next/server"
+import { z } from "zod"
+import { prisma } from "@/server/db"
+import { passwordAuthService } from "@/server/services"
+import { parseJsonBody } from "@/server/lib"
+import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
+
+const schema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8, "A senha deve ter no mínimo 8 caracteres"),
+})
+
+async function handler(request: NextRequest): Promise<Response> {
+  const { token, password } = await parseJsonBody(request, schema)
+  await passwordAuthService.resetPassword(prisma, token, password)
+  return ok({ message: "Senha redefinida com sucesso." })
+}
+
+export const POST = compose(withRequestContext, withErrorHandling)(handler)

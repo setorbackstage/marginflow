@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { login, signup, logout, fetchMe, setApprovalPassword } from "./api"
+import { login, signup, logout, fetchMe, setApprovalPassword, forgotPassword, resetPassword, acceptInvitation } from "./api"
 import { SESSION_KEY } from "./session"
 import type { LoginInput, SignupInput } from "./types"
 import type { SetApprovalPasswordInput } from "./api"
@@ -63,5 +63,33 @@ export function useSetApprovalPassword() {
     mutationFn: (input: SetApprovalPasswordInput) => setApprovalPassword(input),
     onSuccess: () => toast.success("Senha de aprovação definida."),
     onError: (error) => toast.error(errorMessage(error, "Não foi possível definir a senha de aprovação.")),
+  })
+}
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: ({ email }: { email: string }) => forgotPassword(email),
+  })
+}
+
+export function useResetPassword() {
+  const router = useRouter()
+  return useMutation({
+    mutationFn: ({ token, password }: { token: string; password: string }) => resetPassword(token, password),
+    onSuccess: () => {
+      toast.success("Senha redefinida! Faça login.")
+      router.replace("/login")
+    },
+  })
+}
+
+export function useAcceptInvitation() {
+  const router = useRouter()
+  return useMutation({
+    mutationFn: ({ token, password }: { token: string; password: string }) => acceptInvitation(token, password),
+    onSuccess: () => {
+      toast.success("Conta ativada! Faça login.")
+      router.replace("/login")
+    },
   })
 }
