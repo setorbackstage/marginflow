@@ -97,7 +97,7 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
         }
       })
       .catch(() => undefined) // non-critical
-  })
+  }, { timeout: 30_000 })
 
   logger.info("ifood.ingest.order_created", { storeId, ifoodOrderId })
 }

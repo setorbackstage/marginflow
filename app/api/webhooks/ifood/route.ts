@@ -8,7 +8,7 @@
  * set IFOOD_WEBHOOK_SECRET in env vars; iFood will include it as a query param
  * `?secret=<value>` when registering the webhook URL in the Developer Portal.
  */
-import { NextResponse } from "next/server"
+import { NextResponse, after } from "next/server"
 import type { NextRequest } from "next/server"
 import { processIfoodEvents } from "@/server/services"
 import { logger } from "@/server/lib"
@@ -35,11 +35,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   logger.info("ifood.webhook.received", { count: events.length })
 
-  // Process asynchronously — we must return 202 within 5 seconds
-  // For serverless, we process inline but keep it fast (only one DB write for PLACED events)
-  processIfoodEvents(events).catch((err) => {
-    logger.error("ifood.webhook.process_error", { error: err instanceof Error ? err.message : String(err) })
-  })
+  // after() tells Vercel to keep the function alive until the callback completes,
+  // even after the 202 response is sent. Without this, Vercel may suspend the
+  // function mid-transaction causing Prisma "expired transaction" errors.
+  after(() =>
+    processIfoodEvents(events).catch((err) => {
+      logger.error("ifood.webhook.process_error", { error: err instanceof Error ? err.message : String(err) })
+    }),
+  )
 
   return new NextResponse(null, { status: 202 })
 }

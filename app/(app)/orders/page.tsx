@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Plus, ReceiptText, Printer } from "lucide-react"
+import { Plus, ReceiptText, Printer, Store } from "lucide-react"
 
 import { useCan } from "@/features/auth"
 import { useOrders, CreateOrderDialog, ORDER_STATUS_CONFIG, ORDER_TYPE_LABEL } from "@/features/orders"
@@ -134,7 +134,17 @@ export default function OrdersPage() {
               <TableBody>
                 {orders.data.items.map((order) => (
                   <TableRow key={order.id} className="cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)}>
-                    <TableCell className="font-medium">#{order.number}</TableCell>
+                    <TableCell className="font-medium">
+                      <span className="flex items-center gap-1.5">
+                        #{order.number}
+                        {order.channel === "MARKETPLACE" && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#ea1d2c]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#ea1d2c] leading-none">
+                            <Store className="size-2.5" />
+                            iFood
+                          </span>
+                        )}
+                      </span>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{order.customerName ?? "Cliente avulso"}</TableCell>
                     <TableCell>{ORDER_TYPE_LABEL[order.type]}</TableCell>
                     <TableCell>
