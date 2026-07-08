@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useForm } from "react-hook-form"
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const schema = z.object({
   password: z.string().min(8, "Mínimo 8 caracteres"),
@@ -22,7 +24,7 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
-export default function AcceptInvitationPage() {
+function AcceptInvitationForm() {
   const searchParams = useSearchParams()
   const token = searchParams.get("token") ?? ""
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({ resolver: zodResolver(schema) })
@@ -57,15 +59,15 @@ export default function AcceptInvitationPage() {
               <div className="space-y-2">
                 <Label htmlFor="password">Senha</Label>
                 <Input id="password" type="password" autoComplete="new-password" aria-invalid={!!errors.password} {...register("password")} />
-                {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+                {errors.password ? <p className="text-xs text-destructive">{errors.password.message}</p> : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="passwordConfirm">Confirmar senha</Label>
                 <Input id="passwordConfirm" type="password" autoComplete="new-password" aria-invalid={!!errors.passwordConfirm} {...register("passwordConfirm")} />
-                {errors.passwordConfirm && <p className="text-xs text-destructive">{errors.passwordConfirm.message}</p>}
+                {errors.passwordConfirm ? <p className="text-xs text-destructive">{errors.passwordConfirm.message}</p> : null}
               </div>
               <Button type="submit" className="w-full" disabled={acceptInvitation.isPending}>
-                {acceptInvitation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {acceptInvitation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                 Ativar conta
               </Button>
             </form>
@@ -76,5 +78,13 @@ export default function AcceptInvitationPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function AcceptInvitationPage() {
+  return (
+    <React.Suspense fallback={<div className="flex min-h-svh items-center justify-center"><Skeleton className="h-96 w-80" /></div>}>
+      <AcceptInvitationForm />
+    </React.Suspense>
   )
 }
