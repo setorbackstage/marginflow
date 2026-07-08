@@ -176,9 +176,10 @@ model Store {
   paymentAttempts PaymentAttempt[]
   deliveries      Delivery[]
   invoices        Invoice[]
-  ingredients     Ingredient[]
-  recipes         Recipe[]
-  stockMovements  StockMovement[]
+  ingredients              Ingredient[]
+  recipes                  Recipe[]
+  stockMovements           StockMovement[]
+  marketplaceIntegrations  MarketplaceIntegration[]
 
   @@index([accountId])
   @@map("stores")
@@ -687,6 +688,8 @@ model Order {
   deliveryFee       Int       @default(0) @map("delivery_fee")
   /// CHECK (grand_total >= 0). items_total - discount_total + delivery_fee. Immutable after CONFIRMED.
   grandTotal        Int       @default(0) @map("grand_total")
+  /// External order ID from a marketplace (e.g. iFood order UUID). Null for non-marketplace orders.
+  externalId        String?   @map("external_id")
   notes             String?
   scheduledFor      DateTime? @map("scheduled_for") @db.Timestamptz(6)
   /// Mandatory when status = CANCELLED (application-level rule, not a DB CHECK).
@@ -719,6 +722,8 @@ model Order {
   @@index([customerId, createdAt(sort: Desc)])
   @@index([storeId, channel])
   @@index([storeId, scheduledFor])
+  /// Partial semantics: storeId + externalId pairs are unique when externalId IS NOT NULL (Postgres treats NULLs as distinct).
+  @@unique([storeId, externalId])
   @@map("orders")
 }
 
@@ -1132,4 +1137,50 @@ model StockMovement {
   @@index([storeId, createdAt(sort: Desc)])
   @@index([storeId, type, createdAt])
   @@map("stock_movements")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Marketplace App Config
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Application-level OAuth token cache for marketplace platforms using
+/// centralized auth (one credential set covers all stores). Exactly one row
+/// per platform. Token is refreshed automatically before expiry.
+model MarketplaceAppConfig {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// CHECK (platform IN ('IFOOD', 'RAPPI', 'UBER_EATS'))
+  platform       String    @unique
+  accessToken    String?   @map("access_token")
+  tokenExpiresAt DateTime? @map("token_expires_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("marketplace_app_configs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Marketplace Integrations
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Connects a Store to one marketplace platform. Stores the platform-side
+/// merchantId required to poll orders and call order-action endpoints.
+/// One row per (store, platform) pair.
+model MarketplaceIntegration {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId      String    @map("store_id") @db.Uuid
+  /// CHECK (platform IN ('IFOOD', 'RAPPI', 'UBER_EATS'))
+  platform     String
+  /// The restaurant's unique ID on the platform (e.g. iFood merchant UUID).
+  merchantId   String    @map("merchant_id")
+  /// CHECK (status IN ('ACTIVE', 'INACTIVE', 'ERROR'))
+  status       String    @default("ACTIVE")
+  lastSyncAt   DateTime? @map("last_sync_at") @db.Timestamptz(6)
+  errorMessage String?   @map("error_message")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, platform])
+  @@index([platform, status])
+  @@map("marketplace_integrations")
 }

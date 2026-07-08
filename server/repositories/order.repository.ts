@@ -78,6 +78,11 @@ export const orderRepository = {
     return result[0].next_number
   },
 
+  /** Idempotency check for marketplace orders — prevents duplicate ingestion. */
+  findByExternalId(db: DbClient, storeId: string, externalId: string): Promise<Order | null> {
+    return db.order.findUnique({ where: { storeId_externalId: { storeId, externalId } } })
+  },
+
   create(db: DbClient, data: Prisma.OrderCreateInput): Promise<Order> {
     return db.order.create({ data })
   },

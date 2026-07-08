@@ -79,3 +79,8 @@ export type { CreateManualMovementInput, ManualMovementType } from "./stock-move
 
 export { publicMenuService, toPublicStorefrontDTO } from "./public-menu.service"
 export type { PublicStorefront } from "./public-menu.service"
+
+export { marketplaceIntegrationService } from "./marketplace-integration.service"
+export type { ConnectMarketplaceInput } from "./marketplace-integration.service"
+
+export { ifoodSyncService, pollAllIfoodStores, processIfoodEvents } from "./ifood-sync.service"

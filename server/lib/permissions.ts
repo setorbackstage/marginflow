@@ -64,6 +64,9 @@ export const ALL_PERMISSIONS: readonly string[] = [
   "inventory:view",
   "inventory:manage",
   "inventory:adjust",
+
+  "integrations:view",
+  "integrations:manage",
 ]
 
 /**

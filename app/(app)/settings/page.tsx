@@ -31,6 +31,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ErrorState, PhoneInput } from "@/components/shared"
 import { SharePanel } from "@/features/public-menu"
+import { IntegrationsSection } from "@/features/integrations"
 import { useSyncedState } from "@/hooks"
 
 const WEEKDAYS: { key: keyof WeeklySchedule; label: string }[] = [
@@ -694,6 +695,7 @@ export default function SettingsPage() {
           <TabsTrigger value="operations">Operação</TabsTrigger>
           <TabsTrigger value="team">Equipe</TabsTrigger>
           <TabsTrigger value="print">Impressão</TabsTrigger>
+          <TabsTrigger value="integrations">Integrações</TabsTrigger>
           {isOwnerOrManagerAnywhere ? <TabsTrigger value="security">Segurança</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="branding" className="mt-4">
@@ -710,6 +712,9 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="print" className="mt-4">
           <PrintSettingsSection />
+        </TabsContent>
+        <TabsContent value="integrations" className="mt-4">
+          <IntegrationsSection />
         </TabsContent>
         <TabsContent value="team" className="mt-4 space-y-4">
           <TeamSection />
