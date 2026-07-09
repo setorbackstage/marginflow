@@ -21,6 +21,7 @@ export function useKitchenTickets() {
     enabled: Boolean(storeId),
     queryFn: () => kitchenApi.list(storeId),
     refetchInterval: 8_000,
+    refetchIntervalInBackground: false,
   })
 }
 

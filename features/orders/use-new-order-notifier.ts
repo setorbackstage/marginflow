@@ -64,7 +64,11 @@ export function useNewOrderNotifier() {
     queryKey: ["orders", storeId, "notifier-pending"],
     enabled: Boolean(storeId),
     queryFn: () => ordersApi.list(storeId, { status: "PENDING" }),
-    refetchInterval: 5_000,
+    // Poll every 5s when tab is visible; slow down to 30s in background
+    // to avoid draining battery and flooding the server (would be 720 req/hour at 5s).
+    // The webhook handles real-time delivery; background polling is just a safety net.
+    refetchInterval: () =>
+      typeof document !== "undefined" && document.visibilityState === "visible" ? 5_000 : 30_000,
     refetchIntervalInBackground: true,
   })
 

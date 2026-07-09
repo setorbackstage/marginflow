@@ -33,6 +33,7 @@ async function handleListTickets(request: NextRequest, { params }: RouteContext)
   const tickets = await kitchenService.listByStore(prisma, storeId, {
     where: { status: { in: query.status.split(",") } },
     orderBy: { [SORT_FIELD_MAP[query.sort]]: query.order },
+    take: 200, // Safety cap — kitchen never shows >200 active tickets simultaneously
   })
 
   return ok(tickets.map(toTicketResponse))

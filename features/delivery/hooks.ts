@@ -22,6 +22,7 @@ export function useDeliveries() {
     enabled: Boolean(storeId),
     queryFn: () => deliveryApi.list(storeId),
     refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
   })
 }
 
