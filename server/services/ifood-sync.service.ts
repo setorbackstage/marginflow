@@ -57,6 +57,9 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
       notes: mapped.notes,
       scheduledFor: mapped.scheduledFor,
       deliveredBy: mapped.deliveredBy ?? null,
+      customerName: mapped.customerName ?? null,
+      customerPhone: mapped.customerPhone ?? null,
+      customerDocument: mapped.customerDocument ?? null,
     })
 
     await orderItemRepository.createMany(
@@ -353,6 +356,42 @@ export async function pollAllIfoodStores(): Promise<void> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Manual sync for a single store (triggered by operator via UI button)
+// ─────────────────────────────────────────────────────────────────────────
+
+export async function pollIfoodStoreOnce(storeId: string): Promise<{ eventsProcessed: number }> {
+  const integration = await marketplaceIntegrationRepository.findByStorePlatform(prisma, "IFOOD", storeId)
+  if (!integration || integration.status !== "ACTIVE") {
+    return { eventsProcessed: 0 }
+  }
+
+  let accessToken: string
+  try {
+    accessToken = await getIfoodAccessToken()
+  } catch (err) {
+    logger.error("ifood.manual_sync.auth_error", { storeId, error: err instanceof Error ? err.message : String(err) })
+    throw err
+  }
+
+  let events: IfoodEvent[]
+  try {
+    events = await pollIfoodEvents(accessToken, [integration.merchantId])
+  } catch (err) {
+    logger.error("ifood.manual_sync.fetch_error", { storeId, error: err instanceof Error ? err.message : String(err) })
+    throw err
+  }
+
+  if (events.length === 0) {
+    logger.info("ifood.manual_sync.no_events", { storeId })
+    return { eventsProcessed: 0 }
+  }
+
+  logger.info("ifood.manual_sync.events_received", { storeId, count: events.length })
+  await processIfoodEvents(events)
+  return { eventsProcessed: events.length }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // Domain event listeners — sync our status changes back to iFood
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -421,4 +460,4 @@ eventBus.on("order.cancelled", "ifood-sync:order.cancelled", async (event, db) =
   )
 })
 
-export const ifoodSyncService = { processIfoodEvents, pollAllIfoodStores, ingestIfoodOrder }
+export const ifoodSyncService = { processIfoodEvents, pollAllIfoodStores, ingestIfoodOrder, pollIfoodStoreOnce }

@@ -13,4 +13,7 @@ export const integrationsApi = {
 
   setPaused: (storeId: string, platform: string, paused: boolean) =>
     api.patch<{ isPaused: boolean }>(`/stores/${storeId}/integrations/${platform}`, { paused }),
+
+  syncNow: (storeId: string, platform: string) =>
+    api.post<{ eventsProcessed: number }>(`/stores/${storeId}/integrations/${platform}/sync`, {}),
 }

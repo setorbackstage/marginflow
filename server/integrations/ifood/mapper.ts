@@ -32,6 +32,7 @@ export interface MappedDeliveryAddress {
   country: string
   latitude: number | null
   longitude: number | null
+  reference: string | null
 }
 
 export interface MappedPayment {
@@ -48,6 +49,7 @@ export interface MappedMarketplaceOrder {
   channel: "MARKETPLACE"
   customerName: string | null
   customerPhone: string | null
+  customerDocument: string | null
   deliveryAddress: MappedDeliveryAddress | null
   /** Cents */
   itemsTotal: number
@@ -162,6 +164,7 @@ export function mapIfoodOrder(ifoodOrder: IfoodOrder): MappedMarketplaceOrder {
       country: addr.country ?? "BR",
       latitude: addr.coordinates?.latitude ?? null,
       longitude: addr.coordinates?.longitude ?? null,
+      reference: addr.reference ?? null,
     }
   }
 
@@ -176,6 +179,7 @@ export function mapIfoodOrder(ifoodOrder: IfoodOrder): MappedMarketplaceOrder {
     channel: "MARKETPLACE",
     customerName: ifoodOrder.customer?.name ?? null,
     customerPhone: mapPhone(ifoodOrder.customer?.phone),
+    customerDocument: ifoodOrder.customer?.documentNumber ?? null,
     deliveryAddress,
     itemsTotal,
     discountTotal,

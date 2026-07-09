@@ -62,3 +62,20 @@ export function useSetIntegrationPaused() {
     onError: (error) => toast.error(errorMessage(error, "Não foi possível alterar o status da loja no iFood.")),
   })
 }
+
+export function useSyncIntegrationNow() {
+  const storeId = useActiveStoreId()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (platform: string) => integrationsApi.syncNow(storeId, platform),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: keys.list(storeId) })
+      toast.success(
+        data.eventsProcessed > 0
+          ? `${data.eventsProcessed} evento(s) iFood processado(s).`
+          : "Nenhum evento pendente no iFood.",
+      )
+    },
+    onError: (error) => toast.error(errorMessage(error, "Não foi possível sincronizar com o iFood.")),
+  })
+}

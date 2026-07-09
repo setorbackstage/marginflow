@@ -695,6 +695,12 @@ model Order {
   externalId        String?   @map("external_id")
   /// Who handles the delivery for marketplace orders: 'MERCHANT' (store's own courier) or 'IFOOD' (platform courier). Null for non-marketplace orders.
   deliveredBy       String?   @map("delivered_by")
+  /// Denormalized customer name for marketplace/anonymous orders (no Customer FK). Falls back to customer.name when customerId is set.
+  customerName      String?   @map("customer_name")
+  /// Denormalized customer phone for marketplace/anonymous orders.
+  customerPhone     String?   @map("customer_phone")
+  /// Customer document (CPF/CNPJ) captured from marketplace orders. Never stored for in-store orders.
+  customerDocument  String?   @map("customer_document")
   notes             String?
   scheduledFor      DateTime? @map("scheduled_for") @db.Timestamptz(6)
   /// Mandatory when status = CANCELLED (application-level rule, not a DB CHECK).

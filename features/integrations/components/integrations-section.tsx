@@ -3,8 +3,9 @@
 import * as React from "react"
 import { Plug, PlugZap, Loader2, ExternalLink, Copy, Check } from "lucide-react"
 
+import { RefreshCw } from "lucide-react"
 import { useCan } from "@/features/auth"
-import { useIntegrations, useConnectIntegration, useDisconnectIntegration, useSetIntegrationPaused } from "@/features/integrations/hooks"
+import { useIntegrations, useConnectIntegration, useDisconnectIntegration, useSetIntegrationPaused, useSyncIntegrationNow } from "@/features/integrations/hooks"
 import type { MarketplaceIntegration } from "@/features/integrations/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -102,6 +103,7 @@ function IfoodIntegrationCard({
   const connect = useConnectIntegration()
   const disconnect = useDisconnectIntegration()
   const setPaused = useSetIntegrationPaused()
+  const syncNow = useSyncIntegrationNow()
   const [merchantId, setMerchantId] = React.useState("")
   const [showGuide, setShowGuide] = React.useState(false)
   const [confirmOpen, setConfirmOpen] = React.useState(false)
@@ -166,6 +168,18 @@ function IfoodIntegrationCard({
                 : "Aguardando primeiro pedido..."}
             </p>
             <div className="flex items-center gap-2">
+              {canManage ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={syncNow.isPending}
+                  onClick={() => syncNow.mutate("IFOOD")}
+                  title="Buscar eventos iFood pendentes agora"
+                >
+                  {syncNow.isPending ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                  Sincronizar
+                </Button>
+              ) : null}
               {canManage && integration ? (
                 <Button
                   variant={integration.isPaused ? "default" : "outline"}

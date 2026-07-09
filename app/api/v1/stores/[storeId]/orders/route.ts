@@ -57,8 +57,8 @@ function toOrderListItem(order: Awaited<ReturnType<typeof orderService.listBySto
     type: order.type,
     channel: order.channel,
     customerId: order.customerId,
-    customerName: order.customer?.name ?? null,
-    customerPhone: order.customer?.phone ?? null,
+    customerName: order.customerName ?? order.customer?.name ?? null,
+    customerPhone: order.customerPhone ?? order.customer?.phone ?? null,
     grandTotal: order.grandTotal,
     itemsTotal: order.itemsTotal,
     discountTotal: order.discountTotal,
@@ -90,6 +90,7 @@ async function handleListOrders(request: NextRequest, { params }: RouteContext):
           OR: [
             ...(Number.isInteger(Number(query.search)) ? [{ number: Number(query.search) }] : []),
             { customer: { name: { contains: query.search, mode: "insensitive" as const } } },
+            { customerName: { contains: query.search, mode: "insensitive" as const } },
           ],
         }
       : {}),
