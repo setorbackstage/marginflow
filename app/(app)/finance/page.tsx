@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Wallet } from "lucide-react"
 
@@ -101,6 +102,15 @@ export default function FinancePage() {
             statusFilter !== "ALL"
               ? "Tente remover o filtro de status para ver todos os pagamentos."
               : "Os pagamentos aparecem aqui conforme os pedidos forem cobrados. Confirme um pedido e inicie o pagamento para começar."
+          }
+          action={
+            statusFilter === "ALL" ? (
+              <Link href="/orders">
+                <button className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">
+                  Ir para Pedidos
+                </button>
+              </Link>
+            ) : undefined
           }
         />
       )}

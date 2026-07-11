@@ -20,6 +20,7 @@ export function usePayments(params: PaymentListParams) {
   return useQuery({
     queryKey: keys.list(storeId, params),
     enabled: Boolean(storeId),
+    staleTime: 30_000,
     queryFn: () => paymentsApi.list(storeId, params),
     placeholderData: keepPreviousData,
   })

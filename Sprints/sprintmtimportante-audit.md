@@ -207,21 +207,46 @@ pnpm lint            ✅  0 erros (3 warnings pré-existentes: React Hook Form w
 pnpm build           ✅  Compiled successfully in 26.6s
 ```
 
-Deploy: `https://marginflow-foj6t7bze-setor-backstage.vercel.app` (production)  
-Commit: `18523af`
+Deploy: `https://marginflow-r8m3e8fxu-setor-backstage.vercel.app` (production)  
+Commit: `d0d087e` → Etapa 12 concluída
 
 ---
 
-## 9. Pendente (Próximas Sprints)
+## 9. Etapa 12 — Identidade da Loja (Upload de Imagens)
+
+### Infraestrutura criada
+
+- Bucket Supabase Storage `store-assets` (público, 5 MB, MIME image/*)
+- RLS: SELECT público; INSERT para `anon` e `authenticated` (validação de auth feita na route)
+- Env vars adicionadas ao `.env` e Vercel production: `SUPABASE_URL`, `SUPABASE_ANON_KEY`
+
+### Arquivos criados/modificados
+
+| Arquivo | Descrição |
+|---|---|
+| `app/api/v1/stores/[storeId]/upload/route.ts` | `POST` — valida auth, aceita multipart/form-data, faz upload para Supabase Storage REST API, retorna `{ url }` |
+| `components/shared/image-upload-input.tsx` | Drag-and-drop + click, Canvas WEBP/resize (logo: 400px, banner: 1920px), progress overlay, preview, botão remover |
+| `components/shared/index.ts` | Export `ImageUploadInput` adicionado |
+| `config/env.ts` | `SUPABASE_URL` e `SUPABASE_ANON_KEY` adicionados ao schema Zod |
+| `app/(app)/settings/page.tsx` | BrandingSection: inputs URL substituídos por `ImageUploadInput` para logo e banner |
+
+### Fluxo de upload
+
+```
+Usuário seleciona arquivo → Canvas converte para WEBP (resize) → fetch POST /api/v1/stores/{id}/upload
+  → route valida JWT + permissão store:edit → PUT Supabase Storage REST API → retorna URL pública
+  → onChange(url) → salvo via handleSave com updateStore.mutate / updateSettings.mutate
+```
+
+---
+
+## 10. Pendente (Próximas Sprints)
 
 As etapas abaixo da sprint estão registradas para continuidade:
 
 | Etapa | Descrição |
 |---|---|
-| 7 | Onboarding completo (checklist + tour spotlight) |
 | 8 | Empty states humanizados em todas as telas |
 | 9 | Busca global tipo Spotlight (Ctrl+K) |
-| 13 | Seletor internacional de telefone com bandeira/máscara |
-| 14 | Máscaras CPF/CNPJ com validação |
-| 15 | Timestamp "última atualização" por tela |
 | 18 | Performance: lazy loading, memoização, prefetch |
+| 19 | Testes de navegação nas telas principais |

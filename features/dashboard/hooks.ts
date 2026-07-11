@@ -47,6 +47,7 @@ export function useDashboardOrdersToday() {
     queryKey: ["dashboard", storeId, "orders-today", dateFrom],
     enabled: Boolean(storeId),
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     queryFn: async (): Promise<DashboardOrdersToday> => {
       const page = await api.getPage<OrderListItem>(
         `/stores/${storeId}/orders?limit=100&dateFrom=${dateFrom}&dateTo=${dateTo}&sort=created_at&order=desc`,
@@ -73,6 +74,7 @@ export function useRecentOrders(limit = 5) {
     queryKey: ["dashboard", storeId, "recent-orders", limit],
     enabled: Boolean(storeId),
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     queryFn: () => api.getPage<OrderListItem>(`/stores/${storeId}/orders?limit=${limit}&sort=created_at&order=desc`),
   })
 }
@@ -83,6 +85,7 @@ export function useRecentStockMovements(limit = 5) {
     queryKey: ["dashboard", storeId, "recent-movements", limit],
     enabled: Boolean(storeId),
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     queryFn: () => api.getPage<StockMovement>(`/stores/${storeId}/inventory/movements?perPage=${limit}`),
   })
 }
@@ -101,6 +104,7 @@ export function useDashboardRecentPayments(limit = 5) {
     queryKey: ["dashboard", storeId, "recent-payments", limit],
     enabled: Boolean(storeId),
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     queryFn: () => api.getPage<PaymentListItem>(`/stores/${storeId}/payments?limit=${limit}&status=PAID`),
   })
 }
@@ -111,6 +115,7 @@ export function useDashboardRecentCustomers(limit = 5) {
     queryKey: ["dashboard", storeId, "recent-customers", limit],
     enabled: Boolean(storeId),
     refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
     queryFn: () => api.getPage<CustomerListItem>(`/stores/${storeId}/customers?limit=${limit}`),
   })
 }
@@ -123,6 +128,7 @@ export function useDashboardCounts() {
     queryKey: ["dashboard", storeId, "counts"],
     enabled: Boolean(storeId),
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     queryFn: async (): Promise<DashboardCounts> => {
       const [customers, activeProducts, activeDeliveries, kitchenActive, pendingPayments] = await Promise.all([
         totalFor(`/stores/${storeId}/customers?limit=1`),

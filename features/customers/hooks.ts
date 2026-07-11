@@ -22,6 +22,7 @@ export function useCustomers(params: CustomerListParams) {
   return useQuery({
     queryKey: keys.list(storeId, params),
     enabled: Boolean(storeId),
+    staleTime: 30_000,
     queryFn: () => customersApi.list(storeId, params),
     placeholderData: keepPreviousData,
   })

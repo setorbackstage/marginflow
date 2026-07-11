@@ -29,7 +29,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ErrorState, PhoneInput } from "@/components/shared"
+import { ErrorState, PhoneInput, ImageUploadInput } from "@/components/shared"
 import { SharePanel } from "@/features/public-menu"
 import { IntegrationsSection } from "@/features/integrations"
 import { useSyncedState } from "@/hooks"
@@ -121,14 +121,12 @@ function BrandingSection() {
               />
             </div>
             <div>
-              <Label htmlFor="brand-logo" className="mb-1.5">
-                URL do logo
-              </Label>
-              <Input
-                id="brand-logo"
-                placeholder="https://..."
-                value={form.logoUrl}
-                onChange={(e) => setField("logoUrl", e.target.value)}
+              <Label className="mb-1.5">Logo</Label>
+              <ImageUploadInput
+                storeId={store.data.id}
+                type="logo"
+                value={form.logoUrl || null}
+                onChange={(url) => setField("logoUrl", url ?? "")}
                 disabled={!canEdit}
               />
             </div>
@@ -185,14 +183,12 @@ function BrandingSection() {
               </div>
             </div>
             <div className="sm:col-span-2">
-              <Label htmlFor="brand-banner" className="mb-1.5">
-                Banner do cardápio (URL)
-              </Label>
-              <Input
-                id="brand-banner"
-                placeholder="https://..."
-                value={form.menuBannerUrl}
-                onChange={(e) => setField("menuBannerUrl", e.target.value)}
+              <Label className="mb-1.5">Banner do cardápio</Label>
+              <ImageUploadInput
+                storeId={store.data.id}
+                type="banner"
+                value={form.menuBannerUrl || null}
+                onChange={(url) => setField("menuBannerUrl", url ?? "")}
                 disabled={!canEditSettings}
               />
             </div>

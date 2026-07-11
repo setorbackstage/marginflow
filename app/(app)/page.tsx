@@ -254,7 +254,7 @@ function RecentActivityCard() {
             ))}
           </div>
         ) : (
-          <EmptyState icon={Package} title="Sem atividade recente" description="Movimentações de estoque aparecem aqui." />
+          <EmptyState icon={Package} title="Nenhuma movimentação ainda" description="Entradas e saídas de insumos aparecerão aqui conforme os pedidos forem processados." />
         )}
       </CardContent>
     </Card>

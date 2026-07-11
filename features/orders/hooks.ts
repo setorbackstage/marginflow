@@ -35,6 +35,7 @@ export function useOrder(orderId: string | undefined) {
     enabled: Boolean(storeId) && Boolean(orderId),
     queryFn: () => ordersApi.get(storeId, orderId as string),
     refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
   })
 }
 

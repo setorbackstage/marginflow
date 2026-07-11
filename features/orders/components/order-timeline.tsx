@@ -1,5 +1,6 @@
+import { History } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ErrorState, StatusBadge } from "@/components/shared"
+import { EmptyState, ErrorState, StatusBadge } from "@/components/shared"
 import { formatDateTime } from "@/lib/format"
 import { useOrderTimeline } from "@/features/orders/hooks"
 import { ORDER_STATUS_CONFIG } from "@/features/orders/status"
@@ -16,7 +17,8 @@ export function OrderTimeline({ orderId }: { orderId: string }) {
     )
   }
   if (timeline.isError) return <ErrorState error={timeline.error} onRetry={() => timeline.refetch()} />
-  if (!timeline.data || timeline.data.length === 0) return <p className="text-sm text-muted-foreground">Nenhuma atividade registrada ainda para este pedido.</p>
+  if (!timeline.data || timeline.data.length === 0)
+    return <EmptyState icon={History} title="Sem histórico ainda" description="As mudanças de status deste pedido aparecerão aqui." />
 
   return (
     <ol className="space-y-3 border-l pl-4">

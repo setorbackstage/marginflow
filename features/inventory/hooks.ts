@@ -36,6 +36,7 @@ export function useIngredients(params: IngredientListParams) {
   return useQuery({
     queryKey: keys.ingredientList(storeId, params),
     enabled: Boolean(storeId),
+    staleTime: 30_000,
     queryFn: () => ingredientsApi.list(storeId, params),
     placeholderData: keepPreviousData,
   })

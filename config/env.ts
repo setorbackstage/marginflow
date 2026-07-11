@@ -18,6 +18,10 @@ const envSchema = z.object({
   JWT_PRIVATE_KEY: z.string().min(1, "JWT_PRIVATE_KEY is required").transform(normalizePem),
   /** RS256 public key (PEM) — validates access tokens. */
   JWT_PUBLIC_KEY: z.string().min(1, "JWT_PUBLIC_KEY is required").transform(normalizePem),
+  /** Supabase project URL — used for Storage REST API uploads. */
+  SUPABASE_URL: z.string().min(1, "SUPABASE_URL is required"),
+  /** Supabase anon key — used for Storage REST API uploads. */
+  SUPABASE_ANON_KEY: z.string().min(1, "SUPABASE_ANON_KEY is required"),
 })
 
 const parsed = envSchema.safeParse(process.env)
