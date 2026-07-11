@@ -26,8 +26,14 @@ function playAlertSound() {
   }
 }
 
-function sendNativeNotification(title: string, body: string) {
+async function sendNativeNotification(title: string, body: string) {
   if (typeof Notification === "undefined") return
+  // Request permission lazily — only when there is actually a new order to show.
+  // This avoids the browser permission dialog appearing on every page load for
+  // accounts that have no marketplace integration configured.
+  if (Notification.permission === "default") {
+    await Notification.requestPermission()
+  }
   if (Notification.permission === "granted") {
     new Notification(title, {
       body,
@@ -35,13 +41,6 @@ function sendNativeNotification(title: string, body: string) {
       tag: "new-ifood-order",
       requireInteraction: true,
     })
-  }
-}
-
-async function requestNotificationPermission() {
-  if (typeof Notification === "undefined") return
-  if (Notification.permission === "default") {
-    await Notification.requestPermission()
   }
 }
 
@@ -54,11 +53,6 @@ export function useNewOrderNotifier() {
   const storeId = useActiveStoreId()
   // null = first load (no alert); Set = known marketplace order IDs
   const knownIds = React.useRef<Set<string> | null>(null)
-
-  // Request permission once on mount
-  React.useEffect(() => {
-    requestNotificationPermission()
-  }, [])
 
   const { data } = useQuery({
     queryKey: ["orders", storeId, "notifier-pending"],
@@ -88,12 +82,13 @@ export function useNewOrderNotifier() {
       const title = incoming.length === 1 ? "Novo pedido iFood!" : `${incoming.length} novos pedidos iFood!`
       const body = incoming.length === 1 ? "Um novo pedido chegou pelo iFood." : `${incoming.length} pedidos chegaram pelo iFood.`
 
-      // Native OS notification — works even quando a aba está em segundo plano
-      sendNativeNotification(title, body)
-
       // In-app toast + sound — shown when the tab is visible
       playAlertSound()
       toast.success(title, { description: body, duration: 8_000 })
+
+      // Native OS notification — permission is requested lazily here, only when
+      // a real order arrives. Fire-and-forget (no await) so toast shows immediately.
+      void sendNativeNotification(title, body)
 
       incoming.forEach((o) => knownIds.current!.add(o.id))
     }
