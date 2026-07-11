@@ -141,7 +141,25 @@ Reports
 
 Settings
 
+Integrations (Marketplace integrations: iFood — implemented. Rappi, Uber Eats — planned.)
+
 Future modules must follow the same pattern — Feature Module by default, Core Module only for a new identity/tenancy primitive with no screen of its own.
+
+---
+
+# Server Layer
+
+The `server/` directory is the backend-only code boundary. It never imports from `features/`, `components/`, `hooks/`, or any file without `"server-only"` at the top.
+
+**`server/repositories/`** — one file per Prisma model. Each repository owns all Prisma queries for that model. Services never call `prisma.*` directly — they go through repositories.
+
+**`server/services/`** — domain services. Each service owns business logic for one domain. Services call repositories and publish domain events. They never call each other unless the domain boundary explicitly allows it.
+
+**`server/integrations/`** — third-party API clients. Each subdirectory is one external platform. The pattern: `client.ts` (HTTP wrapper + retry), `auth.ts` (OAuth token management), `mapper.ts` (maps platform schema → `MappedMarketplaceOrder`), `orders.ts` (outbound order actions), `events.ts` (event polling), `merchant.ts` (store operations), `catalog.ts` (product sync). Platform-specific code never leaks beyond this boundary.
+
+**`server/lib/`** — shared backend utilities: HTTP composition helpers (`compose`, `withErrorHandling`, `ok`), request parsing (`requireAuth`, `parseQuery`, `requireUuidParams`), logger, domain event bus.
+
+**`server/db.ts`** — Prisma client singleton with `@prisma/adapter-pg` for connection pooling.
 
 ---
 

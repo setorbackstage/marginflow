@@ -794,13 +794,14 @@ GET /api/v1/stores/str_01HXYZ789/orders?status=CONFIRMED,PREPARING&type=DELIVERY
     "number": 4821,
     "status": "CONFIRMED",
     "type": "DELIVERY",
-    "channel": "PHONE",
-    "customerId": "cus_01HXYZ555",
-    "customer": {
-      "id": "cus_01HXYZ555",
-      "name": "Maria Silva",
-      "phone": "+5511999998888"
-    },
+    "channel": "MARKETPLACE",
+    "externalId": "ifood-order-uuid-abc123",
+    "deliveredBy": "IFOOD",
+    "customerName": "João da Silva",
+    "customerPhone": "+5511999998888",
+    "customerDocument": "123.456.789-09",
+    "customerId": null,
+    "customer": null,
     "tableNumber": null,
     "deliveryAddress": {
       "street": "Rua das Flores",
@@ -812,7 +813,8 @@ GET /api/v1/stores/str_01HXYZ789/orders?status=CONFIRMED,PREPARING&type=DELIVERY
       "postalCode": "01310-100",
       "country": "BR",
       "latitude": -23.561684,
-      "longitude": -46.655981
+      "longitude": -46.655981,
+      "reference": "Portão azul"
     },
     "items": [
       {
@@ -3375,6 +3377,7 @@ GET /api/v1/stores/str_01HXYZ789/reports/overview?dateFrom=2025-07-01&dateTo=202
     "storeId": "str_01HXYZ789",
     "autoConfirmOrders": false,
     "printReceiptOnConfirm": false,
+    "printKitchenTicketOnConfirm": false,
     "receiptFormat": "THERMAL_80MM",
     "allowScheduledOrders": false,
     "maxScheduledDaysAhead": 7,
@@ -3643,6 +3646,257 @@ GET /api/v1/stores/str_01HXYZ789/reports/overview?dateFrom=2025-07-01&dateTo=202
   ]
 }
 ```
+
+---
+
+# Marketplace Integrations
+
+## GET /api/v1/stores/:storeId/integrations
+
+**Purpose:** List all marketplace integrations connected to this store (iFood, Rappi, Uber Eats, etc.).
+
+**Authentication required:** Yes
+
+**Permissions required:** `settings:view`
+
+**Success Response — 200 OK:**
+```json
+{
+  "data": [
+    {
+      "id": "int_01HXYZ000",
+      "platform": "IFOOD",
+      "merchantId": "abc123-merchant-uuid",
+      "status": "ACTIVE",
+      "isPaused": false,
+      "lastSyncAt": "2026-07-10T14:00:00.000Z",
+      "errorMessage": null,
+      "createdAt": "2026-07-01T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## POST /api/v1/stores/:storeId/integrations
+
+**Purpose:** Connect a new marketplace integration to this store.
+
+**Authentication required:** Yes
+
+**Permissions required:** `settings:edit`
+
+**Request Body:**
+
+| Field | Type | Required | Validation |
+|---|---|---|---|
+| `platform` | string | Yes | `"IFOOD"` \| `"RAPPI"` \| `"UBER_EATS"` |
+| `merchantId` | string | Yes | The merchant/restaurant ID as shown in the marketplace portal |
+
+**Request Example:**
+```json
+{
+  "platform": "IFOOD",
+  "merchantId": "abc123-merchant-uuid"
+}
+```
+
+**Success Response — 201 Created:** Returns the created integration object (same shape as GET list item).
+
+**Error Responses:**
+
+| Status | Code | Condition |
+|---|---|---|
+| 409 | `INTEGRATION_ALREADY_EXISTS` | This store already has an integration for this platform |
+| 422 | `VALIDATION_ERROR` | Invalid platform value |
+
+---
+
+## DELETE /api/v1/stores/:storeId/integrations/:platform
+
+**Purpose:** Disconnect a marketplace integration. Stops event polling and removes the merchant connection. Does not delete historical orders that were ingested via this integration.
+
+**Authentication required:** Yes
+
+**Permissions required:** `settings:edit`
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `platform` | string | `"IFOOD"` \| `"RAPPI"` \| `"UBER_EATS"` |
+
+**Success Response — 200 OK:**
+```json
+{ "data": null }
+```
+
+**Error Responses:**
+
+| Status | Code | Condition |
+|---|---|---|
+| 404 | `INTEGRATION_NOT_FOUND` | No integration for this platform on this store |
+
+---
+
+## PATCH /api/v1/stores/:storeId/integrations/:platform
+
+**Purpose:** Update an integration's operational state. Currently supports pausing and resuming the store on the marketplace.
+
+**Authentication required:** Yes
+
+**Permissions required:** `settings:edit`
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `platform` | string | `"IFOOD"` \| `"RAPPI"` \| `"UBER_EATS"` |
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `isPaused` | boolean | Yes | `true` to close the store on the marketplace (stop accepting new orders), `false` to reopen it |
+
+**Request Example:**
+```json
+{ "isPaused": true }
+```
+
+**Success Response — 200 OK:** Returns the updated integration object.
+
+**Side Effects:**
+- When `isPaused: true` — calls the marketplace API to mark the store as closed (e.g., iFood `CLOSE` operation). The store's status on the marketplace updates within seconds.
+- When `isPaused: false` — calls the marketplace API to reopen the store (e.g., iFood `OPEN` operation).
+
+**Error Responses:**
+
+| Status | Code | Condition |
+|---|---|---|
+| 404 | `INTEGRATION_NOT_FOUND` | No active integration for this platform |
+| 502 | `MARKETPLACE_API_ERROR` | The marketplace API call failed (store may or may not be paused on the platform) |
+
+---
+
+## POST /api/v1/stores/:storeId/integrations/:platform/sync
+
+**Purpose:** Trigger an immediate, on-demand event poll for this store's marketplace integration. Useful after reconnecting an integration or when the operator suspects missed orders.
+
+**Authentication required:** Yes
+
+**Permissions required:** `settings:edit`
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `platform` | string | `"IFOOD"` currently (only iFood polling is implemented) |
+
+**Success Response — 200 OK:**
+```json
+{
+  "data": {
+    "eventsProcessed": 3
+  }
+}
+```
+
+**Business Rules:**
+- Runs synchronously (up to 30 s). The response waits for the poll to complete.
+- Event acknowledgment is sent to the marketplace after successful processing. Duplicate events for already-existing orders are silently skipped.
+- `eventsProcessed` counts events acknowledged, not orders created (KEEPALIVE events are counted but create no orders).
+
+---
+
+# Inventory Insights
+
+## GET /api/v1/stores/:storeId/inventory/insights
+
+**Purpose:** Returns derived inventory health indicators — stale ingredients, top consumption leaders, and catalog coverage. No new tables — all derived from existing `stock_movements`, `ingredients`, `recipes`, and `products` data.
+
+**Authentication required:** Yes
+
+**Permissions required:** `inventory:view`
+
+**Success Response — 200 OK:**
+```json
+{
+  "data": {
+    "stale": [
+      {
+        "id": "ing_01HXYZ000",
+        "name": "Farinha de trigo",
+        "lastMovementAt": "2026-06-08T12:00:00.000Z",
+        "daysSinceLastMovement": 32
+      }
+    ],
+    "topByQuantity": [
+      {
+        "id": "ing_01HXYZ001",
+        "name": "Queijo muçarela",
+        "totalConsumed": 48.5,
+        "unit": "kg"
+      }
+    ],
+    "topByCost": [
+      {
+        "id": "ing_01HXYZ002",
+        "name": "Camarão",
+        "totalCost": 89000,
+        "unit": "kg"
+      }
+    ],
+    "productsWithoutRecipe": 4
+  }
+}
+```
+
+**Response Fields:**
+
+| Field | Description |
+|---|---|
+| `stale` | Ingredients with no stock movement in the last 30 days. Indicates unused items that may be occupying minimum-stock thresholds unnecessarily. |
+| `topByQuantity` | Top 10 most-consumed ingredients by total quantity (units/kg/L) in the trailing 30 days. |
+| `topByCost` | Top 10 most-expensive ingredients by total cost (cents) consumed in the trailing 30 days. |
+| `productsWithoutRecipe` | Count of ACTIVE products that have no associated recipe (ficha técnica). These products do not trigger automatic stock deduction on sale. |
+
+---
+
+# Webhooks
+
+## POST /api/webhooks/ifood
+
+**Purpose:** Receives incoming events from iFood's event delivery system. This endpoint is registered in the iFood Merchant Portal and receives asynchronous notifications about order lifecycle events.
+
+**Authentication required:** No (public endpoint). Optionally validated with a shared secret via `?secret=` query parameter.
+
+**Authentication:** If `IFOOD_WEBHOOK_SECRET` is set in environment variables, the request must include `?secret={IFOOD_WEBHOOK_SECRET}`. Requests with a wrong or missing secret receive `401 Unauthorized`.
+
+**Request Body:** iFood event payload (iFood-defined format, not MarginFlow's envelope).
+
+**Supported Event Codes:**
+
+| Code | Trigger | Action |
+|---|---|---|
+| `PLACED` | New order placed on iFood | Fetches full order detail, maps to `MappedMarketplaceOrder`, creates Order + OrderItems + KitchenTicket |
+| `CANCELLED` | iFood or customer cancelled the order | Cancels the local order with reason "Cancelado pelo iFood" |
+| `DISPATCHED` | iFood assigned a logistics courier | Updates the local order status to `OUT_FOR_DELIVERY` |
+| `CONCLUDED` | iFood marked the order as concluded | Updates the local order status to `DELIVERED` |
+| `KEEPALIVE` | Heartbeat signal from iFood | Acknowledged immediately; no data change |
+
+**Success Response — 202 Accepted:**
+```json
+{ "data": null }
+```
+
+The response is always `202` if the payload is syntactically valid. Processing happens asynchronously via `after()` (post-response, fire-and-forget). This prevents iFood from retrying due to processing latency.
+
+**Business Rules:**
+- Idempotent: if an order with the same `external_id` already exists, the `PLACED` event is silently skipped.
+- `CANCELLED` events cancel the local order only if it has not already reached `DELIVERED` status.
+- All processed events are acknowledged back to iFood via `POST /events/v1.0/events/acknowledgment`.
 
 ---
 

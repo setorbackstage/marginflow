@@ -1048,9 +1048,30 @@ The following domains are not part of the current MVP. They are documented here 
 
 ## Marketplace Integrations
 
-**Domain**: Connects MarginFlow to external ordering platforms (iFood, Rappi, Uber Eats).
+**Domain**: Connects MarginFlow to external ordering platforms (iFood, Rappi, Uber Eats). **Status: Implemented for iFood.**
 
-**How it connects**: Each marketplace integration acts as an external Order source. Incoming orders from platforms are normalized into the standard Order format. The Orders module does not know or care about the source — it only sees an Order with `channel = marketplace` and `platform = ifood`.
+**Entities:**
+- `MarketplaceAppConfig` — application-level OAuth token cache. One row per platform, shared across all stores. The `IFOOD` row holds the `client_credentials` access token refreshed automatically before expiry.
+- `MarketplaceIntegration` — the per-store connection record. Holds the `merchantId` (the store's identifier in the marketplace) and operational state (`status`, `isPaused`, `lastSyncAt`).
+
+**iFood Integration Flow:**
+1. **Order Ingestion (webhook + poll):** iFood sends a `PLACED` event to `POST /api/webhooks/ifood`. The webhook responds `202` immediately and processes the event via `after()` (fire-and-forget). A fallback cron job (`/api/cron/ifood-poll`) polls every hour for any events missed by the webhook.
+2. **Order Normalization:** `mapIfoodOrder()` maps iFood's order schema into the platform-agnostic `MappedMarketplaceOrder` interface. This is the boundary between iFood-specific code and the rest of the system.
+3. **Order Creation:** `ingestIfoodOrder()` creates the Order, OrderItems, and KitchenTicket in a single transaction. It saves `customerName`, `customerPhone`, `customerDocument`, and `externalId` directly on the Order.
+4. **Status Sync (outbound):** When operators update order status in MarginFlow, the domain event bus triggers outbound calls to iFood's API to keep the marketplace in sync (e.g., confirming, marking as ready, dispatching, cancelling).
+5. **Store Pause/Resume:** Operators can close/open their iFood store directly from the Integrations panel — calls `POST /merchant/v1.0/merchants/{id}/statuses` with `CLOSE`/`OPEN`.
+6. **Product Catalog Sync:** Products with `ifoodExternalCode` set can be synced (available/unavailable) via the Integrations panel.
+
+**How it connects**: Each marketplace integration acts as an external Order source. Incoming orders are normalized into the standard Order format. The Orders module does not know or care about the source — it only sees an Order with `channel = MARKETPLACE`, plus `externalId` and `deliveredBy` for traceability.
+
+**Event table additions:**
+
+| Event | Produced by | Consumed by |
+|---|---|---|
+| `order.confirmed` | Orders | iFood sync (confirm order on iFood) |
+| `order.ready` | Orders | iFood sync (mark as ready to pickup) |
+| `order.out_for_delivery` | Delivery | iFood sync (dispatch order on iFood) |
+| `order.cancelled` | Orders | iFood sync (request cancellation on iFood) |
 
 ---
 
