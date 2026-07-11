@@ -119,9 +119,7 @@ export default function CustomersPage() {
                           </DropdownMenuItem>
                           {canEdit ? (
                             <DropdownMenuItem
-                              onClick={async () => {
-                                setDetailId(customer.id)
-                              }}
+                              onClick={() => setFormDialog({ open: true, customer: customer as unknown as CustomerDetail })}
                             >
                               <Pencil data-icon="inline-start" />
                               Editar

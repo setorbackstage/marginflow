@@ -180,6 +180,7 @@ model Store {
   recipes                  Recipe[]
   stockMovements           StockMovement[]
   marketplaceIntegrations  MarketplaceIntegration[]
+  notifications            Notification[]
 
   @@index([accountId])
   @@map("stores")
@@ -259,6 +260,7 @@ model User {
   refundedPayments     Payment[]               @relation("PaymentRefundedBy")
   refreshTokens        RefreshToken[]
   passwordResetTokens  PasswordResetToken[]
+  notifications        Notification[]
   stockMovements       StockMovement[]         @relation("StockMovementCreatedBy")
 
   @@map("users")
@@ -1195,4 +1197,24 @@ model MarketplaceIntegration {
   @@unique([storeId, platform])
   @@index([platform, status])
   @@map("marketplace_integrations")
+}
+
+model Notification {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId   String    @map("store_id") @db.Uuid
+  userId    String?   @map("user_id") @db.Uuid
+  /// CHECK (type IN ('NEW_ORDER', 'ORDER_CANCELLED', 'PAYMENT_RECEIVED', 'PAYMENT_REFUNDED', 'DELIVERY_FAILED', 'STOCK_LOW', 'KITCHEN_READY', 'SYSTEM'))
+  type      String
+  title     String
+  body      String
+  link      String?
+  metadata  Json      @default("{}") @db.JsonB
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, createdAt(sort: Desc)])
+  @@map("notifications")
 }

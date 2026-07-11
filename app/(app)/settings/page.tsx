@@ -313,23 +313,31 @@ function StoreInfoSection() {
   )
 }
 
+const DEFAULT_SCHEDULE: WeeklySchedule = {
+  monday: { isOpen: true, slots: [{ open: "09:00", close: "18:00" }] },
+  tuesday: { isOpen: true, slots: [{ open: "09:00", close: "18:00" }] },
+  wednesday: { isOpen: true, slots: [{ open: "09:00", close: "18:00" }] },
+  thursday: { isOpen: true, slots: [{ open: "09:00", close: "18:00" }] },
+  friday: { isOpen: true, slots: [{ open: "09:00", close: "18:00" }] },
+  saturday: { isOpen: false, slots: [] },
+  sunday: { isOpen: false, slots: [] },
+}
+
 function OperatingHoursSection() {
   const canEdit = useCan("store:edit")
   const store = useStore()
   const update = useUpdateStore()
-  const [schedule, setSchedule] = useSyncedState<WeeklySchedule | null>(
-    store.data?.operatingHours ?? null,
+  const [schedule, setSchedule] = useSyncedState<WeeklySchedule>(
+    (store.data?.operatingHours as WeeklySchedule | null) ?? DEFAULT_SCHEDULE,
   )
 
-  if (store.isLoading || !schedule) return <Skeleton className="h-64 w-full" />
+  if (store.isLoading) return <Skeleton className="h-64 w-full" />
 
   const updateDay = (
     day: keyof WeeklySchedule,
     patch: Partial<DaySchedule>,
   ) => {
-    setSchedule((prev) =>
-      prev ? { ...prev, [day]: { ...prev[day], ...patch } } : prev,
-    )
+    setSchedule((prev) => ({ ...prev, [day]: { ...prev[day], ...patch } }))
   }
 
   return (
@@ -396,7 +404,7 @@ function OperatingHoursSection() {
             className="mt-2"
             disabled={update.isPending}
             onClick={() =>
-              schedule && update.mutate({ operatingHours: schedule })
+              update.mutate({ operatingHours: schedule })
             }
           >
             {update.isPending ? (
@@ -703,6 +711,156 @@ function PrintSettingsSection() {
   )
 }
 
+interface SoundPreferences {
+  enabled: boolean
+  volume: number
+  newOrder: boolean
+  payment: boolean
+  delivery: boolean
+  stockAlert: boolean
+}
+
+const DEFAULT_SOUNDS: SoundPreferences = {
+  enabled: true,
+  volume: 70,
+  newOrder: true,
+  payment: true,
+  delivery: false,
+  stockAlert: true,
+}
+
+function playAlertSound(volume: number) {
+  try {
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.type = "sine"
+    osc.frequency.setValueAtTime(880, ctx.currentTime)
+    osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.12)
+    gain.gain.setValueAtTime((volume / 100) * 0.35, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.45)
+    setTimeout(() => ctx.close(), 600)
+  } catch {
+    // AudioContext unavailable
+  }
+}
+
+function NotificationsSoundsSection() {
+  const canEdit = useCan("settings:edit")
+  const settings = useStoreSettings()
+  const update = useUpdateStoreSettings()
+
+  const existingPrefs = settings.data?.notificationPreferences as { sounds?: SoundPreferences } | null | undefined
+  const initialSounds: SoundPreferences = existingPrefs?.sounds ?? DEFAULT_SOUNDS
+  const [sounds, setSounds] = useSyncedState<SoundPreferences>(initialSounds)
+
+  if (settings.isLoading) return <Skeleton className="h-72 w-full" />
+  if (settings.isError || !settings.data)
+    return (
+      <ErrorState error={settings.error} onRetry={() => settings.refetch()} />
+    )
+
+  const setField = <K extends keyof SoundPreferences>(key: K, value: SoundPreferences[K]) =>
+    setSounds((prev) => ({ ...prev, [key]: value }))
+
+  const handleSave = () => {
+    update.mutate({
+      notificationPreferences: {
+        ...(settings.data.notificationPreferences ?? {}),
+        sounds,
+      } as Record<string, unknown>,
+    })
+  }
+
+  const SOUND_TOGGLES: { key: keyof Omit<SoundPreferences, "enabled" | "volume">; label: string }[] = [
+    { key: "newOrder", label: "Novo pedido" },
+    { key: "payment", label: "Pagamento" },
+    { key: "delivery", label: "Entrega" },
+    { key: "stockAlert", label: "Estoque crítico" },
+  ]
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Notificações & Sons</CardTitle>
+        <CardDescription>
+          Configure os sons de alerta para eventos importantes da loja.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between rounded-lg border p-2.5">
+          <Label htmlFor="sound-enabled" className="text-sm font-medium">
+            Som ativado
+          </Label>
+          <Switch
+            id="sound-enabled"
+            checked={sounds.enabled}
+            disabled={!canEdit || update.isPending}
+            onCheckedChange={(checked) => setField("enabled", checked)}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Alertas individuais</p>
+          {SOUND_TOGGLES.map(({ key, label }) => (
+            <div key={key} className="flex items-center justify-between rounded-lg border p-2.5">
+              <Label htmlFor={`sound-${key}`} className="text-sm font-normal">
+                {label}
+              </Label>
+              <Switch
+                id={`sound-${key}`}
+                checked={sounds[key]}
+                disabled={!canEdit || !sounds.enabled || update.isPending}
+                onCheckedChange={(checked) => setField(key, checked)}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="sound-volume" className="text-sm">
+              Volume
+            </Label>
+            <span className="text-sm tabular-nums text-muted-foreground">{sounds.volume}%</span>
+          </div>
+          <input
+            id="sound-volume"
+            type="range"
+            min="0"
+            max="100"
+            value={sounds.volume}
+            disabled={!canEdit || !sounds.enabled || update.isPending}
+            onChange={(e) => setField("volume", Number(e.target.value))}
+            className="w-full accent-primary disabled:opacity-50"
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            type="button"
+            onClick={() => playAlertSound(sounds.volume)}
+          >
+            Testar som
+          </Button>
+          {canEdit ? (
+            <Button size="sm" disabled={update.isPending} onClick={handleSave}>
+              {update.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+              Salvar
+            </Button>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function SettingsPage() {
   const { isOwnerOrManagerAnywhere } = useAuth()
 
@@ -721,6 +879,7 @@ export default function SettingsPage() {
           <TabsTrigger value="operations">Operação</TabsTrigger>
           <TabsTrigger value="team">Equipe</TabsTrigger>
           <TabsTrigger value="print">Impressão</TabsTrigger>
+          <TabsTrigger value="sounds">Sons</TabsTrigger>
           <TabsTrigger value="integrations">Integrações</TabsTrigger>
           {isOwnerOrManagerAnywhere ? <TabsTrigger value="security">Segurança</TabsTrigger> : null}
         </TabsList>
@@ -738,6 +897,9 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="print" className="mt-4">
           <PrintSettingsSection />
+        </TabsContent>
+        <TabsContent value="sounds" className="mt-4">
+          <NotificationsSoundsSection />
         </TabsContent>
         <TabsContent value="integrations" className="mt-4">
           <IntegrationsSection />

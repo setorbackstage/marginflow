@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-shell/app-sidebar"
 import { TopBar } from "@/components/app-shell/top-bar"
 import { PageContainer } from "@/components/app-shell/page-container"
+import { OfflineBanner } from "@/components/app-shell/offline-banner"
 import { navGroups } from "@/lib/navigation"
 import { useNewOrderNotifier } from "@/features/orders/use-new-order-notifier"
 
@@ -49,6 +50,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
       <AppSidebar activeUrl={active.url} onNavigate={onNavigate} />
       <SidebarInset className="min-w-0">
         <TopBar crumb={active.title} onNavigate={onNavigate} />
+        <OfflineBanner />
         <PageContainer>{children}</PageContainer>
       </SidebarInset>
     </SidebarProvider>

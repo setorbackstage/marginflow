@@ -34,3 +34,5 @@ export { marketplaceAppConfigRepository } from "./marketplace-app-config.reposit
 export { marketplaceIntegrationRepository } from "./marketplace-integration.repository"
 export { passwordResetTokenRepository } from "./password-reset-token.repository"
 export { invitationTokenRepository } from "./invitation-token.repository"
+export { notificationRepository } from "./notification.repository"
+export type { NotificationCreateInput } from "./notification.repository"

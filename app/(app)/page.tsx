@@ -404,9 +404,7 @@ export default function DashboardPage() {
       </div>
 
       {canViewInventory ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <TopConsumedCard />
-        </div>
+        <TopConsumedCard />
       ) : null}
     </div>
   )

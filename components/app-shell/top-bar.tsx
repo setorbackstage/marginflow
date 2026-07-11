@@ -2,6 +2,8 @@
 
 import * as React from "react"
 import Image from "next/image"
+import { RefreshCw } from "lucide-react"
+import { useQueryClient, useIsFetching } from "@tanstack/react-query"
 
 import {
   Breadcrumb,
@@ -13,10 +15,26 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
 import { GlobalSearch } from "@/components/app-shell/global-search"
 import { NavUser } from "@/components/app-shell/nav-user"
 import { Notifications } from "@/components/app-shell/notifications"
 import { ThemeToggle } from "@/components/app-shell/theme-toggle"
+
+function RefreshButton() {
+  const queryClient = useQueryClient()
+  const isFetching = useIsFetching()
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Atualizar dados"
+      onClick={() => queryClient.invalidateQueries()}
+    >
+      <RefreshCw className={isFetching > 0 ? "animate-spin" : ""} />
+    </Button>
+  )
+}
 
 export function TopBar({
   crumb,
@@ -58,6 +76,7 @@ export function TopBar({
         <div className="md:hidden">
           <GlobalSearch onNavigate={onNavigate} iconOnly />
         </div>
+        <RefreshButton />
         <Notifications />
         <ThemeToggle />
       </div>

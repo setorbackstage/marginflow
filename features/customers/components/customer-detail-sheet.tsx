@@ -12,6 +12,7 @@ import { formatCents, formatDate } from "@/lib/format"
 import { useCan } from "@/features/auth"
 import { useAddresses, useDeleteAddress, useCustomerOrders, useBlockCustomer } from "@/features/customers/hooks"
 import { CUSTOMER_STATUS_CONFIG, ADDRESS_LABEL_TEXT } from "@/features/customers/status"
+import { ORDER_STATUS_CONFIG } from "@/features/orders"
 import { AddressFormDialog } from "./address-form-dialog"
 import type { Address, CustomerDetail } from "@/features/customers/types"
 
@@ -160,7 +161,7 @@ export function CustomerDetailSheet({
                       </div>
                       <div className="text-right">
                         <p className="tabular-nums">{formatCents(order.grandTotal)}</p>
-                        <p className="text-xs text-muted-foreground">{order.status}</p>
+                        <StatusBadge status={order.status} config={ORDER_STATUS_CONFIG} />
                       </div>
                     </div>
                   ))}

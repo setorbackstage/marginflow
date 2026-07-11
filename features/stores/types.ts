@@ -63,6 +63,7 @@ export interface StoreSettings {
   description: string | null
   instagramHandle: string | null
   whatsappNumber: string | null
+  notificationPreferences: Record<string, unknown> | null
   updatedAt: string
 }
 
