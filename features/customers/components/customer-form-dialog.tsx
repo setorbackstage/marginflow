@@ -9,7 +9,7 @@ import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { PhoneInput } from "@/components/shared"
+import { PhoneInput, CpfCnpjInput, validateCpfOrCnpj } from "@/components/shared"
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,7 @@ const customerSchema = z.object({
   name: z.string().min(2, "Mínimo de 2 caracteres").max(120),
   phone: z.string().min(8, "Telefone inválido").max(20),
   email: z.union([z.email("E-mail inválido"), z.literal("")]).optional(),
-  taxId: z.union([z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos"), z.literal("")]).optional(),
+  taxId: z.string().refine((v) => v === "" || validateCpfOrCnpj(v), { message: "CPF ou CNPJ inválido" }).optional(),
   notes: z.string().max(500).optional(),
 })
 
@@ -115,8 +115,20 @@ export function CustomerFormDialog({
               <FieldError errors={[errors.email]} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="customer-taxid">CPF (opcional)</FieldLabel>
-              <Input id="customer-taxid" placeholder="Somente números" aria-invalid={!!errors.taxId} {...register("taxId")} />
+              <FieldLabel htmlFor="customer-taxid">CPF / CNPJ (opcional)</FieldLabel>
+              <Controller
+                name="taxId"
+                control={control}
+                render={({ field }) => (
+                  <CpfCnpjInput
+                    id="customer-taxid"
+                    aria-invalid={!!errors.taxId}
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                  />
+                )}
+              />
               <FieldError errors={[errors.taxId]} />
             </Field>
             <Field>
