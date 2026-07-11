@@ -389,16 +389,18 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-tour="dashboard-kpis">
         {kpis.map((kpi) => (
           <KpiCard key={kpi.label} kpi={kpi} />
         ))}
-        {canViewInventory ? <StockAlertsCard /> : null}
+        <div data-tour="dashboard-stock-alerts">
+          {canViewInventory ? <StockAlertsCard /> : null}
+        </div>
         {canViewInventory ? <InventoryValueCard /> : null}
         {canViewInventory ? <ProductsWithoutRecipeCard /> : null}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2" data-tour="dashboard-recent-orders">
         <RecentOrdersCard />
         {canViewInventory ? <RecentActivityCard /> : null}
       </div>

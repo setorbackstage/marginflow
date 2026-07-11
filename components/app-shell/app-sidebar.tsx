@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
@@ -18,6 +19,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { RestaurantSwitcher } from "@/components/app-shell/restaurant-switcher"
+import { ChecklistWidget } from "@/components/onboarding/checklist-widget"
 
 export function AppSidebar({
   activeUrl,
@@ -32,7 +34,7 @@ export function AppSidebar({
         <RestaurantSwitcher />
       </SidebarHeader>
       <SidebarSeparator className="mx-0" />
-      <SidebarContent className="gap-0 px-1">
+      <SidebarContent className="gap-0 px-1" data-tour="sidebar-nav">
         {navGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
@@ -66,6 +68,9 @@ export function AppSidebar({
           </SidebarGroup>
         ))}
       </SidebarContent>
+      <SidebarFooter>
+        <ChecklistWidget />
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )
