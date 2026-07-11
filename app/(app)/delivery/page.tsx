@@ -207,13 +207,17 @@ export default function DeliveryPage() {
                     actionLabel={column.actionLabel}
                   />
                 ))}
-                {columnDeliveries.length === 0 ? <p className="px-1 py-6 text-center text-xs text-muted-foreground">Nenhuma entrega</p> : null}
+                {columnDeliveries.length === 0 ? <p className="px-1 py-6 text-center text-xs text-muted-foreground">Sem entregas nesta etapa</p> : null}
               </KanbanColumn>
             )
           })}
         </div>
       ) : (
-        <EmptyState icon={Truck} title="Nenhuma entrega ativa" description="Entregas aparecem aqui quando um pedido de delivery fica pronto." />
+        <EmptyState
+          icon={Truck}
+          title="Nenhuma entrega em andamento"
+          description="Quando um pedido de delivery for marcado como pronto na cozinha, ele aparece aqui para despacho."
+        />
       )}
     </div>
   )

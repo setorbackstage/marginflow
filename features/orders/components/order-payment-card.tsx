@@ -70,7 +70,7 @@ export function OrderPaymentCard({ order }: { order: OrderDetail }) {
               </Button>
             </div>
           ) : (
-            <EmptyState icon={Wallet} title="Nenhum pagamento iniciado" />
+            <EmptyState icon={Wallet} title="Aguardando pagamento" description="O pagamento ainda não foi iniciado para este pedido." />
           )
         ) : payment.isLoading ? (
           <Skeleton className="h-24 w-full" />

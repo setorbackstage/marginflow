@@ -214,9 +214,13 @@ function IngredientsTab({
       ) : (
         <EmptyState
           icon={Boxes}
-          title="Nenhum insumo encontrado"
+          title={search ? `Nenhum insumo para "${search}"` : lowStockOnly ? "Nenhum insumo com estoque baixo" : "Você ainda não tem insumos cadastrados"}
           description={
-            search || lowStockOnly ? "Ajuste os filtros ou a busca." : "Cadastre os insumos que a sua cozinha consome."
+            search
+              ? "Tente buscar por outro nome de insumo."
+              : lowStockOnly
+                ? "Ótimo! Todos os insumos com mínimo configurado estão acima do limite."
+                : "Cadastre os insumos que a sua cozinha consome para controlar custos e estoque automaticamente."
           }
           action={
             canManage && !search && !lowStockOnly ? (
@@ -346,11 +350,11 @@ function MovementsTab({ canAdjust, onNewMovement }: { canAdjust: boolean; onNewM
       ) : (
         <EmptyState
           icon={ArrowLeftRight}
-          title="Nenhuma movimentação registrada"
+          title={typeFilter !== "ALL" ? "Nenhuma movimentação neste filtro" : "Ainda não há movimentações registradas"}
           description={
             typeFilter !== "ALL"
-              ? "Ajuste o filtro de tipo."
-              : "Entradas, saídas, ajustes e o consumo automático dos pedidos aparecem aqui."
+              ? "Tente remover o filtro para ver todo o histórico."
+              : "Entradas de compra, saídas, ajustes manuais e o consumo automático dos pedidos aparecem aqui."
           }
           action={
             canAdjust && typeFilter === "ALL" ? (
@@ -415,8 +419,8 @@ function AlertsTab() {
         ) : (
           <EmptyState
             icon={TriangleAlert}
-            title="Nenhum alerta ativo"
-            description="Todos os insumos com mínimo configurado estão acima do limite."
+            title="Nenhum alerta no momento"
+            description="Tudo certo! Todos os insumos com estoque mínimo configurado estão dentro do limite."
           />
         )}
       </div>
@@ -450,7 +454,7 @@ function AlertsTab() {
             </Table>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Nenhum insumo parado.</p>
+          <p className="text-sm text-muted-foreground">Ótimo! Todos os insumos tiveram movimentação nos últimos 30 dias.</p>
         )}
       </div>
 
@@ -469,7 +473,7 @@ function AlertsTab() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Sem consumo registrado.</p>
+            <p className="text-sm text-muted-foreground">Nenhum consumo registrado nos últimos 30 dias.</p>
           )}
         </div>
         <div>
@@ -486,7 +490,7 @@ function AlertsTab() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Sem custo registrado.</p>
+            <p className="text-sm text-muted-foreground">Nenhum custo de consumo registrado nos últimos 30 dias.</p>
           )}
         </div>
       </div>

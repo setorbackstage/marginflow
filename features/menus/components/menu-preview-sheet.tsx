@@ -58,8 +58,8 @@ export function MenuPreviewSheet({
           ) : visibleSections.length === 0 ? (
             <EmptyState
               icon={UtensilsCrossed}
-              title="Nenhuma seção visível"
-              description="Marque categorias como visíveis em “Seções” para que apareçam neste preview."
+              title="Nenhuma seção visível no cardápio"
+              description='Este cardápio ainda não tem categorias visíveis. Vá em "Seções" e marque as categorias que devem aparecer para o cliente.'
             />
           ) : (
             visibleSections.map((section) => {

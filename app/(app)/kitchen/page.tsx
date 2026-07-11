@@ -88,13 +88,17 @@ export default function KitchenPage() {
                 {columnTickets.map((ticket) => (
                   <TicketCard key={ticket.id} ticket={ticket} nextStatus={column.nextStatus} actionLabel={column.actionLabel} />
                 ))}
-                {columnTickets.length === 0 ? <p className="px-1 py-6 text-center text-xs text-muted-foreground">Nenhum ticket</p> : null}
+                {columnTickets.length === 0 ? <p className="px-1 py-6 text-center text-xs text-muted-foreground">Nenhum pedido aqui</p> : null}
               </KanbanColumn>
             )
           })}
         </div>
       ) : (
-        <EmptyState icon={ChefHat} title="Nenhum ticket na cozinha" description="Novos pedidos confirmados aparecem aqui automaticamente." />
+        <EmptyState
+          icon={ChefHat}
+          title="Cozinha livre por agora"
+          description="Quando um pedido for confirmado, ele entra automaticamente na fila de preparo aqui."
+        />
       )}
     </div>
   )

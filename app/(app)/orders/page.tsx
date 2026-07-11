@@ -176,8 +176,14 @@ export default function OrdersPage() {
       ) : (
         <EmptyState
           icon={ReceiptText}
-          title="Nenhum pedido encontrado"
-          description={search || statusFilter !== "ACTIVE" ? "Ajuste os filtros ou a busca." : "Comece criando o primeiro pedido."}
+          title={search ? `Nenhum pedido para "${search}"` : statusFilter !== "ACTIVE" ? "Nenhum pedido neste filtro" : "Você ainda não tem pedidos aqui"}
+          description={
+            search
+              ? "Tente buscar pelo número do pedido ou pelo nome do cliente."
+              : statusFilter !== "ACTIVE"
+                ? "Tente mudar o filtro de status para ver outros pedidos."
+                : "Comece criando um novo pedido — balcão, delivery ou retirada."
+          }
           action={
             canCreate && !search ? (
               <Button size="sm" onClick={() => openCreateDialog()}>

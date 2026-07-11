@@ -78,17 +78,17 @@ export function GlobalSearch({
         <CommandInput
           value={query}
           onValueChange={setQuery}
-          placeholder="Buscar produtos, pedidos, clientes, estoque..."
+          placeholder="Buscar pedidos, clientes, produtos, insumos..."
         />
         <CommandList>
           {isSearching ? (
             search.isLoading ? (
               <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
-                Buscando...
+                Buscando em todos os módulos...
               </div>
             ) : search.isError ? (
-              <p className="py-6 text-center text-sm text-destructive">Não foi possível buscar. Tente novamente.</p>
+              <p className="py-6 text-center text-sm text-destructive">Não foi possível buscar. Verifique sua conexão e tente novamente.</p>
             ) : search.data && search.data.length > 0 ? (
               search.data.map((group) => (
                 <CommandGroup key={group.heading} heading={group.heading}>
@@ -103,21 +103,23 @@ export function GlobalSearch({
                 </CommandGroup>
               ))
             ) : (
-              <CommandEmpty>Nenhum resultado para &quot;{debouncedQuery}&quot;.</CommandEmpty>
+              <div className="py-8 text-center">
+                <p className="text-sm font-medium">Nenhum resultado para &quot;{debouncedQuery}&quot;</p>
+                <p className="mt-1 text-xs text-muted-foreground">Tente buscar por número do pedido, nome do cliente, produto ou insumo.</p>
+              </div>
             )
           ) : (
             <>
-              <CommandEmpty>Digite ao menos 2 caracteres para buscar.</CommandEmpty>
-              {navGroups.map((group) => (
-                <CommandGroup key={group.label} heading={group.label}>
-                  {group.items.map((item) => (
+              <CommandGroup heading="Navegar para">
+                {navGroups.flatMap((group) =>
+                  group.items.map((item) => (
                     <CommandItem key={item.title} value={item.title} onSelect={() => navigate(item.url, item.title)}>
                       <item.icon />
                       <span>{item.title}</span>
                     </CommandItem>
-                  ))}
-                </CommandGroup>
-              ))}
+                  )),
+                )}
+              </CommandGroup>
             </>
           )}
         </CommandList>

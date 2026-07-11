@@ -94,7 +94,15 @@ export default function FinancePage() {
           <PaginationBar pagination={payments.data.pagination} onPageChange={setPage} />
         </>
       ) : (
-        <EmptyState icon={Wallet} title="Nenhum pagamento encontrado" description="Pagamentos aparecem aqui conforme os pedidos são cobrados." />
+        <EmptyState
+          icon={Wallet}
+          title={statusFilter !== "ALL" ? "Nenhum pagamento neste filtro" : "Ainda não há pagamentos registrados"}
+          description={
+            statusFilter !== "ALL"
+              ? "Tente remover o filtro de status para ver todos os pagamentos."
+              : "Os pagamentos aparecem aqui conforme os pedidos forem cobrados. Confirme um pedido e inicie o pagamento para começar."
+          }
+        />
       )}
     </div>
   )

@@ -138,8 +138,14 @@ export default function CustomersPage() {
       ) : (
         <EmptyState
           icon={Users}
-          title="Nenhum cliente encontrado"
-          description={search || statusFilter !== "ALL" ? "Ajuste os filtros ou a busca." : "Comece cadastrando o primeiro cliente."}
+          title={search ? `Nenhum cliente para "${search}"` : statusFilter !== "ALL" ? "Nenhum cliente neste filtro" : "Você ainda não tem clientes cadastrados"}
+          description={
+            search
+              ? "Tente buscar pelo nome completo ou pelo número de telefone."
+              : statusFilter !== "ALL"
+                ? "Tente remover o filtro de status para ver todos os clientes."
+                : "Cadastre seu primeiro cliente para acompanhar pedidos, endereços e histórico de compras."
+          }
           action={
             canCreate && !search && statusFilter === "ALL" ? (
               <Button size="sm" onClick={() => setFormDialog({ open: true, customer: null })}>

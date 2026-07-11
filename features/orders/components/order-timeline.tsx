@@ -16,7 +16,7 @@ export function OrderTimeline({ orderId }: { orderId: string }) {
     )
   }
   if (timeline.isError) return <ErrorState error={timeline.error} onRetry={() => timeline.refetch()} />
-  if (!timeline.data || timeline.data.length === 0) return <p className="text-sm text-muted-foreground">Sem histórico ainda.</p>
+  if (!timeline.data || timeline.data.length === 0) return <p className="text-sm text-muted-foreground">Nenhuma atividade registrada ainda para este pedido.</p>
 
   return (
     <ol className="space-y-3 border-l pl-4">

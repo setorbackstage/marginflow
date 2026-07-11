@@ -141,7 +141,7 @@ export function CustomerDetailSheet({
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Nenhum endereço cadastrado.</p>
+                <p className="text-sm text-muted-foreground">Nenhum endereço salvo. Endereços são adicionados automaticamente ao fechar um pedido de delivery.</p>
               )}
             </div>
 
@@ -167,7 +167,7 @@ export function CustomerDetailSheet({
                   ))}
                 </div>
               ) : (
-                <EmptyState icon={ReceiptText} title="Nenhum pedido ainda" />
+                <EmptyState icon={ReceiptText} title="Nenhum pedido ainda" description="O histórico de compras deste cliente aparecerá aqui." />
               )}
             </div>
           </div>
