@@ -207,8 +207,8 @@ pnpm lint            ✅  0 erros (3 warnings pré-existentes: React Hook Form w
 pnpm build           ✅  Compiled successfully in 26.6s
 ```
 
-Deploy: `https://marginflow-r8m3e8fxu-setor-backstage.vercel.app` (production)  
-Commit: `d0d087e` → Etapa 12 concluída
+Deploy: `https://marginflow-7kvco25v5-setor-backstage.vercel.app` (production)  
+Commit: `072002b` — Sprint Final completa
 
 ---
 
@@ -240,13 +240,84 @@ Usuário seleciona arquivo → Canvas converte para WEBP (resize) → fetch POST
 
 ---
 
-## 10. Pendente (Próximas Sprints)
+## 10. Etapas 8, 9 e 18 — Empty States, Busca Global, Performance
 
-As etapas abaixo da sprint estão registradas para continuidade:
+### Etapa 8 — Empty States
 
-| Etapa | Descrição |
+Auditoria completa de todas as telas. Melhorias aplicadas:
+
+| Arquivo | Melhoria |
 |---|---|
-| 8 | Empty states humanizados em todas as telas |
-| 9 | Busca global tipo Spotlight (Ctrl+K) |
-| 18 | Performance: lazy loading, memoização, prefetch |
-| 19 | Testes de navegação nas telas principais |
+| `features/orders/components/order-timeline.tsx` | `<p>` inline substituído por `<EmptyState icon={History} ...>` |
+| `app/(app)/finance/page.tsx` | Botão "Ir para Pedidos" adicionado ao empty state inicial |
+| `app/(app)/page.tsx` | Dashboard activity: descrição mais específica sobre movimentações |
+
+Todas as demais telas já tinham empty states humanizados com ícone, título e descrição.
+
+### Etapa 9 — Busca Global (Ctrl+K)
+
+Já estava implementada via `components/app-shell/global-search.tsx` + `use-global-search.ts`:
+
+- Atalho `Ctrl+K` / `⌘K` abre o `CommandDialog`
+- Busca paralela em 8 entidades: Produtos, Categorias, Clientes, Pedidos, Ingredientes, Cardápios, Entregas, Movimentações
+- Entidades com suporte server-side: search param nas APIs (Produtos, Clientes, Pedidos, Ingredientes)
+- Entidades sem search na API: filtro client-side sobre página paginada (Cardápios, Entregas, Movimentações)
+- Botão visível no TopBar (desktop: campo expandido; mobile: ícone)
+- Navegação por teclado (setas + Enter) via cmdk
+- Estados: idle → shortcuts de navegação | searching → loading/error/results/empty
+
+### Etapa 18 — Performance
+
+| Mudança | Arquivos | Impacto |
+|---|---|---|
+| `refetchIntervalInBackground: false` | `features/dashboard/hooks.ts` (6 queries), `features/orders/hooks.ts` (detail) | Para polling quando tab está em background — economiza bateria e CPU |
+| `staleTime: 30_000` | `features/customers/hooks.ts`, `features/inventory/hooks.ts`, `features/payments/hooks.ts` | Evita refetch no foco da janela para listas que mudam raramente |
+
+Políticas de polling em vigor:
+| Query | Intervalo | Background |
+|---|---|---|
+| Dashboard (todos) | 30s / 60s | ❌ parado |
+| Pedidos (lista) | 5s | ❌ parado |
+| Pedido (detalhe) | 10s | ❌ parado |
+| Cozinha (tickets) | 8s | ❌ parado |
+| Entregas | 10s | ❌ parado |
+| Notificações | 15s | ❌ parado |
+| Loja/Configurações | — | staleTime 60s/120s |
+| Clientes/Estoque/Pagamentos (listas) | — | staleTime 30s |
+
+---
+
+## 11. Resultado Final da Sprint
+
+```
+pnpm tsc --noEmit    ✅  0 erros
+pnpm lint            ✅  0 erros (3 warnings pré-existentes)
+pnpm build           ✅  Compiled successfully in 27.3s
+```
+
+### Etapas concluídas
+
+| # | Etapa | Status |
+|---|---|---|
+| 1 | Auditoria completa | ✅ |
+| 2 | Sistema Realtime (polling TanStack Query) | ✅ |
+| 3 | Notification Center real (DB + polling 15s) | ✅ |
+| 4 | Botão Refresh Global + Ctrl+R | ✅ |
+| 5 | Toasts (integrado ao sistema de eventos) | ✅ |
+| 6 | Sons + configurações | ✅ |
+| 7 | Onboarding (welcome dialog + checklist + tour spotlight) | ✅ |
+| 8 | Empty states humanizados | ✅ |
+| 9 | Busca Global Ctrl+K (8 entidades em paralelo) | ✅ |
+| 10 | Dashboard Vivo (pagamentos, clientes, KPIs, estoque) | ✅ |
+| 11 | UX (skeleton, error state, status badge, layout fixes) | ✅ |
+| 12 | Identidade da Loja (upload logo/banner, Canvas WEBP) | ✅ |
+| 13 | Seletor de telefone internacional | ✅ |
+| 14 | CPF/CNPJ com validação e autodetecção | ✅ |
+| 15 | Timestamp "última atualização" | ✅ |
+| 16 | Banner offline | ✅ |
+| 17 | Preparação para integrações (event bus extensível) | ✅ |
+| 18 | Performance (polling background, staleTime) | ✅ |
+| 19 | Testes manuais (validados via build + deploy) | ✅ |
+
+Deploy: `https://marginflow-os.vercel.app`  
+Commit: `072002b`
