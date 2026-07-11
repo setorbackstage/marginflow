@@ -1,7 +1,7 @@
 import "server-only"
 import type { DbClient } from "../db"
 import { prisma } from "../db"
-import { orderRepository, orderItemRepository, orderStatusTransitionRepository, marketplaceIntegrationRepository, storeSettingsRepository, paymentRepository, paymentAttemptRepository, deliveryRepository } from "../repositories"
+import { orderRepository, orderItemRepository, orderStatusTransitionRepository, marketplaceIntegrationRepository, storeSettingsRepository, paymentRepository, paymentAttemptRepository, deliveryRepository, customerRepository } from "../repositories"
 import { eventBus, createEvent, logger } from "../lib"
 import { orderService } from "./order.service"
 import { deliveryService } from "./delivery.service"
@@ -18,6 +18,7 @@ import {
   requestIfoodCancellation,
   mapCancellationReason,
   mapIfoodOrder,
+  setIfoodItemAvailability,
 } from "../integrations/ifood"
 import type { IfoodEvent } from "../integrations/ifood"
 
@@ -40,10 +41,43 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
   let createdOrderId: string | null = null
 
   await prisma.$transaction(async (tx) => {
+    // ── Customer upsert ───────────────────────────────────────────────────
+    // Find or create a Customer row so marketplace orders build loyalty history.
+    // Phone is the unique key within a store (API constraint: @@unique([storeId,phone])).
+    let customerId: string | null = null
+    if (mapped.customerPhone) {
+      let customer = await customerRepository.findByStoreAndPhone(tx, storeId, mapped.customerPhone)
+      const now = new Date()
+
+      if (!customer) {
+        // New customer from marketplace — create with what iFood gives us
+        if (mapped.customerName) {
+          customer = await customerRepository.create(tx, {
+            store: { connect: { id: storeId } },
+            name: mapped.customerName,
+            phone: mapped.customerPhone,
+            taxId: mapped.customerDocument ?? undefined,
+            firstOrderAt: now,
+            lastOrderAt: now,
+            totalOrders: 0, // incremented below after order insert
+            totalSpent: 0,
+          })
+          logger.info("ifood.ingest.customer_created", { storeId, phone: mapped.customerPhone })
+        }
+      } else {
+        // Update metadata if iFood has richer data than we stored
+        if (!customer.firstOrderAt) {
+          await customerRepository.update(tx, customer.id, { firstOrderAt: now })
+        }
+      }
+      customerId = customer?.id ?? null
+    }
+
     const number = await orderRepository.getNextOrderNumber(tx, storeId)
 
     const order = await orderRepository.create(tx, {
       store: { connect: { id: storeId } },
+      ...(customerId ? { customer: { connect: { id: customerId } } } : {}),
       number,
       status: "PENDING",
       type: mapped.type,
@@ -90,12 +124,21 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
         orderNumber: order.number,
         type: order.type,
         channel: order.channel,
-        customerId: null,
+        customerId: customerId ?? null,
         grandTotal: order.grandTotal,
         itemCount: mapped.items.length,
       }),
       tx,
     )
+
+    // ── Customer stats ────────────────────────────────────────────────────
+    if (customerId) {
+      await customerRepository.update(tx, customerId, {
+        totalOrders: { increment: 1 },
+        totalSpent: { increment: mapped.grandTotal },
+        lastOrderAt: new Date(),
+      })
+    }
 
     // Update lastSyncAt on the integration record
     await marketplaceIntegrationRepository
@@ -360,7 +403,7 @@ export async function pollAllIfoodStores(): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────
 
 export async function pollIfoodStoreOnce(storeId: string): Promise<{ eventsProcessed: number }> {
-  const integration = await marketplaceIntegrationRepository.findByStorePlatform(prisma, "IFOOD", storeId)
+  const integration = await marketplaceIntegrationRepository.findByStorePlatform(prisma, storeId, "IFOOD")
   if (!integration || integration.status !== "ACTIVE") {
     return { eventsProcessed: 0 }
   }
@@ -458,6 +501,63 @@ eventBus.on("order.cancelled", "ifood-sync:order.cancelled", async (event, db) =
     (token, externalId) => requestIfoodCancellation(token, externalId, ifoodReason),
     "request_cancellation",
   )
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// stock.low → auto-disable affected products on iFood
+//
+// When an ingredient drops below its minimum stock, we find every product
+// whose ficha técnica (Recipe) uses that ingredient AND has an iFood external
+// code, then mark those items as unavailable in the iFood catalog.
+// This prevents the restaurant from receiving orders it cannot fulfil.
+// ─────────────────────────────────────────────────────────────────────────
+
+eventBus.on("stock.low", "ifood-sync:stock.low", async (event, db) => {
+  const { storeId } = event
+  const { ingredientId } = event.payload
+
+  // Find products linked to this ingredient via Recipe → RecipeItem
+  const recipeItems = await db.recipeItem.findMany({
+    where: { ingredientId },
+    select: {
+      recipe: {
+        select: {
+          storeId: true,
+          product: { select: { id: true, ifoodExternalCode: true, status: true } },
+        },
+      },
+    },
+  })
+
+  const productsToDisable = recipeItems
+    .filter((ri) => ri.recipe.storeId === storeId && ri.recipe.product.ifoodExternalCode && ri.recipe.product.status === "ACTIVE")
+    .map((ri) => ri.recipe.product)
+
+  if (productsToDisable.length === 0) return
+
+  // Get the store's iFood integration
+  const integration = await marketplaceIntegrationRepository.findByStorePlatform(db, storeId, "IFOOD")
+  if (!integration || integration.status !== "ACTIVE" || integration.isPaused) return
+
+  try {
+    const token = await getIfoodAccessToken()
+    await Promise.allSettled(
+      productsToDisable.map((p) =>
+        setIfoodItemAvailability(token, integration.merchantId, p.ifoodExternalCode!, false),
+      ),
+    )
+    logger.info("ifood.catalog.auto_disabled_low_stock", {
+      storeId,
+      ingredientId,
+      products: productsToDisable.map((p) => p.id),
+    })
+  } catch (err) {
+    logger.error("ifood.catalog.auto_disable_error", {
+      storeId,
+      ingredientId,
+      error: err instanceof Error ? err.message : String(err),
+    })
+  }
 })
 
 export const ifoodSyncService = { processIfoodEvents, pollAllIfoodStores, ingestIfoodOrder, pollIfoodStoreOnce }

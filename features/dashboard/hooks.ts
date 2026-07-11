@@ -30,6 +30,7 @@ export interface DashboardOrdersToday {
   grossRevenue: number
   averageTicket: number
   byStatus: Record<string, number>
+  byChannel: Record<string, { orders: number; revenue: number }>
 }
 
 /**
@@ -55,14 +56,22 @@ export function useDashboardOrdersToday() {
       const nonCancelled = page.items.filter((order) => order.status !== "CANCELLED")
       const grossRevenue = nonCancelled.reduce((sum, order) => sum + order.grandTotal, 0)
       const byStatus: Record<string, number> = {}
+      const byChannel: Record<string, { orders: number; revenue: number }> = {}
       for (const order of page.items) {
         byStatus[order.status] = (byStatus[order.status] ?? 0) + 1
+        if (order.status !== "CANCELLED") {
+          const ch = byChannel[order.channel] ?? { orders: 0, revenue: 0 }
+          ch.orders += 1
+          ch.revenue += order.grandTotal
+          byChannel[order.channel] = ch
+        }
       }
       return {
         total: page.pagination.total,
         grossRevenue,
         averageTicket: nonCancelled.length > 0 ? Math.round(grossRevenue / nonCancelled.length) : 0,
         byStatus,
+        byChannel,
       }
     },
   })

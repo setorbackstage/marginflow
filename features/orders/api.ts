@@ -13,7 +13,7 @@ function qs(params: Record<string, string | number | undefined>): string {
 export const ordersApi = {
   list: (storeId: string, params: OrderListParams): Promise<Page<OrderListItem>> =>
     api.getPage<OrderListItem>(
-      `/stores/${storeId}/orders${qs({ page: params.page ?? 1, limit: 20, status: params.status, type: params.type, search: params.search })}`,
+      `/stores/${storeId}/orders${qs({ page: params.page ?? 1, limit: 20, status: params.status, type: params.type, channel: params.channel, search: params.search })}`,
     ),
   get: (storeId: string, orderId: string) => api.get<OrderDetail>(`/stores/${storeId}/orders/${orderId}`),
   create: (storeId: string, input: CreateOrderInput) => api.post<OrderDetail>(`/stores/${storeId}/orders`, input),

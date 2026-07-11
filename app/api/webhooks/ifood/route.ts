@@ -1,48 +1,45 @@
 /**
  * POST /api/webhooks/ifood
  *
- * Public endpoint that receives iFood marketplace events (PLACED, CONFIRMED, etc.).
- * iFood requires a 202 Accepted response within 5 seconds.
+ * Receives push events from the iFood Webhook API (v1.0).
+ * iFood sends an array of IfoodEvent objects whenever a restaurant has
+ * pending events (PLACED, CANCELLED, DISPATCHED, CONCLUDED, KEEPALIVE).
  *
- * Security: iFood sends events only from known IPs. For additional protection,
- * set IFOOD_WEBHOOK_SECRET in env vars; iFood will include it as a query param
- * `?secret=<value>` when registering the webhook URL in the Developer Portal.
+ * The endpoint MUST return 200 quickly — iFood retries delivery on failures.
+ * We process events synchronously here; the cron job (every minute) is the
+ * safety net for any events that arrive while this endpoint is down.
+ *
+ * Register https://marginflow-os.vercel.app/api/webhooks/ifood in the iFood
+ * Developer Portal to receive push events.
  */
-import { NextResponse, after } from "next/server"
+import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { processIfoodEvents } from "@/server/services"
-import { logger } from "@/server/lib"
 import type { IfoodEvent } from "@/server/integrations/ifood"
+import { logger } from "@/server/lib"
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // Optional shared secret validation
-  const secret = process.env.IFOOD_WEBHOOK_SECRET
-  if (secret) {
-    const provided = req.nextUrl.searchParams.get("secret")
-    if (provided !== secret) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-  }
-
-  let events: IfoodEvent[]
+  let body: unknown
   try {
-    const body = await req.json()
-    // iFood sends either a single event object or an array
-    events = Array.isArray(body) ? body : [body]
+    body = await req.json()
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 })
   }
 
-  logger.info("ifood.webhook.received", { count: events.length })
+  // iFood may send a single object or an array; normalise to array.
+  const events: IfoodEvent[] = Array.isArray(body) ? body : [body as IfoodEvent]
 
-  // after() tells Vercel to keep the function alive until the callback completes,
-  // even after the 202 response is sent. Without this, Vercel may suspend the
-  // function mid-transaction causing Prisma "expired transaction" errors.
-  after(() =>
-    processIfoodEvents(events).catch((err) => {
-      logger.error("ifood.webhook.process_error", { error: err instanceof Error ? err.message : String(err) })
-    }),
-  )
+  if (events.length === 0) {
+    return NextResponse.json({ ok: true, processed: 0 })
+  }
 
-  return new NextResponse(null, { status: 202 })
+  try {
+    await processIfoodEvents(events)
+    logger.info("ifood.webhook.processed", { count: events.length })
+    return NextResponse.json({ ok: true, processed: events.length })
+  } catch (err) {
+    logger.error("ifood.webhook.error", { error: err instanceof Error ? err.message : String(err) })
+    // Return 500 so iFood retries rather than losing the event.
+    return NextResponse.json({ error: "Processing error." }, { status: 500 })
+  }
 }

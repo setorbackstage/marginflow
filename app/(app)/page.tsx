@@ -20,7 +20,7 @@ import { useAuth, useCan } from "@/features/auth"
 import { useStore } from "@/features/stores"
 import { useDashboardCounts, useDashboardOrdersToday, useRecentOrders, useRecentStockMovements, useDashboardRecentPayments, useDashboardRecentCustomers } from "@/features/dashboard/hooks"
 import { useStockAlerts, useInventoryValue, useInventoryInsights, formatQuantity, MOVEMENT_TYPE_CONFIG } from "@/features/inventory"
-import { ORDER_STATUS_CONFIG } from "@/features/orders"
+import { ORDER_STATUS_CONFIG, ORDER_CHANNEL_LABEL } from "@/features/orders"
 import { PageHeader } from "@/components/app-shell/page-container"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -163,6 +163,42 @@ function ProductsWithoutRecipeCard() {
         </CardContent>
       </Card>
     </Link>
+  )
+}
+
+function ChannelBreakdownCard({ canViewFinance }: { canViewFinance: boolean }) {
+  const ordersToday = useDashboardOrdersToday()
+  const byChannel = ordersToday.data?.byChannel
+  if (ordersToday.isLoading || ordersToday.isError || !byChannel || Object.keys(byChannel).length === 0) return null
+  const entries = Object.entries(byChannel).sort((a, b) => b[1].revenue - a[1].revenue)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-medium">Canais de venda hoje</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="divide-y">
+          {entries.map(([channel, data]) => (
+            <div key={channel} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0">
+              <div className="flex items-center gap-2">
+                {channel === "MARKETPLACE" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#ea1d2c]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#ea1d2c] leading-none">
+                    <Store className="size-2.5" />
+                    iFood
+                  </span>
+                )}
+                <span className="text-sm font-medium">{ORDER_CHANNEL_LABEL[channel] ?? channel}</span>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <span className="text-xs text-muted-foreground">{data.orders} pedido{data.orders !== 1 ? "s" : ""}</span>
+                {canViewFinance && <span className="text-sm font-medium tabular-nums">{formatCents(data.revenue)}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -501,6 +537,8 @@ export default function DashboardPage() {
         {canViewInventory ? <InventoryValueCard /> : null}
         {canViewInventory ? <ProductsWithoutRecipeCard /> : null}
       </div>
+
+      <ChannelBreakdownCard canViewFinance={canViewFinance} />
 
       <div className="grid gap-4 lg:grid-cols-2" data-tour="dashboard-recent-orders">
         <RecentOrdersCard />

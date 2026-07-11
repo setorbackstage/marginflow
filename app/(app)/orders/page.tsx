@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation"
 import { Plus, ReceiptText, Printer, Store } from "lucide-react"
 
 import { useCan } from "@/features/auth"
-import { useOrders, CreateOrderDialog, ORDER_STATUS_CONFIG, ORDER_TYPE_LABEL } from "@/features/orders"
+import { useOrders, CreateOrderDialog, ORDER_STATUS_CONFIG, ORDER_TYPE_LABEL, ORDER_CHANNEL_LABEL } from "@/features/orders"
+import type { OrderChannel } from "@/features/orders"
 import { useStoreSettings } from "@/features/stores"
 import { PageHeader } from "@/components/app-shell/page-container"
 import { Button } from "@/components/ui/button"
@@ -24,6 +25,11 @@ const STATUS_FILTER_LABEL: Record<string, string> = {
 }
 const ACTIVE_STATUSES = "DRAFT,PENDING,CONFIRMED,PREPARING,READY,OUT_FOR_DELIVERY"
 
+const CHANNEL_FILTER_OPTIONS: Record<string, string> = {
+  ALL: "Todos os canais",
+  ...ORDER_CHANNEL_LABEL,
+}
+
 export default function OrdersPage() {
   const router = useRouter()
   const canCreate = useCan("orders:create")
@@ -31,6 +37,7 @@ export default function OrdersPage() {
   const [searchInput, setSearchInput] = React.useState("")
   const search = useDebouncedValue(searchInput)
   const [statusFilter, setStatusFilter] = React.useState<"ALL" | "ACTIVE" | "DELIVERED" | "CANCELLED">("ACTIVE")
+  const [channelFilter, setChannelFilter] = React.useState<"ALL" | OrderChannel>("ALL")
   const [page, setPage] = React.useState(1)
   const [createOpen, setCreateOpen] = React.useState(false)
   const [createKey, setCreateKey] = React.useState(0)
@@ -40,7 +47,8 @@ export default function OrdersPage() {
   }
 
   const statusParam = statusFilter === "ALL" ? undefined : statusFilter === "ACTIVE" ? ACTIVE_STATUSES : statusFilter
-  const orders = useOrders({ page, search: search || undefined, status: statusParam })
+  const channelParam = channelFilter === "ALL" ? undefined : channelFilter
+  const orders = useOrders({ page, search: search || undefined, status: statusParam, channel: channelParam })
   const { printOrderById, printOrderByIdAuto } = usePrintOrder()
   const settings = useStoreSettings()
 
@@ -68,9 +76,14 @@ export default function OrdersPage() {
     seenOrderIdsRef.current = currentIds
   }, [orders.data, shouldAutoPrint, statusFilter, printOrderByIdAuto])
 
-  const handleFilterChange = (value: typeof statusFilter | null) => {
+  const handleStatusFilterChange = (value: typeof statusFilter | null) => {
     if (!value) return
     setStatusFilter(value)
+    setPage(1)
+  }
+  const handleChannelFilterChange = (value: string | null) => {
+    if (!value) return
+    setChannelFilter(value as typeof channelFilter)
     setPage(1)
   }
   const handleSearchChange = (value: string) => {
@@ -98,12 +111,24 @@ export default function OrdersPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <SearchBar value={searchInput} onChange={handleSearchChange} placeholder="Buscar por número ou cliente..." />
-        <Select value={statusFilter} onValueChange={handleFilterChange} items={STATUS_FILTER_LABEL}>
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
           <SelectTrigger className="w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {Object.entries(STATUS_FILTER_LABEL).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={channelFilter} onValueChange={handleChannelFilterChange}>
+          <SelectTrigger className="w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(CHANNEL_FILTER_OPTIONS).map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}
               </SelectItem>

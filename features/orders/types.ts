@@ -131,5 +131,6 @@ export interface OrderListParams {
   page?: number
   status?: string
   type?: OrderType
+  channel?: OrderChannel
   search?: string
 }
