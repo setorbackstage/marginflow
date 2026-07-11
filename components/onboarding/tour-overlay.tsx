@@ -25,15 +25,15 @@ export function TourOverlay({ steps, onComplete, onSkip }: TourOverlayProps) {
   const [rect, setRect] = React.useState<ElementRect | null>(null)
   const step = steps[stepIndex]
 
-  React.useLayoutEffect(() => {
+  React.useEffect(() => {
     const el = document.querySelector(step.selector)
-    if (!el) {
-      setRect(null)
-      return
-    }
-    const r = el.getBoundingClientRect()
-    setRect({ top: r.top, left: r.left, width: r.width, height: r.height })
-    el.scrollIntoView({ behavior: "smooth", block: "center" })
+    el?.scrollIntoView({ behavior: "smooth", block: "center" })
+    // Defer measurement to next frame so we read post-scroll layout
+    const id = requestAnimationFrame(() => {
+      const r = el?.getBoundingClientRect() ?? null
+      setRect(r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null)
+    })
+    return () => cancelAnimationFrame(id)
   }, [stepIndex, step.selector])
 
   function next() {
