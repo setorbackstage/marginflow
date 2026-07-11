@@ -21,7 +21,8 @@ export function useDeliveries() {
     queryKey: keys.list(storeId),
     enabled: Boolean(storeId),
     queryFn: () => deliveryApi.list(storeId),
-    refetchInterval: 10_000,
+    // Realtime handles instant delivery updates; 20s is fallback.
+    refetchInterval: 20_000,
     refetchIntervalInBackground: false,
   })
 }

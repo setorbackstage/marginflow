@@ -23,7 +23,9 @@ export function useOrders(params: OrderListParams) {
     enabled: Boolean(storeId),
     queryFn: () => ordersApi.list(storeId, params),
     placeholderData: keepPreviousData,
-    refetchInterval: 5_000,
+    // Realtime (Supabase postgres_changes) handles instant updates.
+    // Polling at 15s is a safety net for connection drops.
+    refetchInterval: 15_000,
     refetchIntervalInBackground: false,
   })
 }

@@ -20,7 +20,8 @@ export function useKitchenTickets() {
     queryKey: keys.list(storeId),
     enabled: Boolean(storeId),
     queryFn: () => kitchenApi.list(storeId),
-    refetchInterval: 8_000,
+    // Realtime handles instant ticket updates; 15s is fallback.
+    refetchInterval: 15_000,
     refetchIntervalInBackground: false,
   })
 }

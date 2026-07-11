@@ -14,7 +14,8 @@ export function useNotifications(params?: { limit?: number; page?: number }) {
     queryKey: keys.list(storeId),
     enabled: Boolean(storeId),
     queryFn: () => notificationsApi.list(storeId, params),
-    refetchInterval: 15_000,
+    // Realtime handles instant notification delivery; 30s is fallback.
+    refetchInterval: 30_000,
     refetchIntervalInBackground: false,
   })
 }

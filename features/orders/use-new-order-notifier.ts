@@ -58,11 +58,11 @@ export function useNewOrderNotifier() {
     queryKey: ["orders", storeId, "notifier-pending"],
     enabled: Boolean(storeId),
     queryFn: () => ordersApi.list(storeId, { status: "PENDING" }),
-    // Poll every 5s when tab is visible; slow down to 30s in background
-    // to avoid draining battery and flooding the server (would be 720 req/hour at 5s).
-    // The webhook handles real-time delivery; background polling is just a safety net.
+    // Supabase Realtime invalidates ["orders", storeId] instantly on INSERT —
+    // this query shares that prefix and refetches automatically.
+    // 15s foreground / 30s background are safety-net fallbacks for WS drops.
     refetchInterval: () =>
-      typeof document !== "undefined" && document.visibilityState === "visible" ? 5_000 : 30_000,
+      typeof document !== "undefined" && document.visibilityState === "visible" ? 15_000 : 30_000,
     refetchIntervalInBackground: true,
   })
 

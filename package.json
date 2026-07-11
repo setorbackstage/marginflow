@@ -14,6 +14,7 @@
     "@hookform/resolvers": "^5.4.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@supabase/realtime-js": "^2.110.2",
     "@tanstack/react-query": "^5.101.2",
     "@vercel/analytics": "1.6.1",
     "class-variance-authority": "^0.7.1",
