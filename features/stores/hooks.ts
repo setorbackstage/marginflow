@@ -18,17 +18,17 @@ function errorMessage(error: unknown, fallback: string): string {
 
 export function useStore() {
   const storeId = useActiveStoreId()
-  return useQuery({ queryKey: keys.store(storeId), enabled: Boolean(storeId), queryFn: () => storesApi.get(storeId) })
+  return useQuery({ queryKey: keys.store(storeId), enabled: Boolean(storeId), staleTime: 60_000, queryFn: () => storesApi.get(storeId) })
 }
 
 export function useStoreSettings() {
   const storeId = useActiveStoreId()
-  return useQuery({ queryKey: keys.settings(storeId), enabled: Boolean(storeId), queryFn: () => storesApi.getSettings(storeId) })
+  return useQuery({ queryKey: keys.settings(storeId), enabled: Boolean(storeId), staleTime: 60_000, queryFn: () => storesApi.getSettings(storeId) })
 }
 
 export function useRoles() {
   const storeId = useActiveStoreId()
-  return useQuery({ queryKey: keys.roles(storeId), enabled: Boolean(storeId), queryFn: () => storesApi.listRoles(storeId) })
+  return useQuery({ queryKey: keys.roles(storeId), enabled: Boolean(storeId), staleTime: 120_000, queryFn: () => storesApi.listRoles(storeId) })
 }
 
 export function useUpdateStore() {
