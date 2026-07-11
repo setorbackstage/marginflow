@@ -140,8 +140,8 @@ export function RecipeSheet({
             ) : ingredientOptions.length === 0 ? (
               <EmptyState
                 icon={ClipboardList}
-                title="Nenhum insumo cadastrado"
-                description="Cadastre insumos na tela de Estoque antes de montar a ficha técnica."
+                title="Nenhum insumo disponível"
+                description="Para montar a ficha técnica, primeiro cadastre os insumos que a cozinha consome na tela de Estoque."
               />
             ) : (
               <>

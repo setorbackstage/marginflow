@@ -199,7 +199,7 @@ export default function ProductsPage() {
             })
           )}
           {!categories.isLoading && categories.data?.length === 0 ? (
-            <p className="px-2 py-2 text-xs text-muted-foreground">Nenhuma categoria ainda.</p>
+            <p className="px-2 py-2 text-xs text-muted-foreground">Crie uma categoria para organizar seus produtos.</p>
           ) : null}
         </div>
 
@@ -341,8 +341,14 @@ export default function ProductsPage() {
           ) : (
             <EmptyState
               icon={Package}
-              title="Nenhum produto encontrado"
-              description={search || selectedCategoryId ? "Ajuste os filtros ou a busca." : "Comece criando o primeiro produto do cardápio."}
+              title={search ? `Nenhum produto para "${search}"` : selectedCategoryId ? "Nenhum produto nesta categoria" : "Você ainda não tem produtos no cardápio"}
+              description={
+                search
+                  ? "Tente buscar por outro nome ou SKU do produto."
+                  : selectedCategoryId
+                    ? "Adicione produtos a esta categoria ou selecione outra."
+                    : "Comece criando sua primeira categoria e depois adicione os produtos do cardápio."
+              }
               action={
                 canCreate && !search && !selectedCategoryId ? (
                   <Button size="sm" onClick={() => setProductDialog({ open: true, product: null, duplicateFrom: null })}>

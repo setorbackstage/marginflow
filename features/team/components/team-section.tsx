@@ -140,8 +140,8 @@ export function TeamSection() {
         ) : (
           <EmptyState
             icon={Users}
-            title="Nenhum membro encontrado"
-            description={search ? "Ajuste a busca." : "Convide alguém para começar a montar sua equipe."}
+            title={search ? `Nenhum membro para "${search}"` : "Nenhum membro na equipe ainda"}
+            description={search ? "Tente buscar pelo nome ou e-mail do membro." : "Convide colaboradores para que eles possam acessar o sistema com as permissões certas."}
             action={
               canInvite && !search ? (
                 <Button size="sm" onClick={() => setInviteOpen(true)}>
