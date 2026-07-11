@@ -29,7 +29,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
-import { EmptyState, ErrorState, StatusBadge, PaginationBar, SearchBar, ConfirmDialog } from "@/components/shared"
+import { EmptyState, ErrorState, StatusBadge, PaginationBar, SearchBar, ConfirmDialog, LastUpdated } from "@/components/shared"
 import { formatCents, formatDateTime } from "@/lib/format"
 import { useDebouncedValue } from "@/hooks"
 import { cn } from "@/lib/utils"
@@ -512,6 +512,9 @@ export default function InventoryPage() {
       <PageHeader
         title="Estoque"
         description="Insumos, saldos, movimentações e alertas de estoque baixo."
+        actions={
+          <LastUpdated dataUpdatedAt={allIngredients.dataUpdatedAt} isFetching={allIngredients.isFetching} />
+        }
       />
 
       <Tabs defaultValue="ingredients">

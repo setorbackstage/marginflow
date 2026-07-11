@@ -5,6 +5,8 @@ import { api, type Page } from "@/lib/api"
 import { useActiveStoreId } from "@/features/auth"
 import type { OrderListItem } from "@/features/orders/types"
 import type { StockMovement } from "@/features/inventory/types"
+import type { PaymentListItem } from "@/features/payments/types"
+import type { CustomerListItem } from "@/features/customers/types"
 
 /**
  * There is no aggregate `/dashboard` endpoint in this backend (API_SPEC.md
@@ -91,6 +93,26 @@ export interface DashboardCounts {
   activeDeliveries: number
   kitchenActive: number
   pendingPayments: number
+}
+
+export function useDashboardRecentPayments(limit = 5) {
+  const storeId = useActiveStoreId()
+  return useQuery({
+    queryKey: ["dashboard", storeId, "recent-payments", limit],
+    enabled: Boolean(storeId),
+    refetchInterval: 30_000,
+    queryFn: () => api.getPage<PaymentListItem>(`/stores/${storeId}/payments?limit=${limit}&status=PAID`),
+  })
+}
+
+export function useDashboardRecentCustomers(limit = 5) {
+  const storeId = useActiveStoreId()
+  return useQuery({
+    queryKey: ["dashboard", storeId, "recent-customers", limit],
+    enabled: Boolean(storeId),
+    refetchInterval: 60_000,
+    queryFn: () => api.getPage<CustomerListItem>(`/stores/${storeId}/customers?limit=${limit}`),
+  })
 }
 
 /** Cheap `limit=1` reads for counts the app has no cheaper way to obtain. */

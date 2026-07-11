@@ -18,14 +18,14 @@ import {
 
 import { useAuth, useCan } from "@/features/auth"
 import { useStore } from "@/features/stores"
-import { useDashboardCounts, useDashboardOrdersToday, useRecentOrders, useRecentStockMovements } from "@/features/dashboard/hooks"
+import { useDashboardCounts, useDashboardOrdersToday, useRecentOrders, useRecentStockMovements, useDashboardRecentPayments, useDashboardRecentCustomers } from "@/features/dashboard/hooks"
 import { useStockAlerts, useInventoryValue, useInventoryInsights, formatQuantity, MOVEMENT_TYPE_CONFIG } from "@/features/inventory"
 import { ORDER_STATUS_CONFIG } from "@/features/orders"
 import { PageHeader } from "@/components/app-shell/page-container"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
-import { StatusBadge, EmptyState } from "@/components/shared"
+import { StatusBadge, EmptyState, LastUpdated } from "@/components/shared"
 import { formatCents, formatRelative } from "@/lib/format"
 
 interface Kpi {
@@ -261,6 +261,102 @@ function RecentActivityCard() {
   )
 }
 
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  CASH: "Dinheiro",
+  CREDIT_CARD: "Crédito",
+  DEBIT_CARD: "Débito",
+  PIX: "PIX",
+  VOUCHER: "Vale",
+  GIFT_CARD: "Gift Card",
+  ONLINE: "Online",
+}
+
+function RecentPaymentsCard() {
+  const recentPayments = useDashboardRecentPayments(5)
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-sm font-medium">Últimos pagamentos</CardTitle>
+        <Link href="/finance" className="text-xs text-muted-foreground hover:text-foreground">
+          Ver todos
+        </Link>
+      </CardHeader>
+      <CardContent>
+        {recentPayments.isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        ) : recentPayments.isError ? (
+          <p className="text-sm text-destructive">Erro ao carregar pagamentos.</p>
+        ) : recentPayments.data && recentPayments.data.items.length > 0 ? (
+          <div className="divide-y">
+            {recentPayments.data.items.map((item) => (
+              <div key={item.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">Pedido #{item.orderNumber}</p>
+                  <p className="text-xs text-muted-foreground">{formatRelative(item.paidAt ?? item.createdAt)}</p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-0.5">
+                  <span className="text-sm font-medium tabular-nums">{formatCents(item.amount)}</span>
+                  <span className="text-xs text-muted-foreground">{PAYMENT_METHOD_LABEL[item.method] ?? item.method}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="py-4 text-center text-sm text-muted-foreground">Nenhum pagamento registrado.</p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function RecentCustomersCard() {
+  const recentCustomers = useDashboardRecentCustomers(5)
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-sm font-medium">Clientes recentes</CardTitle>
+        <Link href="/customers" className="text-xs text-muted-foreground hover:text-foreground">
+          Ver todos
+        </Link>
+      </CardHeader>
+      <CardContent>
+        {recentCustomers.isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        ) : recentCustomers.isError ? (
+          <p className="text-sm text-destructive">Erro ao carregar clientes.</p>
+        ) : recentCustomers.data && recentCustomers.data.items.length > 0 ? (
+          <div className="divide-y">
+            {recentCustomers.data.items.map((item) => (
+              <div key={item.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{item.name}</p>
+                  <p className="text-xs text-muted-foreground">{item.phone}</p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-0.5">
+                  <span className="text-xs text-muted-foreground">{formatRelative(item.createdAt)}</span>
+                  <span className="text-xs text-muted-foreground">{item.totalOrders} pedido{item.totalOrders !== 1 ? "s" : ""}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="py-4 text-center text-sm text-muted-foreground">Nenhum cliente cadastrado.</p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function DashboardPage() {
   const { session, activeMembership } = useAuth()
   const store = useStore()
@@ -329,6 +425,12 @@ export default function DashboardPage() {
       <PageHeader
         title={`Olá, ${firstName}`}
         description="Visão geral das operações da sua loja em tempo real."
+        actions={
+          <LastUpdated
+            dataUpdatedAt={ordersToday.dataUpdatedAt}
+            isFetching={ordersToday.isFetching || counts.isFetching}
+          />
+        }
       />
 
       <Card>
@@ -408,6 +510,11 @@ export default function DashboardPage() {
       {canViewInventory ? (
         <TopConsumedCard />
       ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {canViewFinance ? <RecentPaymentsCard /> : null}
+        <RecentCustomersCard />
+      </div>
     </div>
   )
 }

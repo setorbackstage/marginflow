@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
-import { EmptyState, ErrorState, StatusBadge, PaginationBar, SearchBar } from "@/components/shared"
+import { EmptyState, ErrorState, StatusBadge, PaginationBar, SearchBar, LastUpdated } from "@/components/shared"
 import { formatCents, formatDateTime } from "@/lib/format"
 import { useDebouncedValue, usePrintOrder } from "@/hooks"
 
@@ -84,12 +84,15 @@ export default function OrdersPage() {
         title="Pedidos"
         description="Acompanhe e gerencie os pedidos da loja."
         actions={
-          canCreate ? (
-            <Button size="sm" onClick={() => openCreateDialog()}>
-              <Plus data-icon="inline-start" />
-              Novo pedido
-            </Button>
-          ) : undefined
+          <>
+            <LastUpdated dataUpdatedAt={orders.dataUpdatedAt} isFetching={orders.isFetching} />
+            {canCreate ? (
+              <Button size="sm" onClick={() => openCreateDialog()}>
+                <Plus data-icon="inline-start" />
+                Novo pedido
+              </Button>
+            ) : null}
+          </>
         }
       />
 
