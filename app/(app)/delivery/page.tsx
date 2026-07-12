@@ -3,9 +3,12 @@
 import * as React from "react"
 import { Truck, User, Phone, Clock, Loader2, ArrowRight, X, ExternalLink } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { useQueryClient } from "@tanstack/react-query"
 
-import { useCan } from "@/features/auth"
+import { useCan, useActiveStoreId } from "@/features/auth"
 import { useDeliveries, useUpdateDeliveryStatus, AssignCourierDialog, DELIVERY_STATUS_CONFIG } from "@/features/delivery"
+import { deliveryApi } from "@/features/delivery/api"
 import type { Delivery, DeliveryStatus } from "@/features/delivery/types"
 import { useOrdersByIds } from "@/features/orders"
 import { PageHeader } from "@/components/app-shell/page-container"
@@ -15,19 +18,30 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { EmptyState, ErrorState, KanbanColumn, KanbanCard, StatusBadge } from "@/components/shared"
+import { EmptyState, ErrorState, KanbanColumn, KanbanCard, KanbanBoard, StatusBadge } from "@/components/shared"
 import { formatRelative } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
-const COLUMNS: { status: DeliveryStatus; title: string; nextStatus?: DeliveryStatus; actionLabel?: string }[] = [
-  { status: "AWAITING_PICKUP", title: "Aguardando", nextStatus: "DISPATCHED", actionLabel: "Despachar" },
-  { status: "DISPATCHED", title: "Despachado", nextStatus: "IN_TRANSIT", actionLabel: "Em rota" },
-  { status: "IN_TRANSIT", title: "Em rota", nextStatus: "DELIVERED", actionLabel: "Marcar entregue" },
-  { status: "DELIVERED", title: "Entregue" },
-  { status: "FAILED", title: "Falhou" },
+const COLUMNS: {
+  status: DeliveryStatus
+  title: string
+  nextStatus?: DeliveryStatus
+  actionLabel?: string
+  accent: string
+}[] = [
+  { status: "AWAITING_PICKUP", title: "Aguardando", nextStatus: "DISPATCHED",  actionLabel: "Despachar",       accent: "border-l-orange-400"    },
+  { status: "DISPATCHED",      title: "Saiu",        nextStatus: "IN_TRANSIT",  actionLabel: "Em rota",         accent: "border-l-blue-400"      },
+  { status: "IN_TRANSIT",      title: "Em rota",     nextStatus: "DELIVERED",   actionLabel: "Marcar entregue", accent: "border-l-purple-400"    },
+  { status: "DELIVERED",       title: "Entregue",                                                                accent: "border-l-green-500"     },
+  { status: "FAILED",          title: "Falhou",                                                                  accent: "border-l-destructive/60" },
 ]
 
-/** Minutes elapsed since the delivery entered the active flow. */
+const VALID_DND_TRANSITIONS: Partial<Record<DeliveryStatus, DeliveryStatus>> = {
+  AWAITING_PICKUP: "DISPATCHED",
+  DISPATCHED:      "IN_TRANSIT",
+  IN_TRANSIT:      "DELIVERED",
+}
+
 function minutesSince(isoDate: string): number {
   return Math.floor((Date.now() - new Date(isoDate).getTime()) / 60_000)
 }
@@ -52,7 +66,7 @@ function DeliveryCard({
   const canAssign = useCan("delivery:assign_courier")
   const updateStatus = useUpdateDeliveryStatus()
   const [assignOpen, setAssignOpen] = React.useState(false)
-  const [failOpen, setFailOpen] = React.useState(false)
+  const [failOpen, setFailOpen]     = React.useState(false)
   const [failReason, setFailReason] = React.useState("")
 
   const isPlatformDelivery = delivery.courierType === "PLATFORM"
@@ -63,9 +77,13 @@ function DeliveryCard({
 
   return (
     <>
-      <KanbanCard className={cn(isUrgent && "border-destructive/50")}>
+      <KanbanCard
+        draggableId={canUpdate ? delivery.id : undefined}
+        draggableData={{ status: delivery.status }}
+        className={cn(isUrgent && "border-destructive/50")}
+      >
         <div className="flex items-start justify-between gap-2">
-          <p className="font-medium">Pedido #{delivery.orderNumber}</p>
+          <p className="font-semibold">Pedido #{delivery.orderNumber}</p>
           <StatusBadge status={delivery.status} config={DELIVERY_STATUS_CONFIG} />
         </div>
         {customerName ? (
@@ -143,9 +161,7 @@ function DeliveryCard({
             <DialogTitle>Marcar entrega como falha — Pedido #{delivery.orderNumber}</DialogTitle>
           </DialogHeader>
           <div>
-            <Label htmlFor="fail-reason" className="mb-1.5">
-              Motivo
-            </Label>
+            <Label htmlFor="fail-reason" className="mb-1.5">Motivo</Label>
             <Textarea id="fail-reason" rows={3} value={failReason} onChange={(e) => setFailReason(e.target.value)} />
           </div>
           <DialogFooter>
@@ -155,12 +171,7 @@ function DeliveryCard({
               onClick={() =>
                 updateStatus.mutate(
                   { deliveryId: delivery.id, status: "FAILED", reason: failReason },
-                  {
-                    onSuccess: () => {
-                      setFailOpen(false)
-                      setFailReason("")
-                    },
-                  },
+                  { onSuccess: () => { setFailOpen(false); setFailReason("") } },
                 )
               }
             >
@@ -175,13 +186,37 @@ function DeliveryCard({
 }
 
 export default function DeliveryPage() {
-  const deliveries = useDeliveries()
-  const orderIds = deliveries.data?.items.map((d) => d.orderId) ?? []
-  const ordersById = useOrdersByIds(orderIds)
+  const deliveries  = useDeliveries()
+  const storeId     = useActiveStoreId()
+  const queryClient = useQueryClient()
+  const canUpdate   = useCan("delivery:update_status")
+  const orderIds    = deliveries.data?.items.map((d) => d.orderId) ?? []
+  const ordersById  = useOrdersByIds(orderIds)
+
+  const handleCardDrop = React.useCallback(
+    async (cardId: string, newColumnId: string) => {
+      if (!canUpdate) return
+      const delivery = deliveries.data?.items.find((d) => d.id === cardId)
+      if (!delivery) return
+      const validNext = VALID_DND_TRANSITIONS[delivery.status as DeliveryStatus]
+      if (validNext !== newColumnId) return
+
+      try {
+        await deliveryApi.updateStatus(storeId, cardId, newColumnId)
+        queryClient.invalidateQueries({ queryKey: ["delivery", storeId] })
+        queryClient.invalidateQueries({ queryKey: ["orders", storeId] })
+      } catch {
+        toast.error("Não foi possível mover a entrega.")
+      }
+    },
+    [canUpdate, deliveries.data, storeId, queryClient],
+  )
+
+  const allDeliveries = deliveries.data?.items ?? []
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Entregas" description="Painel de despacho e acompanhamento — atualiza automaticamente." />
+      <PageHeader title="Entregas" description="Painel de despacho — atualiza em tempo real." />
 
       {deliveries.isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -191,27 +226,49 @@ export default function DeliveryPage() {
         </div>
       ) : deliveries.isError ? (
         <ErrorState error={deliveries.error} onRetry={() => deliveries.refetch()} />
-      ) : deliveries.data && deliveries.data.items.length > 0 ? (
-        <div className="flex gap-4 overflow-x-auto pb-2">
-          {COLUMNS.map((column) => {
-            const columnDeliveries = (deliveries.data?.items ?? []).filter((d) => d.status === column.status)
+      ) : allDeliveries.length > 0 ? (
+        <KanbanBoard
+          onCardDrop={handleCardDrop}
+          renderOverlay={(id) => {
+            const d = allDeliveries.find((x) => x.id === id)
+            if (!d) return null
             return (
-              <KanbanColumn key={column.status} title={column.title} count={columnDeliveries.length}>
-                {columnDeliveries.map((delivery) => (
-                  <DeliveryCard
-                    key={delivery.id}
-                    delivery={delivery}
-                    customerName={ordersById.get(delivery.orderId)?.customer?.name ?? null}
-                    customerPhone={ordersById.get(delivery.orderId)?.customer?.phone ?? null}
-                    nextStatus={column.nextStatus}
-                    actionLabel={column.actionLabel}
-                  />
-                ))}
-                {columnDeliveries.length === 0 ? <p className="px-1 py-6 text-center text-xs text-muted-foreground">Sem entregas nesta etapa</p> : null}
-              </KanbanColumn>
+              <KanbanCard className="w-64 shadow-xl">
+                <p className="font-semibold">Pedido #{d.orderNumber}</p>
+                <p className="text-xs text-muted-foreground">{d.deliveryAddress.neighborhood}</p>
+              </KanbanCard>
             )
-          })}
-        </div>
+          }}
+        >
+          <div className="flex gap-4 overflow-x-auto pb-2">
+            {COLUMNS.map((column) => {
+              const colDeliveries = allDeliveries.filter((d) => d.status === column.status)
+              return (
+                <KanbanColumn
+                  key={column.status}
+                  title={column.title}
+                  count={colDeliveries.length}
+                  droppableId={column.status}
+                  accentColor={column.accent}
+                >
+                  {colDeliveries.map((delivery) => (
+                    <DeliveryCard
+                      key={delivery.id}
+                      delivery={delivery}
+                      customerName={ordersById.get(delivery.orderId)?.customer?.name ?? null}
+                      customerPhone={ordersById.get(delivery.orderId)?.customer?.phone ?? null}
+                      nextStatus={column.nextStatus}
+                      actionLabel={column.actionLabel}
+                    />
+                  ))}
+                  {colDeliveries.length === 0 ? (
+                    <p className="px-1 py-8 text-center text-xs text-muted-foreground">Sem entregas aqui</p>
+                  ) : null}
+                </KanbanColumn>
+              )
+            })}
+          </div>
+        </KanbanBoard>
       ) : (
         <EmptyState
           icon={Truck}
