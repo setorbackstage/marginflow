@@ -5,7 +5,7 @@ import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { productService, authorizationService } from "@/server/services"
 import type { UpdateProductInput } from "@/server/services"
-import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok, noContent } from "@/server/lib/http"
 import { toProductDetailResponse } from "../_product-response"
 
@@ -48,8 +48,8 @@ async function handleUpdateProduct(request: NextRequest, { params }: RouteContex
     availabilitySchedule: input.availabilitySchedule as Prisma.InputJsonValue | null | undefined,
   }
   await productService.update(prisma, storeId, productId, updateInput)
-
   const product = await productService.getByIdWithModifierGroups(prisma, storeId, productId)
+  void logAudit(prisma, { storeId, userId: actor.userId, action: "product.updated", entityType: "Product", entityId: productId, entityRef: product.name, meta: input as unknown as import("@/generated/prisma/client").Prisma.InputJsonValue })
   return ok(toProductDetailResponse(product))
 }
 
@@ -58,7 +58,9 @@ async function handleDeleteProduct(request: NextRequest, { params }: RouteContex
   const actor = requireAuth(request)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "products:delete")
 
+  const productToDelete = await productService.getByIdWithModifierGroups(prisma, storeId, productId)
   await productService.softDelete(prisma, storeId, productId)
+  void logAudit(prisma, { storeId, userId: actor.userId, action: "product.deleted", entityType: "Product", entityId: productId, entityRef: productToDelete.name })
   return noContent()
 }
 

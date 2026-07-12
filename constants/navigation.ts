@@ -8,6 +8,7 @@ import {
   Users,
   Truck,
   Wallet,
+  ClipboardList,
   Settings,
 } from "lucide-react"
 
@@ -37,7 +38,10 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: "Análises",
-    items: [{ title: "Financeiro", url: "/finance", icon: Wallet }],
+    items: [
+      { title: "Financeiro", url: "/finance", icon: Wallet },
+      { title: "Auditoria",  url: "/audit",   icon: ClipboardList },
+    ],
   },
   {
     label: "Sistema",

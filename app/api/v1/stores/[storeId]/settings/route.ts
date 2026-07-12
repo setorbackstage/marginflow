@@ -5,7 +5,7 @@ import { prisma } from "@/server/db"
 import { storeService, authorizationService } from "@/server/services"
 import type { UpdateStoreSettingsInput } from "@/server/services"
 import type { StoreSettings } from "@/generated/prisma/client"
-import { requireAuth, parseJsonBody, toJsonInput, requireUuidParams } from "@/server/lib"
+import { requireAuth, parseJsonBody, toJsonInput, requireUuidParams, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 
 interface RouteContext {
@@ -80,6 +80,7 @@ async function handleUpdateSettings(request: NextRequest, { params }: RouteConte
     notificationPreferences: input.notificationPreferences ? toJsonInput(input.notificationPreferences) : undefined,
   }
   const settings = await storeService.updateSettings(prisma, storeId, updateInput)
+  void logAudit(prisma, { storeId, userId: actor.userId, action: "settings.updated", entityType: "Settings", meta: input as unknown as import("@/generated/prisma/client").Prisma.InputJsonValue })
   return ok(toSettingsResponse(settings))
 }
 

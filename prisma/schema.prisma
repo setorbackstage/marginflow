@@ -181,6 +181,7 @@ model Store {
   stockMovements           StockMovement[]
   marketplaceIntegrations  MarketplaceIntegration[]
   notifications            Notification[]
+  auditLogs                AuditLog[]
 
   @@index([accountId])
   @@map("stores")
@@ -262,6 +263,7 @@ model User {
   passwordResetTokens  PasswordResetToken[]
   notifications        Notification[]
   stockMovements       StockMovement[]         @relation("StockMovementCreatedBy")
+  auditLogs            AuditLog[]
 
   @@map("users")
 }
@@ -1217,4 +1219,35 @@ model Notification {
 
   @@index([storeId, createdAt(sort: Desc)])
   @@map("notifications")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Audit Log
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Append-only corporate audit trail. Every significant data-mutating action
+/// (product CRUD, refunds, team changes, settings) writes one row. Rows are
+/// never updated or deleted. No updated_at by design.
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId    String   @map("store_id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  /// Format: "entity.verb" — e.g. "product.created", "payment.refunded"
+  action     String
+  /// Pascal-case entity name — e.g. "Product", "Payment", "Settings"
+  entityType String   @map("entity_type")
+  /// PK of the affected entity (when available)
+  entityId   String?  @map("entity_id")
+  /// Human-readable ref — e.g. "Hamburguer Clássico" or "#42"
+  entityRef  String?  @map("entity_ref")
+  /// Arbitrary JSON with extra context (diff, reason, etc.)
+  meta       Json?    @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, createdAt(sort: Desc)])
+  @@index([storeId, entityType])
+  @@map("audit_logs")
 }

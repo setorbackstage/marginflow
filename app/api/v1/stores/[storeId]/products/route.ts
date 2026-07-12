@@ -5,7 +5,7 @@ import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { productService, authorizationService } from "@/server/services"
 import type { CreateProductInput } from "@/server/services"
-import { requireAuth, parseJsonBody, parseQuery, requireUuidParams } from "@/server/lib"
+import { requireAuth, parseJsonBody, parseQuery, requireUuidParams, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, created } from "@/server/lib/http"
 import { toProductListItem, toProductDetailResponse } from "./_product-response"
 
@@ -85,6 +85,7 @@ async function handleCreateProduct(request: NextRequest, { params }: RouteContex
     availabilitySchedule: input.availabilitySchedule as Prisma.InputJsonValue | null | undefined,
   }
   const product = await productService.create(prisma, storeId, createInput)
+  void logAudit(prisma, { storeId, userId: actor.userId, action: "product.created", entityType: "Product", entityId: product.id, entityRef: product.name })
   const detail = await productService.getByIdWithModifierGroups(prisma, storeId, product.id)
   return created(toProductDetailResponse(detail))
 }

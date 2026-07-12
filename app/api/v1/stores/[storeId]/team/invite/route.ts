@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { membershipService, storeService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, created } from "@/server/lib/http"
 
 interface RouteContext {
@@ -27,6 +27,7 @@ async function handleInviteMember(request: NextRequest, { params }: RouteContext
     membershipService.inviteMember(tx, storeId, store.name, input, actor.userId),
   )
 
+  void logAudit(prisma, { storeId, userId: actor.userId, action: "user.invited", entityType: "User", entityRef: input.email, meta: { email: input.email, name: input.name } })
   return created({
     membershipId: membership.id,
     email: input.email,

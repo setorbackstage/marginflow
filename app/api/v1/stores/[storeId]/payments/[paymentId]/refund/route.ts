@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { paymentService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 
 interface RouteContext {
@@ -23,6 +23,7 @@ async function handleRefundPayment(request: NextRequest, { params }: RouteContex
 
   const input = await parseJsonBody(request, refundPaymentSchema)
   const payment = await paymentService.refund(prisma, storeId, paymentId, input, actor.userId)
+  void logAudit(prisma, { storeId, userId: actor.userId, action: "payment.refunded", entityType: "Payment", entityId: paymentId, meta: { amount: input.amount, reason: input.reason } })
 
   // API_SPEC.md documents a smaller response shape for this endpoint than
   // GET /payments/:paymentId — no order/attempts, just the refund outcome.
