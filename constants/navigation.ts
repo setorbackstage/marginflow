@@ -10,6 +10,7 @@ import {
   Wallet,
   ClipboardList,
   BarChart2,
+  Bell,
   Settings,
 } from "lucide-react"
 
@@ -35,7 +36,10 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: "Relacionamento",
-    items: [{ title: "Clientes", url: "/customers", icon: Users }],
+    items: [
+      { title: "Clientes",       url: "/customers",     icon: Users },
+      { title: "Notificações",   url: "/notifications", icon: Bell  },
+    ],
   },
   {
     label: "Análises",

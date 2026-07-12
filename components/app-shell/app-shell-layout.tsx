@@ -11,6 +11,7 @@ import { OfflineBanner } from "@/components/app-shell/offline-banner"
 import { navGroups } from "@/lib/navigation"
 import { useNewOrderNotifier } from "@/features/orders/use-new-order-notifier"
 import { useRealtimeInvalidator } from "@/hooks/use-realtime-invalidator"
+import { useAlertCheck } from "@/features/notifications"
 import { WelcomeDialog } from "@/components/onboarding/welcome-dialog"
 
 function NewOrderNotifier() {
@@ -20,6 +21,11 @@ function NewOrderNotifier() {
 
 function RealtimeInvalidator() {
   useRealtimeInvalidator()
+  return null
+}
+
+function AlertChecker() {
+  useAlertCheck()
   return null
 }
 
@@ -55,6 +61,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <RealtimeInvalidator />
       <NewOrderNotifier />
+      <AlertChecker />
       <WelcomeDialog />
       <AppSidebar activeUrl={active.url} onNavigate={onNavigate} />
       <SidebarInset className="min-w-0">

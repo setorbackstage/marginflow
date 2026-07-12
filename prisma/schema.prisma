@@ -182,6 +182,7 @@ model Store {
   marketplaceIntegrations  MarketplaceIntegration[]
   notifications            Notification[]
   auditLogs                AuditLog[]
+  pushSubscriptions        PushSubscription[]
 
   @@index([accountId])
   @@map("stores")
@@ -264,6 +265,7 @@ model User {
   notifications        Notification[]
   stockMovements       StockMovement[]         @relation("StockMovementCreatedBy")
   auditLogs            AuditLog[]
+  pushSubscriptions    PushSubscription[]
 
   @@map("users")
 }
@@ -1219,6 +1221,32 @@ model Notification {
 
   @@index([storeId, createdAt(sort: Desc)])
   @@map("notifications")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Push Subscriptions (Web Push / VAPID)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Stores Web Push API subscription objects for each user-device pair.
+/// Deleted automatically when the push endpoint returns 410 Gone.
+model PushSubscription {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId   String   @map("store_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  /// Push endpoint URL provided by the browser
+  endpoint  String
+  /// ECDH public key (base64url)
+  p256dh    String
+  /// Authentication secret (base64url)
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+  @@index([storeId])
+  @@map("push_subscriptions")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

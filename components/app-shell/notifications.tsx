@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Bell, CheckCheck, Loader2 } from "lucide-react"
+import { Bell, CheckCheck, Loader2, ArrowRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { formatDistanceToNow } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -127,6 +127,14 @@ export function Notifications() {
             </DropdownMenuItem>
           ))
         )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="justify-center text-xs text-muted-foreground"
+          onClick={() => router.push("/notifications")}
+        >
+          Ver todas
+          <ArrowRight className="ml-1 size-3" />
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
