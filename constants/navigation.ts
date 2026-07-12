@@ -9,6 +9,7 @@ import {
   Truck,
   Wallet,
   ClipboardList,
+  BarChart2,
   Settings,
 } from "lucide-react"
 
@@ -39,6 +40,7 @@ export const navGroups: NavGroup[] = [
   {
     label: "Análises",
     items: [
+      { title: "Relatórios", url: "/reports", icon: BarChart2 },
       { title: "Financeiro", url: "/finance", icon: Wallet },
       { title: "Auditoria",  url: "/audit",   icon: ClipboardList },
     ],
