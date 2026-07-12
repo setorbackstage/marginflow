@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { customerService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 import { toCustomerDetailResponse } from "../_customer-response"
 
@@ -55,6 +55,9 @@ async function handleUpdateCustomer(request: NextRequest, { params }: RouteConte
   }
 
   const customer = await customerService.update(prisma, storeId, customerId, input)
+  if (status !== undefined) {
+    void logAudit(prisma, { storeId, userId: actor.userId, action: status === "BLOCKED" ? "customer.blocked" : "customer.unblocked", entityType: "Customer", entityId: customerId, entityRef: customer.name })
+  }
   return ok(await toCustomerDetailResponse(customer))
 }
 

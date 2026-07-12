@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Pencil, Trash2, MapPin, Ban, CheckCircle2, ReceiptText } from "lucide-react"
+import Link from "next/link"
+import { Plus, Pencil, Trash2, MapPin, Ban, CheckCircle2, ReceiptText, ExternalLink } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -68,6 +69,10 @@ export function CustomerDetailSheet({
             </div>
 
             <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => { window.location.href = `/customers/${customer.id}` }}>
+                <ExternalLink data-icon="inline-start" />
+                Ver perfil completo
+              </Button>
               {canEdit ? (
                 <Button variant="outline" size="sm" onClick={onEdit}>
                   <Pencil data-icon="inline-start" />

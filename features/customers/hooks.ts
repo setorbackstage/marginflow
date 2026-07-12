@@ -4,13 +4,14 @@ import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tansta
 import { toast } from "sonner"
 import { useActiveStoreId } from "@/features/auth"
 import { customersApi, addressesApi } from "./api"
-import type { AddressInput, CreateCustomerInput, CustomerListParams, UpdateCustomerInput } from "./types"
+import type { AddressInput, CreateCustomerInput, CustomerListParams, CustomerOrdersParams, UpdateCustomerInput } from "./types"
 
 const keys = {
-  list: (storeId: string, params: CustomerListParams) => ["customers", storeId, params] as const,
-  detail: (storeId: string, customerId: string) => ["customers", storeId, "detail", customerId] as const,
-  addresses: (storeId: string, customerId: string) => ["customers", storeId, "addresses", customerId] as const,
-  orders: (storeId: string, customerId: string) => ["customers", storeId, "orders", customerId] as const,
+  list:     (storeId: string, params: CustomerListParams)   => ["customers", storeId, params] as const,
+  detail:   (storeId: string, customerId: string)           => ["customers", storeId, "detail", customerId] as const,
+  addresses:(storeId: string, customerId: string)           => ["customers", storeId, "addresses", customerId] as const,
+  orders:   (storeId: string, customerId: string, p?: CustomerOrdersParams) => ["customers", storeId, "orders", customerId, p] as const,
+  segments: (storeId: string)                               => ["customers", storeId, "segments"] as const,
 }
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -37,12 +38,23 @@ export function useCustomer(customerId: string | undefined) {
   })
 }
 
-export function useCustomerOrders(customerId: string | undefined) {
+export function useCustomerOrders(customerId: string | undefined, params: CustomerOrdersParams = {}) {
   const storeId = useActiveStoreId()
   return useQuery({
-    queryKey: keys.orders(storeId, customerId ?? ""),
-    enabled: Boolean(storeId) && Boolean(customerId),
-    queryFn: () => customersApi.listOrders(storeId, customerId as string),
+    queryKey:         keys.orders(storeId, customerId ?? "", params),
+    enabled:          Boolean(storeId) && Boolean(customerId),
+    placeholderData:  keepPreviousData,
+    queryFn:          () => customersApi.listOrders(storeId, customerId as string, params),
+  })
+}
+
+export function useCustomerSegments() {
+  const storeId = useActiveStoreId()
+  return useQuery({
+    queryKey: keys.segments(storeId),
+    enabled:  Boolean(storeId),
+    staleTime: 60_000,
+    queryFn:  () => customersApi.segments(storeId),
   })
 }
 

@@ -92,7 +92,25 @@ export interface UpdateCustomerInput {
 }
 
 export interface CustomerListParams {
-  page?: number
+  page?:   number
+  limit?:  number
   status?: CustomerStatus
   search?: string
+  sort?:   string
+  order?:  "asc" | "desc"
+}
+
+export interface CustomerSegments {
+  total:     number
+  active:    number
+  blocked:   number
+  newLast30: number
+  frequent:  number
+  atRisk:    number
+  churned:   number
+}
+
+export interface CustomerOrdersParams {
+  page?:  number
+  limit?: number
 }
