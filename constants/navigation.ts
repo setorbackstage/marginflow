@@ -11,6 +11,7 @@ import {
   ClipboardList,
   BarChart2,
   Bell,
+  Printer,
   Settings,
 } from "lucide-react"
 
@@ -51,6 +52,9 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: "Sistema",
-    items: [{ title: "Configurações", url: "/settings", icon: Settings }],
+    items: [
+      { title: "Impressão", url: "/printing", icon: Printer },
+      { title: "Configurações", url: "/settings", icon: Settings },
+    ],
   },
 ]

@@ -183,6 +183,10 @@ model Store {
   notifications            Notification[]
   auditLogs                AuditLog[]
   pushSubscriptions        PushSubscription[]
+  printers                 Printer[]
+  printTemplates           PrintTemplate[]
+  printRules               PrintRule[]
+  printJobs                PrintJob[]
 
   @@index([accountId])
   @@map("stores")
@@ -1278,4 +1282,105 @@ model AuditLog {
   @@index([storeId, createdAt(sort: Desc)])
   @@index([storeId, entityType])
   @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Printing
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Physical or virtual printer registered for a store.
+model Printer {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId   String   @map("store_id") @db.Uuid
+  name      String
+  /// CHECK (type IN ('KITCHEN','BAR','CONFECTIONERY','CASHIER','FISCAL','DELIVERY','EXPEDITION','GENERAL'))
+  type      String   @default("GENERAL")
+  model     String?
+  /// CHECK (interface IN ('USB','NETWORK','BLUETOOTH','SERIAL','VIRTUAL'))
+  interface String   @default("NETWORK")
+  /// For NETWORK: "192.168.1.100:9100"; for USB/SERIAL: device path
+  address   String?
+  isDefault Boolean  @default(false) @map("is_default")
+  isActive  Boolean  @default(true)  @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt      @map("updated_at") @db.Timestamptz(6)
+
+  store      Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  printJobs  PrintJob[]
+  printRules PrintRule[]
+
+  @@index([storeId])
+  @@map("printers")
+}
+
+/// Configurable print layout for a document type.
+model PrintTemplate {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId   String   @map("store_id") @db.Uuid
+  name      String
+  /// CHECK (type IN ('ORDER','RECEIPT','CANCELLATION','LABEL','KITCHEN','DELIVERY','TEST'))
+  type      String
+  /// JSON layout descriptor: { showLogo, showAddress, showQrCode, footerText, … }
+  layout    Json     @default("{}") @db.JsonB
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt      @map("updated_at") @db.Timestamptz(6)
+
+  store      Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  printRules PrintRule[]
+  printJobs  PrintJob[]
+
+  @@index([storeId, type])
+  @@map("print_templates")
+}
+
+/// Mapping of a domain event to a printer+template — drives automatic printing.
+model PrintRule {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId    String   @map("store_id") @db.Uuid
+  printerId  String   @map("printer_id") @db.Uuid
+  templateId String   @map("template_id") @db.Uuid
+  /// Domain event that triggers this rule e.g. "order.confirmed", "payment.paid"
+  event      String
+  /// Optional sector filter — only items tagged with this sector trigger this rule
+  sector     String?
+  isActive   Boolean  @default(true) @map("is_active")
+  sortOrder  Int      @default(0)    @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt      @map("updated_at") @db.Timestamptz(6)
+
+  store    Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  printer  Printer       @relation(fields: [printerId], references: [id], onDelete: Cascade)
+  template PrintTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, event])
+  @@map("print_rules")
+}
+
+/// A single print request — acts as both a queue entry and a history record.
+model PrintJob {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId    String    @map("store_id") @db.Uuid
+  printerId  String    @map("printer_id") @db.Uuid
+  templateId String?   @map("template_id") @db.Uuid
+  orderId    String?   @map("order_id") @db.Uuid
+  /// CHECK (type IN ('ORDER','RECEIPT','CANCELLATION','LABEL','KITCHEN','DELIVERY','TEST'))
+  type       String
+  /// Rendered content to send to the printer (plain text / ESC-POS)
+  content    String?
+  /// CHECK (status IN ('PENDING','SENDING','PRINTED','ERROR','CANCELLED'))
+  status     String    @default("PENDING")
+  attempts   Int       @default(0)
+  error      String?
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  printedAt  DateTime? @map("printed_at") @db.Timestamptz(6)
+
+  store    Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  printer  Printer        @relation(fields: [printerId], references: [id], onDelete: Restrict)
+  template PrintTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, createdAt(sort: Desc)])
+  @@index([storeId, status])
+  @@index([printerId, status])
+  @@map("print_jobs")
 }
