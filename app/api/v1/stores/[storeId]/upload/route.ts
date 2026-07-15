@@ -31,8 +31,9 @@ async function handleUpload(request: NextRequest, { params }: RouteContext): Pro
   if (!type || !(ALLOWED_TYPES as readonly string[]).includes(type)) {
     throw new AppError({ code: "INVALID_TYPE", message: "Tipo inválido. Use 'logo' ou 'banner'.", status: 400 })
   }
-  if (!file.type.startsWith("image/")) {
-    throw new AppError({ code: "INVALID_MIME", message: "Apenas imagens são permitidas.", status: 400 })
+  const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const
+  if (!(ALLOWED_MIMES as readonly string[]).includes(file.type)) {
+    throw new AppError({ code: "INVALID_MIME", message: "Apenas JPEG, PNG, WebP ou GIF são permitidos.", status: 400 })
   }
   if (file.size > MAX_BYTES) {
     throw new AppError({ code: "FILE_TOO_LARGE", message: "Arquivo maior que 5 MB.", status: 413 })

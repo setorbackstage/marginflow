@@ -21,8 +21,8 @@ const listMenusQuerySchema = z.object({
 
 /** API_SPEC.md `POST /api/v1/stores/:storeId/menus` — request body. */
 const createMenuSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().nullable().optional(),
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).nullable().optional(),
   channel: z.enum(["DELIVERY", "IN_STORE", "MARKETPLACE", "KIOSK"]),
   status: z.enum(["ACTIVE", "INACTIVE", "SCHEDULED"]).optional(),
   availabilitySchedule: z.record(z.string(), z.unknown()).nullable().optional(),

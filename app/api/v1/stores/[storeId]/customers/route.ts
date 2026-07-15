@@ -15,7 +15,7 @@ interface RouteContext {
 /** API_SPEC.md `GET /api/v1/stores/:storeId/customers` — query parameters. */
 const listCustomersQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(2000).default(20),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
   status: z.enum(["ACTIVE", "BLOCKED"]).optional(),
   search: z.string().optional(),
   sort: z.enum(["name", "last_order_at", "total_spent", "total_orders", "created_at"]).default("last_order_at"),
