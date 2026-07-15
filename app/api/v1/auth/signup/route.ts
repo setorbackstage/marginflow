@@ -4,6 +4,7 @@ import { prisma } from "@/server/db"
 import { signupService } from "@/server/services"
 import { signupSchema, parseJsonBody, hashPassword } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, created, setRefreshTokenCookie } from "@/server/lib/http"
+import { rateLimit, getClientIp } from "@/server/lib/rate-limit"
 import { toLoginResponse } from "../_auth-response"
 
 /**
@@ -15,6 +16,14 @@ import { toLoginResponse } from "../_auth-response"
  * — is created atomically in `signupService.signup` via `prisma.$transaction`.
  */
 async function handleSignup(request: NextRequest): Promise<Response> {
+  const ip = getClientIp(request)
+  const result = rateLimit(`signup:${ip}`, 5, 60_000)
+  if (!result.allowed) {
+    return new Response(
+      JSON.stringify({ error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests. Please try again later.", status: 429 } }),
+      { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.ceil((result.resetAt - Date.now()) / 1000)) } },
+    )
+  }
   const input = await parseJsonBody(request, signupSchema)
   const passwordHash = await hashPassword(input.password)
 
