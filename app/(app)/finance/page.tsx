@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
 import { EmptyState, ErrorState, StatusBadge, PaginationBar } from "@/components/shared"
 import { formatCents, formatDateTime } from "@/lib/format"
+import { useRealtimeSync } from "@/hooks"
 
 const STATUS_FILTER_LABEL: Record<string, string> = {
   ALL:                  "Todos os status",
@@ -37,6 +38,7 @@ export default function FinancePage() {
   const router    = useRouter()
   const storeId   = useActiveStoreId()
   const canExport = useCan("finance:export")
+  useRealtimeSync({ table: "payments", storeId, queryKeys: [["payments", storeId]] })
 
   const [statusFilter, setStatusFilter] = React.useState<PaymentStatus | "ALL">("ALL")
   const [page,         setPage]         = React.useState(1)

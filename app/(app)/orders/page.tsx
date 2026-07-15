@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
 import { EmptyState, ErrorState, StatusBadge, PaginationBar, SearchBar, LastUpdated, KanbanColumn, KanbanCard, KanbanBoard } from "@/components/shared"
 import { formatCents, formatDateTime, formatRelative } from "@/lib/format"
-import { useDebouncedValue, usePrintOrder } from "@/hooks"
+import { useDebouncedValue, usePrintOrder, useRealtimeSync } from "@/hooks"
 import { cn } from "@/lib/utils"
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -185,6 +185,8 @@ function OrdersKanbanView({ orders, onCardClick }: { orders: OrderListItem[]; on
 export default function OrdersPage() {
   const router    = useRouter()
   const canCreate = useCan("orders:create")
+  const storeId   = useActiveStoreId()
+  useRealtimeSync({ table: "orders", storeId, queryKeys: [["orders", storeId]] })
 
   const [view, setView]               = React.useState<"table" | "kanban">("table")
   const [searchInput, setSearchInput] = React.useState("")

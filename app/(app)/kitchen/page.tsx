@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { EmptyState, ErrorState, KanbanColumn, KanbanCard, KanbanBoard } from "@/components/shared"
 import { cn } from "@/lib/utils"
+import { useRealtimeSync } from "@/hooks"
 
 // ─── Columns ────────────────────────────────────────────────────────────────
 
@@ -137,6 +138,7 @@ export default function KitchenPage() {
   const storeId    = useActiveStoreId()
   const queryClient = useQueryClient()
   const canUpdate  = useCan("kitchen:update_status")
+  useRealtimeSync({ table: "kitchen_tickets", storeId, queryKeys: [["kitchen", storeId]] })
 
   // Live clock so the timer increments every minute without a refetch
   const [, setTick] = React.useState(0)

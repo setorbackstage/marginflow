@@ -9,6 +9,7 @@ import { ptBR } from "date-fns/locale"
 import {
   useNotifications, useMarkAllRead, useMarkRead, useDeleteNotification, usePushNotifications,
 } from "@/features/notifications"
+import { useActiveStoreId } from "@/features/auth"
 import { PageHeader } from "@/components/app-shell/page-container"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -16,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState, ErrorState, PaginationBar } from "@/components/shared"
 import { cn } from "@/lib/utils"
 import type { Notification } from "@/features/notifications/types"
+import { useRealtimeSync } from "@/hooks"
 
 // ─── Notification type colour dot ────────────────────────────────────────────
 
@@ -172,6 +174,9 @@ function NotificationRow({ item }: { item: Notification }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NotificationsPage() {
+  const storeId = useActiveStoreId()
+  useRealtimeSync({ table: "notifications", storeId, queryKeys: [["notifications", storeId]] })
+
   const [page, setPage] = React.useState(1)
   const notifications = useNotifications({ page, limit: 30 })
   const markAllRead   = useMarkAllRead()

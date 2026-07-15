@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { EmptyState, ErrorState, KanbanColumn, KanbanCard, KanbanBoard, StatusBadge } from "@/components/shared"
 import { formatRelative } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { useRealtimeSync } from "@/hooks"
 
 const COLUMNS: {
   status: DeliveryStatus
@@ -190,6 +191,7 @@ export default function DeliveryPage() {
   const storeId     = useActiveStoreId()
   const queryClient = useQueryClient()
   const canUpdate   = useCan("delivery:update_status")
+  useRealtimeSync({ table: "deliveries", storeId, queryKeys: [["delivery", storeId]] })
   const orderIds    = deliveries.data?.items.map((d) => d.orderId) ?? []
   const ordersById  = useOrdersByIds(orderIds)
 
