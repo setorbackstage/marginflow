@@ -17,11 +17,11 @@ import { toLoginResponse } from "../_auth-response"
  */
 async function handleSignup(request: NextRequest): Promise<Response> {
   const ip = getClientIp(request)
-  const result = rateLimit(`signup:${ip}`, 5, 60_000)
-  if (!result.allowed) {
+  const rl = rateLimit(`signup:${ip}`, 5, 60_000)
+  if (!rl.allowed) {
     return new Response(
       JSON.stringify({ error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests. Please try again later.", status: 429 } }),
-      { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.ceil((result.resetAt - Date.now()) / 1000)) } },
+      { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
     )
   }
   const input = await parseJsonBody(request, signupSchema)
