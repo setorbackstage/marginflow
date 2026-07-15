@@ -1067,6 +1067,7 @@ model Ingredient {
   /// unique index is created via raw SQL in the migration (file header, 3b
   /// pattern); no @@unique here.
   @@index([storeId, status])
+  // Raw SQL: ingredients_low_stock_idx ON (store_id, current_stock) WHERE deleted_at IS NULL AND min_stock IS NOT NULL — added via migration add_performance_indexes.
   @@map("ingredients")
 }
 
@@ -1224,6 +1225,7 @@ model Notification {
   user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([storeId, createdAt(sort: Desc)])
+  // Raw SQL: notifications_store_id_unread_idx ON (store_id, created_at DESC) WHERE read_at IS NULL — added via migration add_performance_indexes.
   @@map("notifications")
 }
 
@@ -1281,6 +1283,7 @@ model AuditLog {
 
   @@index([storeId, createdAt(sort: Desc)])
   @@index([storeId, entityType])
+  // Raw SQL: audit_logs_store_action_idx ON (store_id, action, created_at DESC) — added via migration add_performance_indexes.
   @@map("audit_logs")
 }
 
