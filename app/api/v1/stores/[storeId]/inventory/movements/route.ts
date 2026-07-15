@@ -5,7 +5,7 @@ import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { stockMovementService, authorizationService } from "@/server/services"
 import type { StockMovementWithRelations } from "@/server/repositories"
-import { requireAuth, parseQuery, parseJsonBody, requireUuidParams } from "@/server/lib"
+import { requireAuth, parseQuery, parseJsonBody, requireUuidParams, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, created } from "@/server/lib/http"
 import { BadRequestError } from "@/server/lib/errors"
 
@@ -114,6 +114,15 @@ async function handleCreateMovement(request: NextRequest, { params }: RouteConte
 
   const input = await parseJsonBody(request, createMovementSchema)
   const result = await prisma.$transaction((tx) => stockMovementService.createManual(tx, storeId, input, actor.userId))
+
+  void logAudit(prisma, {
+    storeId,
+    userId: actor.userId,
+    action: "stock.movement_created",
+    entityType: "StockMovement",
+    entityId: result.movement.id,
+    entityRef: result.movement.type,
+  })
 
   const [movement] = await stockMovementService.listByStore(prisma, storeId, {
     where: { id: result.movement.id },

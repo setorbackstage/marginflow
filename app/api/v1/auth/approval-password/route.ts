@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { meService } from "@/server/services"
-import { requireAuth, parseJsonBody } from "@/server/lib"
+import { requireAuth, parseJsonBody, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 
 /** API_SPEC.md `PATCH /api/v1/auth/approval-password` — request body. */
@@ -17,6 +17,15 @@ async function handleSetApprovalPassword(request: NextRequest): Promise<Response
   const input = await parseJsonBody(request, setApprovalPasswordSchema)
 
   await meService.setApprovalPassword(prisma, actor.userId, input.currentPassword, input.newApprovalPassword)
+
+  void logAudit(prisma, {
+    storeId: "system",
+    userId: actor.userId,
+    action: "user.approval_password_set",
+    entityType: "User",
+    entityId: actor.userId,
+    entityRef: actor.email,
+  })
 
   return ok({ success: true })
 }

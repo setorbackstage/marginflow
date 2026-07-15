@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { marketplaceIntegrationService, authorizationService } from "@/server/services"
-import { requireAuth, requireUuidParams, parseJsonBody } from "@/server/lib"
+import { requireAuth, requireUuidParams, parseJsonBody, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, noContent, ok } from "@/server/lib/http"
 import { ValidationError } from "@/server/lib/errors"
 import { getIfoodAccessToken, pauseIfoodStore, resumeIfoodStore } from "@/server/integrations/ifood"
@@ -30,6 +30,14 @@ async function handleDisconnect(req: NextRequest, ctx: RouteContext) {
   const session = requireAuth(req)
   await authorizationService.requirePermission(prisma, session.userId, storeId, "integrations:manage")
   await marketplaceIntegrationService.disconnect(prisma, storeId, platform.toUpperCase())
+  void logAudit(prisma, {
+    storeId,
+    userId: session.userId,
+    action: "integration.disconnected",
+    entityType: "Integration",
+    entityId: platform.toUpperCase(),
+    entityRef: platform.toUpperCase(),
+  })
   return noContent()
 }
 
@@ -60,6 +68,14 @@ async function handleSetPaused(req: NextRequest, ctx: RouteContext) {
   }
 
   await marketplaceIntegrationService.setPaused(prisma, storeId, normalizedPlatform, body.paused)
+  void logAudit(prisma, {
+    storeId,
+    userId: session.userId,
+    action: body.paused ? "integration.paused" : "integration.resumed",
+    entityType: "Integration",
+    entityId: normalizedPlatform,
+    entityRef: normalizedPlatform,
+  })
   return ok({ isPaused: body.paused })
 }
 

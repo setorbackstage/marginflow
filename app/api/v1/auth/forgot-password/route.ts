@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { passwordAuthService } from "@/server/services"
-import { parseJsonBody } from "@/server/lib"
+import { parseJsonBody, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 import { rateLimit, getClientIp } from "@/server/lib/rate-limit"
 
@@ -22,6 +22,14 @@ async function handler(request: NextRequest): Promise<Response> {
   }
   const { email } = await parseJsonBody(request, schema)
   await passwordAuthService.forgotPassword(prisma, email)
+  void logAudit(prisma, {
+    storeId: "system",
+    userId: null,
+    action: "user.password_reset_requested",
+    entityType: "User",
+    entityId: email,
+    entityRef: email,
+  })
   // Always 200 — never reveal whether email exists
   return ok({ message: "Se esse e-mail estiver cadastrado, você receberá as instruções em breve." })
 }

@@ -4,7 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/server/db"
 import { marketplaceIntegrationService, authorizationService } from "@/server/services"
 import type { MarketplaceIntegration } from "@/generated/prisma/client"
-import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok, created } from "@/server/lib/http"
 
 interface RouteContext {
@@ -47,6 +47,14 @@ async function handleConnect(req: NextRequest, ctx: RouteContext) {
 
   const body = await parseJsonBody(req, connectSchema)
   const integration = await marketplaceIntegrationService.connect(prisma, storeId, body)
+  void logAudit(prisma, {
+    storeId,
+    userId: session.userId,
+    action: "integration.configured",
+    entityType: "Integration",
+    entityId: integration.id,
+    entityRef: integration.platform,
+  })
   return created(toIntegrationResponse(integration))
 }
 
