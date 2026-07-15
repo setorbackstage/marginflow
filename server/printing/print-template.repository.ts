@@ -6,14 +6,14 @@ export interface PrintTemplateCreateInput {
   storeId: string
   name: string
   type: string
-  layout?: Prisma.InputJsonValue
+  layout?: Record<string, unknown>
   isActive?: boolean
 }
 
 export interface PrintTemplateUpdateInput {
   name?: string
   type?: string
-  layout?: Prisma.InputJsonValue
+  layout?: Record<string, unknown>
   isActive?: boolean
 }
 
@@ -23,7 +23,7 @@ export const printTemplateRepository = {
       storeId:  data.storeId,
       name:     data.name,
       type:     data.type,
-      layout:   data.layout ?? {},
+      layout:   (data.layout ?? {}) as Prisma.InputJsonObject,
       isActive: data.isActive ?? true,
     }})
   },
@@ -40,7 +40,11 @@ export const printTemplateRepository = {
   },
 
   update(db: DbClient, id: string, data: PrintTemplateUpdateInput) {
-    return db.printTemplate.update({ where: { id }, data })
+    const { layout, ...rest } = data
+    return db.printTemplate.update({ where: { id }, data: {
+      ...rest,
+      ...(layout !== undefined && { layout: layout as Prisma.InputJsonObject }),
+    }})
   },
 
   delete(db: DbClient, id: string) {

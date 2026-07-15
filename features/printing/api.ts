@@ -19,7 +19,7 @@ export const printingApi = {
   updatePrinter: (storeId: string, printerId: string, data: Partial<Omit<Printer, "id" | "storeId" | "createdAt" | "updatedAt">>): Promise<Printer> =>
     api.patch<Printer>(`/stores/${storeId}/printers/${printerId}`, data),
   deletePrinter: (storeId: string, printerId: string): Promise<void> =>
-    api.delete(`/stores/${storeId}/printers/${printerId}`),
+    api.del(`/stores/${storeId}/printers/${printerId}`),
 
   // Templates
   listTemplates: (storeId: string): Promise<PrintTemplate[]> =>
@@ -29,7 +29,7 @@ export const printingApi = {
   updateTemplate: (storeId: string, templateId: string, data: Partial<Omit<PrintTemplate, "id" | "storeId" | "createdAt" | "updatedAt">>): Promise<PrintTemplate> =>
     api.patch<PrintTemplate>(`/stores/${storeId}/print-templates/${templateId}`, data),
   deleteTemplate: (storeId: string, templateId: string): Promise<void> =>
-    api.delete(`/stores/${storeId}/print-templates/${templateId}`),
+    api.del(`/stores/${storeId}/print-templates/${templateId}`),
 
   // Rules
   listRules: (storeId: string): Promise<PrintRule[]> =>
@@ -39,7 +39,7 @@ export const printingApi = {
   updateRule: (storeId: string, ruleId: string, data: Partial<{ printerId: string; templateId: string; event: string; sector: string | null; isActive: boolean; sortOrder: number }>): Promise<PrintRule> =>
     api.patch<PrintRule>(`/stores/${storeId}/print-rules/${ruleId}`, data),
   deleteRule: (storeId: string, ruleId: string): Promise<void> =>
-    api.delete(`/stores/${storeId}/print-rules/${ruleId}`),
+    api.del(`/stores/${storeId}/print-rules/${ruleId}`),
 
   // Jobs
   listJobs: (storeId: string, params: PrintJobListParams = {}): Promise<Page<PrintJob>> =>
