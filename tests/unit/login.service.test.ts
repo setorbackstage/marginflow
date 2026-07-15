@@ -5,8 +5,8 @@ import { ForbiddenError, UnauthorizedError } from "@/server/lib/errors"
 vi.mock("@/server/repositories", () => ({
   userRepository: { findByEmail: vi.fn(), update: vi.fn() },
   membershipRepository: { findManyByUser: vi.fn() },
-  storeRepository: { findById: vi.fn() },
-  roleRepository: { findById: vi.fn() },
+  storeRepository: { findById: vi.fn(), findManyByIds: vi.fn() },
+  roleRepository: { findById: vi.fn(), findManyByIds: vi.fn() },
   refreshTokenRepository: { create: vi.fn() },
 }))
 
@@ -24,8 +24,8 @@ import { verifyPassword } from "@/server/lib/auth"
 
 const mockUser = userRepository as { findByEmail: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> }
 const mockMembership = membershipRepository as { findManyByUser: ReturnType<typeof vi.fn> }
-const mockStore = storeRepository as { findById: ReturnType<typeof vi.fn> }
-const mockRoleRepo = roleRepository as { findById: ReturnType<typeof vi.fn> }
+const mockStore = storeRepository as { findById: ReturnType<typeof vi.fn>; findManyByIds: ReturnType<typeof vi.fn> }
+const mockRoleRepo = roleRepository as { findById: ReturnType<typeof vi.fn>; findManyByIds: ReturnType<typeof vi.fn> }
 const mockRefreshToken = refreshTokenRepository as { create: ReturnType<typeof vi.fn> }
 const mockVerifyPassword = verifyPassword as ReturnType<typeof vi.fn>
 
@@ -88,8 +88,8 @@ describe("loginService.login", () => {
     mockUser.findByEmail.mockResolvedValue(activeUser)
     mockVerifyPassword.mockResolvedValue(true)
     mockMembership.findManyByUser.mockResolvedValue([membership])
-    mockStore.findById.mockResolvedValue(store)
-    mockRoleRepo.findById.mockResolvedValue(role)
+    mockStore.findManyByIds.mockResolvedValue([store])
+    mockRoleRepo.findManyByIds.mockResolvedValue([role])
 
     const result = await loginService.login(db, { email: activeUser.email, password: "correct" })
 
@@ -104,8 +104,8 @@ describe("loginService.login", () => {
     mockUser.findByEmail.mockResolvedValue(activeUser)
     mockVerifyPassword.mockResolvedValue(true)
     mockMembership.findManyByUser.mockResolvedValue([membership])
-    mockStore.findById.mockResolvedValue(store)
-    mockRoleRepo.findById.mockResolvedValue(role)
+    mockStore.findManyByIds.mockResolvedValue([store])
+    mockRoleRepo.findManyByIds.mockResolvedValue([role])
 
     await loginService.login(db, { email: activeUser.email, password: "correct" })
 
@@ -119,8 +119,8 @@ describe("loginService.login", () => {
     mockUser.findByEmail.mockResolvedValue(activeUser)
     mockVerifyPassword.mockResolvedValue(true)
     mockMembership.findManyByUser.mockResolvedValue([membership])
-    mockStore.findById.mockResolvedValue(store)
-    mockRoleRepo.findById.mockResolvedValue(role)
+    mockStore.findManyByIds.mockResolvedValue([store])
+    mockRoleRepo.findManyByIds.mockResolvedValue([role])
 
     await loginService.login(db, { email: activeUser.email, password: "correct" })
 

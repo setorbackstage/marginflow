@@ -211,8 +211,13 @@ eventBus.on("order.cancelled", "stock-movement.service:order.cancelled", async (
   const reversals = await stockMovementRepository.findManyByOrder(db, event.payload.orderId, "SALE_REVERSAL")
   if (reversals.length > 0) return
 
+  // Batch-fetch all ingredients in one query, same pattern as order.confirmed handler above.
+  const ingredientIds = [...new Set(consumptions.map((c) => c.ingredientId))]
+  const ingredients = await ingredientRepository.findManyByIds(db, event.storeId, ingredientIds)
+  const ingredientMap = new Map(ingredients.map((i) => [i.id, i]))
+
   for (const consumption of consumptions) {
-    const ingredient = await ingredientRepository.findById(db, consumption.ingredientId)
+    const ingredient = ingredientMap.get(consumption.ingredientId)
     if (!ingredient) continue
     await appendMovement(db, ingredient, {
       type: "SALE_REVERSAL",

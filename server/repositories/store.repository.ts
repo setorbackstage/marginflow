@@ -36,6 +36,10 @@ export const storeRepository = {
     })
   },
 
+  findManyByIds(db: DbClient, ids: string[]): Promise<Store[]> {
+    return db.store.findMany({ where: { id: { in: ids } } })
+  },
+
   count(db: DbClient, where: Prisma.StoreWhereInput = {}): Promise<number> {
     return db.store.count({ where })
   },

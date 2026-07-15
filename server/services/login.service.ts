@@ -22,18 +22,24 @@ export interface LoginResult {
 
 async function loadMembershipContext(db: DbClient, userId: string): Promise<LoginMembershipContext[]> {
   const memberships = await membershipRepository.findManyByUser(db, userId)
-  return Promise.all(
-    memberships.map(async (membership) => {
-      const [store, role] = await Promise.all([
-        storeRepository.findById(db, membership.storeId),
-        roleRepository.findById(db, membership.roleId),
-      ])
-      if (!store || !role) {
-        throw new UnauthorizedError("INVALID_CREDENTIALS", "Email not found or password incorrect.")
-      }
-      return { membership, store, role }
-    }),
-  )
+  if (memberships.length === 0) return []
+
+  // Batch-fetch stores and roles in 2 queries instead of 2 queries per membership.
+  const [stores, roles] = await Promise.all([
+    storeRepository.findManyByIds(db, memberships.map((m) => m.storeId)),
+    roleRepository.findManyByIds(db, memberships.map((m) => m.roleId)),
+  ])
+  const storeMap = new Map(stores.map((s) => [s.id, s]))
+  const roleMap = new Map(roles.map((r) => [r.id, r]))
+
+  return memberships.map((membership) => {
+    const store = storeMap.get(membership.storeId)
+    const role = roleMap.get(membership.roleId)
+    if (!store || !role) {
+      throw new UnauthorizedError("INVALID_CREDENTIALS", "Email not found or password incorrect.")
+    }
+    return { membership, store, role }
+  })
 }
 
 /**

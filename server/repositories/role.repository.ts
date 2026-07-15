@@ -36,6 +36,10 @@ export const roleRepository = {
     })
   },
 
+  findManyByIds(db: DbClient, ids: string[]): Promise<Role[]> {
+    return db.role.findMany({ where: { id: { in: ids } } })
+  },
+
   count(db: DbClient, where: Prisma.RoleWhereInput): Promise<number> {
     return db.role.count({ where })
   },

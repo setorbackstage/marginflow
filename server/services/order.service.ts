@@ -119,6 +119,12 @@ async function resolveItemModifiers(
   selected: SelectedModifierInput[],
 ): Promise<ResolvedModifier[]> {
   const groups = await modifierGroupRepository.findManyByProduct(db, productId)
+
+  // Batch-fetch all selected modifiers in a single query instead of one per selection.
+  const selectedIds = selected.map((s) => s.modifierId)
+  const modifierRows = selectedIds.length > 0 ? await modifierRepository.findManyByIds(db, selectedIds) : []
+  const modifierMap = new Map(modifierRows.map((m) => [m.id, m]))
+
   const resolved: ResolvedModifier[] = []
 
   for (const group of groups) {
@@ -138,7 +144,7 @@ async function resolveItemModifiers(
     }
 
     for (const selection of selectedForGroup) {
-      const modifier = await modifierRepository.findById(db, selection.modifierId)
+      const modifier = modifierMap.get(selection.modifierId)
       if (!modifier || modifier.modifierGroupId !== group.id || modifier.deletedAt) {
         throw new BadRequestError("MODIFIER_VALIDATION_FAILED", "A selected modifier is invalid for this product.")
       }
