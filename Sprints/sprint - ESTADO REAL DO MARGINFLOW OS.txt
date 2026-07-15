@@ -1,0 +1,680 @@
+# AUDITORIA COMPLETA DO PROJETO — ESTADO REAL DO MARGINFLOW OS
+
+## Objetivo
+
+PARE qualquer implementação.
+
+NÃO escreva código.
+
+NÃO refatore.
+
+NÃO corrija nada ainda.
+
+Sua missão agora é descobrir exatamente o estado atual do projeto.
+
+Quero uma auditoria técnica extremamente detalhada.
+
+Não quero suposições.
+
+Não quero "deve estar funcionando".
+
+Não quero "provavelmente".
+
+Tudo deve ser verificado diretamente no código, banco, rotas, frontend, deploy e ambiente.
+
+Você deve agir como um CTO auditando um produto antes do lançamento comercial.
+
+---
+
+# ETAPA 1 — Auditoria da arquitetura
+
+Mapeie completamente:
+
+Backend
+
+Frontend
+
+Supabase
+
+Vercel
+
+Prisma
+
+Banco
+
+React Query
+
+Realtime
+
+Autenticação
+
+RBAC
+
+Event Bus
+
+Notificações
+
+Impressão
+
+Integrações
+
+Kanbans
+
+Estoque
+
+Ficha Técnica
+
+CMV
+
+Dashboard
+
+Cardápio
+
+Clientes
+
+Pedidos
+
+Cozinha
+
+Entregas
+
+Pagamentos
+
+Configurações
+
+Usuários
+
+Papéis
+
+Auditoria
+
+Sem pular nenhum módulo.
+
+---
+
+# ETAPA 2 — Produção
+
+Verifique o ambiente de produção.
+
+Responder:
+
+✅ O que está realmente publicado na Vercel?
+
+✅ O deploy atual corresponde ao último commit?
+
+✅ Existem migrations pendentes?
+
+✅ Existe código ainda não publicado?
+
+✅ Existem variáveis de ambiente faltando?
+
+✅ O Supabase está sincronizado?
+
+✅ O banco de produção possui todas as tabelas?
+
+✅ O seed está correto?
+
+✅ Existe alguma diferença entre local e produção?
+
+---
+
+# ETAPA 3 — Funcionalidades
+
+Montar uma tabela.
+
+Formato:
+
+| Módulo | Existe | Funciona | Testado | Produção | Observações |
+
+Exemplo:
+
+Login
+
+Cadastro
+
+Dashboard
+
+Produtos
+
+Categorias
+
+Clientes
+
+Endereços
+
+Pedidos
+
+Pagamento
+
+Estoque
+
+Ficha Técnica
+
+CMV
+
+Cozinha
+
+Kanban
+
+Entregas
+
+Kanban
+
+Financeiro
+
+Relatórios
+
+Cardápio
+
+Integrações
+
+Notificações
+
+Realtime
+
+Auditoria
+
+Impressão
+
+Onboarding
+
+Pesquisa
+
+RBAC
+
+Usuários
+
+Papéis
+
+Permissões
+
+Configurações
+
+Lojas
+
+Organizações
+
+Multiempresa
+
+Tudo.
+
+---
+
+# ETAPA 4 — Realtime
+
+Verificar absolutamente tudo.
+
+Responder:
+
+Pedidos chegam automaticamente?
+
+Mudanças de status atualizam?
+
+Dashboard atualiza?
+
+Kanban atualiza?
+
+Notificações atualizam?
+
+Estoque atualiza?
+
+Clientes atualizam?
+
+Outra aba recebe alterações?
+
+Outra conta recebe alterações?
+
+Existe polling?
+
+Existe websocket?
+
+Existe Supabase Realtime?
+
+Existe SSE?
+
+Tudo deve ser listado.
+
+---
+
+# ETAPA 5 — Kanban
+
+Auditar.
+
+Pedidos.
+
+Cozinha.
+
+Entregas.
+
+Responder:
+
+Existe?
+
+Está funcional?
+
+Arrastar funciona?
+
+Atualiza realtime?
+
+Persistência correta?
+
+Sem bugs?
+
+---
+
+# ETAPA 6 — Impressão
+
+Auditar completamente.
+
+Existe integração?
+
+QZ Tray está funcional?
+
+Existe fila?
+
+Retry?
+
+Templates?
+
+Cadastro de impressoras?
+
+Impressão automática?
+
+Histórico?
+
+Auditoria?
+
+Está em produção?
+
+---
+
+# ETAPA 7 — Auditoria
+
+Verificar.
+
+Existe tabela?
+
+Existe tela?
+
+Existe histórico?
+
+Quem alterou?
+
+Quando?
+
+Antes/depois?
+
+Exportação?
+
+Pesquisa?
+
+Permissões?
+
+Tudo funcionando?
+
+---
+
+# ETAPA 8 — Integrações
+
+Verificar.
+
+iFood
+
+99Food
+
+Cardápio próprio
+
+WhatsApp
+
+PIX
+
+Gateway
+
+Mercado Pago
+
+Stone
+
+TEF
+
+NF-e
+
+OCR
+
+Importação
+
+Webhook
+
+Polling
+
+DLQ
+
+Health Check
+
+Responder o nível real de implementação.
+
+---
+
+# ETAPA 9 — UX
+
+Procurar problemas.
+
+Botões sem ação
+
+Links quebrados
+
+Menus mortos
+
+Placeholders
+
+Loading infinito
+
+Erro sem tratamento
+
+Campos confusos
+
+Fluxos ruins
+
+Componentes duplicados
+
+Páginas órfãs
+
+Qualquer detalhe.
+
+---
+
+# ETAPA 10 — Código morto
+
+Encontrar:
+
+Componentes nunca usados
+
+Hooks mortos
+
+Páginas inacessíveis
+
+Rotas sem uso
+
+APIs nunca chamadas
+
+Tabelas vazias
+
+Models não utilizados
+
+Migrations inúteis
+
+Arquivos duplicados
+
+Imports mortos
+
+Tudo.
+
+---
+
+# ETAPA 11 — Performance
+
+Verificar.
+
+Queries pesadas
+
+N+1
+
+React Query
+
+Cache
+
+Paginação
+
+Lazy Loading
+
+Bundle
+
+Hydration
+
+Renderizações
+
+Memorização
+
+Tudo.
+
+---
+
+# ETAPA 12 — Segurança
+
+Auditar.
+
+JWT
+
+Cookies
+
+Refresh
+
+RBAC
+
+Permissões
+
+Escopo de Store
+
+Escopo Organização
+
+SQL Injection
+
+XSS
+
+CSRF
+
+Rate Limit
+
+Logs
+
+Auditoria
+
+Tudo.
+
+---
+
+# ETAPA 13 — Banco
+
+Auditar.
+
+Models
+
+Relacionamentos
+
+Índices
+
+Constraints
+
+Triggers
+
+Eventos
+
+Views
+
+Funções
+
+Migrations
+
+Seed
+
+Tudo.
+
+---
+
+# ETAPA 14 — Testes
+
+Executar testes reais.
+
+Não assumir.
+
+Navegar pelo sistema inteiro.
+
+Criar dados.
+
+Editar.
+
+Excluir.
+
+Cancelar.
+
+Confirmar.
+
+Mover.
+
+Atualizar.
+
+Trocar de conta.
+
+Trocar de loja.
+
+Abrir duas abas.
+
+Validar realtime.
+
+Validar produção.
+
+Registrar tudo.
+
+---
+
+# ETAPA 15 — Comparação Local x Produção
+
+Responder.
+
+Existe código local não publicado?
+
+Existe código em produção diferente?
+
+Existe migration esquecida?
+
+Existe env diferente?
+
+Existe build diferente?
+
+Existe comportamento diferente?
+
+---
+
+# ETAPA 16 — O que falta subir
+
+Gerar lista objetiva.
+
+Exemplo:
+
+☐ migration X
+
+☐ deploy frontend
+
+☐ deploy backend
+
+☐ env
+
+☐ webhook
+
+☐ build
+
+☐ seed
+
+☐ storage
+
+☐ cron
+
+Nada deve ficar oculto.
+
+---
+
+# ETAPA 17 — Pronto para vender?
+
+Responder honestamente.
+
+Se amanhã eu vender para 100 restaurantes.
+
+O sistema suporta?
+
+O que quebra?
+
+O que falta?
+
+Quais riscos?
+
+---
+
+# RELATÓRIO FINAL
+
+Quero um relatório extremamente detalhado.
+
+## 1. Resumo Executivo
+
+## 2. O que está funcionando
+
+## 3. O que existe mas não funciona
+
+## 4. O que está incompleto
+
+## 5. O que está apenas no código
+
+## 6. O que já está em produção
+
+## 7. O que ainda precisa de deploy
+
+## 8. O que precisa de migration
+
+## 9. O que precisa de testes
+
+## 10. Bugs encontrados
+
+## 11. Bugs críticos
+
+## 12. Bugs médios
+
+## 13. Bugs pequenos
+
+## 14. Código morto
+
+## 15. Melhorias recomendadas
+
+## 16. Dívida técnica
+
+## 17. Checklist de lançamento
+
+Formato:
+
+☑ Concluído
+
+🟡 Parcial
+
+❌ Não iniciado
+
+## 18. Nota do projeto
+
+Arquitetura
+
+Backend
+
+Frontend
+
+UX
+
+Performance
+
+Segurança
+
+Banco
+
+Infraestrutura
+
+Escalabilidade
+
+Operação
+
+Comercialização
+
+Cada nota deve ser justificada.
+
+## REGRAS
+
+- Não implementar nada nesta tarefa.
+- Não modificar código.
+- Não corrigir bugs.
+- Apenas auditar.
+- Tudo deve ser comprovado por inspeção do código, testes reais e ambiente de produção.
+- Se algo não puder ser verificado, declarar explicitamente que não foi possível verificar e explicar o motivo.

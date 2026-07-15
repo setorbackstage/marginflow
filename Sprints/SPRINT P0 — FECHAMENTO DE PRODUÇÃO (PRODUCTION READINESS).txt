@@ -1,0 +1,642 @@
+# SPRINT P0 — FECHAMENTO DE PRODUÇÃO (PRODUCTION READINESS)
+
+## Objetivo
+
+Esta é a ÚLTIMA sprint antes de voltarmos a desenvolver novas funcionalidades.
+
+NÃO adicionar features.
+
+NÃO iniciar novos módulos.
+
+NÃO iniciar integrações novas.
+
+NÃO refatorar arquitetura.
+
+NÃO mudar regras de negócio.
+
+O único objetivo desta sprint é transformar o estado atual do MarginFlow OS em um sistema consistente, sincronizado entre desenvolvimento e produção, seguro, auditado e pronto para operar.
+
+Tudo deve ser baseado na auditoria realizada anteriormente.
+
+Nenhuma correção deve ser feita "porque parece melhor".
+
+Toda alteração deve estar diretamente ligada a um problema encontrado na auditoria.
+
+---
+
+# ETAPA 1 • Auditoria Inicial
+
+Antes de alterar qualquer arquivo:
+
+Releia toda a auditoria.
+
+Transforme cada item encontrado em checklist.
+
+Classifique em:
+
+P0
+
+P1
+
+P2
+
+Marque o que realmente precisa de alteração.
+
+Nada deve ser implementado sem justificativa.
+
+---
+
+# ETAPA 2 • Sincronização Git
+
+Auditar completamente o estado do repositório.
+
+Verificar:
+
+commits locais
+
+commits remotos
+
+tags
+
+branches
+
+HEAD
+
+working tree
+
+stash
+
+arquivos não rastreados
+
+submódulos
+
+locks
+
+Garantir que:
+
+✔ nenhum commit importante esteja apenas local
+
+✔ produção corresponda exatamente ao commit publicado
+
+✔ não exista código "esquecido"
+
+Ao final informar:
+
+hash publicado
+
+hash local
+
+hash da Vercel
+
+Todos devem coincidir.
+
+---
+
+# ETAPA 3 • Produção
+
+Auditar Vercel.
+
+Verificar:
+
+último deploy
+
+logs
+
+build
+
+cache
+
+functions
+
+Node Runtime
+
+Edge Runtime
+
+variáveis
+
+URLs
+
+redirecionamentos
+
+headers
+
+middleware
+
+Verificar se o build em produção corresponde exatamente ao build local.
+
+Caso exista divergência, corrigir.
+
+---
+
+# ETAPA 4 • Supabase
+
+Auditar:
+
+migrations
+
+schema
+
+tabelas
+
+índices
+
+constraints
+
+foreign keys
+
+funções
+
+políticas
+
+Realtime
+
+Storage
+
+Verificar:
+
+migrations pendentes
+
+migration parcialmente aplicada
+
+migration quebrada
+
+rollback
+
+drift
+
+Nada pode ficar pendente.
+
+---
+
+# ETAPA 5 • Segurança do Banco
+
+Implementar corretamente o que foi apontado na auditoria.
+
+Verificar tabela por tabela.
+
+Responder:
+
+RLS habilitado?
+
+Policy correta?
+
+Escopo por Organization?
+
+Escopo por Store?
+
+Escopo por Membership?
+
+Permissões mínimas?
+
+Criar somente as policies necessárias.
+
+Nunca reduzir segurança existente.
+
+Nenhuma policy deve permitir vazamento entre empresas.
+
+---
+
+# ETAPA 6 • Migrations Pendentes
+
+Aplicar todas as migrations necessárias.
+
+Principalmente:
+
+Printing
+
+Audit
+
+Realtime
+
+Notificações
+
+Verificar que todas realmente foram executadas.
+
+Não assumir.
+
+Consultar banco.
+
+---
+
+# ETAPA 7 • Impressão
+
+Concluir definitivamente.
+
+Validar:
+
+tabelas
+
+fila
+
+templates
+
+jobs
+
+histórico
+
+status
+
+retry
+
+cadastro
+
+configuração
+
+QZ Tray
+
+Caso exista código sem migration,
+
+corrigir.
+
+Caso exista migration sem código,
+
+corrigir.
+
+Tudo deve ficar consistente.
+
+---
+
+# ETAPA 8 • Realtime
+
+Auditar todos os módulos.
+
+Dashboard
+
+Pedidos
+
+Cozinha
+
+Entregas
+
+Estoque
+
+Clientes
+
+Financeiro
+
+Notificações
+
+Kanban
+
+Remover polling desnecessário.
+
+Onde existir Realtime do Supabase,
+
+usar corretamente.
+
+Onde React Query for suficiente,
+
+usar invalidate inteligente.
+
+Garantir atualização automática.
+
+O botão Atualizar deve permanecer apenas como fallback manual.
+
+---
+
+# ETAPA 9 • Notificações
+
+Corrigir definitivamente.
+
+Validar:
+
+isolamento por usuário
+
+isolamento por loja
+
+persistência
+
+contador
+
+badge
+
+toast
+
+marcar como lida
+
+limpar
+
+tempo real
+
+duas abas
+
+duas contas
+
+duas lojas
+
+Nada pode ser compartilhado incorretamente.
+
+---
+
+# ETAPA 10 • Auditoria
+
+Garantir:
+
+100% das ações críticas registradas.
+
+Verificar:
+
+login
+
+logout
+
+senha
+
+pedido
+
+produto
+
+cliente
+
+estoque
+
+pagamento
+
+configuração
+
+integrações
+
+impressão
+
+Tudo deve aparecer no histórico.
+
+---
+
+# ETAPA 11 • Permissões
+
+Auditar RBAC inteiro.
+
+Criar matriz.
+
+Cada endpoint.
+
+Cada tela.
+
+Cada botão.
+
+Cada ação.
+
+Confirmar que:
+
+Owner
+
+Manager
+
+Cashier
+
+Kitchen
+
+Delivery
+
+Funcionam corretamente.
+
+Nenhuma permissão órfã.
+
+Nenhum botão aparecendo para quem não deveria.
+
+---
+
+# ETAPA 12 • Consistência
+
+Auditar:
+
+Frontend
+
+Backend
+
+Banco
+
+Supabase
+
+Produção
+
+Local
+
+Tudo deve possuir exatamente o mesmo comportamento.
+
+Nenhum ambiente pode funcionar diferente.
+
+---
+
+# ETAPA 13 • Código Morto
+
+Remover somente após confirmação.
+
+Arquivos
+
+hooks
+
+componentes
+
+rotas
+
+tipos
+
+imports
+
+utilitários
+
+migrations abandonadas
+
+Nada deve permanecer sem uso.
+
+Não remover código preparado para futuras integrações.
+
+---
+
+# ETAPA 14 • Performance
+
+Verificar:
+
+queries
+
+React Query
+
+cache
+
+lazy
+
+hydration
+
+bundle
+
+N+1
+
+renders
+
+waterfalls
+
+Apenas correções seguras.
+
+---
+
+# ETAPA 15 • Testes E2E
+
+Executar novamente.
+
+Fluxo completo.
+
+Login
+
+Troca de loja
+
+Produtos
+
+Categorias
+
+Clientes
+
+Pedidos
+
+Kanban
+
+Cozinha
+
+Entrega
+
+Pagamento
+
+Estoque
+
+Ficha Técnica
+
+CMV
+
+Notificações
+
+Impressão
+
+Auditoria
+
+Reset de senha
+
+Permissões
+
+Realtime
+
+Produção
+
+Tudo contra ambiente real.
+
+Não mockar.
+
+---
+
+# ETAPA 16 • Comparação Produção x Desenvolvimento
+
+Responder:
+
+Existe diferença?
+
+Qual?
+
+Por quê?
+
+Corrigir.
+
+Ao final:
+
+Local == Produção
+
+---
+
+# ETAPA 17 • Checklist Final
+
+Gerar checklist.
+
+✔ Banco sincronizado
+
+✔ Produção sincronizada
+
+✔ Supabase sincronizado
+
+✔ Vercel sincronizada
+
+✔ Commits publicados
+
+✔ Migrations aplicadas
+
+✔ RLS revisado
+
+✔ Impressão operacional
+
+✔ Realtime operacional
+
+✔ Auditoria operacional
+
+✔ RBAC validado
+
+✔ Testes executados
+
+✔ Build limpo
+
+✔ ESLint limpo
+
+✔ TypeScript limpo
+
+✔ Sem drift
+
+✔ Sem migrations pendentes
+
+✔ Sem divergência entre ambientes
+
+---
+
+# ETAPA 18 • Relatório Final
+
+Obrigatório.
+
+## 1. Problemas encontrados
+
+## 2. Problemas corrigidos
+
+## 3. Arquivos modificados
+
+## 4. Migrations executadas
+
+## 5. Policies criadas
+
+## 6. Deploy realizado
+
+## 7. Testes executados
+
+## 8. Evidências
+
+## 9. Commits publicados
+
+## 10. Build
+
+## 11. ESLint
+
+## 12. TypeScript
+
+## 13. Banco
+
+## 14. Produção
+
+## 15. Itens que permaneceram inalterados (com justificativa)
+
+## 16. Definição de Pronto
+
+Responder objetivamente:
+
+O sistema está apto para operar em produção?
+
+SIM ou NÃO.
+
+Se NÃO,
+
+listar exatamente o que impede.
+
+---
+
+# Restrições
+
+- Não criar funcionalidades novas.
+- Não alterar arquitetura.
+- Não alterar contratos da API.
+- Não alterar regras de negócio.
+- Não inventar soluções.
+- Não remover código preparado para integrações futuras.
+- Não encerrar a sprint enquanto existir qualquer item P0 ou P1 da auditoria sem justificativa técnica.
+- Toda alteração deve ser validada em ambiente local e em produção (Vercel + Supabase), garantindo que ambos permaneçam sincronizados.

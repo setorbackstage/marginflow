@@ -1,0 +1,742 @@
+# SPRINT MVP — Sistema de Impressão Automática + Auditoria Corporativa
+
+## Objetivo
+
+Implementar um sistema de impressão profissional baseado em QZ Tray (white-label MarginFlow) e um módulo completo de auditoria corporativa.
+
+Esta sprint NÃO deve alterar regras de negócio.
+
+NÃO criar funcionalidades fictícias.
+
+NÃO quebrar contratos existentes.
+
+Tudo deve funcionar com Supabase, Vercel e arquitetura atual.
+
+Ao final:
+
+- build limpo
+- eslint limpo
+- tsc limpo
+- sem regressões
+- pronto para produção
+
+---
+
+# ETAPA 1 — Auditoria Inicial
+
+Antes de escrever código:
+
+Mapear completamente:
+
+- fluxo atual de pedidos
+- fluxo da cozinha
+- fluxo de entregas
+- pagamentos
+- estoque
+- eventos do domínio
+- listeners
+- event bus
+- notificações
+- transações
+
+Identificar todos os pontos onde uma impressão poderá acontecer.
+
+Não implementar antes dessa auditoria.
+
+Apresentar causa raiz de qualquer limitação encontrada.
+
+---
+
+# ETAPA 2 — Arquitetura de Impressão
+
+Criar um módulo próprio.
+
+Não misturar com pedidos.
+
+Estrutura sugerida:
+
+server/
+    printing/
+        printer.service.ts
+        printer.repository.ts
+        print-template.service.ts
+        qz.service.ts
+        print-job.service.ts
+        print-history.service.ts
+
+frontend/
+
+features/
+    printing/
+
+components/
+    printers/
+
+hooks/
+
+pages/
+
+settings/
+
+Tudo separado.
+
+---
+
+# ETAPA 3 — Integração com QZ Tray
+
+Utilizar QZ Tray.
+
+Não criar protocolo próprio.
+
+Não depender de Electron.
+
+Não depender de aplicativo desktop adicional.
+
+A aplicação web deve conversar diretamente com o QZ Tray.
+
+Implementar:
+
+detecção automática
+
+listar impressoras
+
+status online
+
+status offline
+
+reconectar
+
+teste de impressão
+
+fila
+
+cancelar impressão
+
+reimprimir
+
+---
+
+# ETAPA 4 — White Label MarginFlow Print
+
+Criar camada própria.
+
+O usuário nunca deve ver "QZ Tray".
+
+Dentro do sistema aparecerá apenas:
+
+MarginFlow Print
+
+ou
+
+MarginFlow Print Service
+
+Toda configuração deve usar identidade MarginFlow.
+
+Preparar arquitetura para um futuro instalador próprio.
+
+---
+
+# ETAPA 5 — Cadastro de Impressoras
+
+Permitir cadastrar diversas impressoras.
+
+Exemplos:
+
+Cozinha
+
+Bar
+
+Confeitaria
+
+Caixa
+
+Fiscal
+
+Delivery
+
+Expedição
+
+Cada impressora deve possuir:
+
+Nome
+
+Tipo
+
+Modelo
+
+Interface
+
+USB
+
+Rede
+
+Bluetooth
+
+Serial
+
+Impressora física
+
+Status
+
+Padrão
+
+Ativa
+
+Teste
+
+---
+
+# ETAPA 6 — Regras de Impressão
+
+Cada evento poderá imprimir.
+
+Exemplo.
+
+Pedido criado
+
+↓
+
+imprime cozinha
+
+↓
+
+imprime caixa
+
+↓
+
+imprime expedição
+
+Outro exemplo.
+
+Pagamento confirmado
+
+↓
+
+imprime comprovante
+
+Outro.
+
+Pedido cancelado
+
+↓
+
+imprime cancelamento
+
+Outro.
+
+Entrega pronta
+
+↓
+
+imprime etiqueta
+
+Tudo configurável.
+
+---
+
+# ETAPA 7 — Impressão por Setor
+
+Cada item poderá ser enviado para um setor.
+
+Exemplo.
+
+Hambúrguer
+
+↓
+
+Cozinha
+
+Refrigerante
+
+↓
+
+Bar
+
+Sobremesa
+
+↓
+
+Confeitaria
+
+Criar arquitetura preparada para isso.
+
+---
+
+# ETAPA 8 — Templates
+
+Criar editor de templates.
+
+Sem código.
+
+Configurar:
+
+Logo
+
+Nome
+
+Endereço
+
+Telefone
+
+Pedido
+
+Cliente
+
+Mesa
+
+Canal
+
+Itens
+
+Observações
+
+Complementos
+
+QR Code
+
+PIX
+
+Rodapé
+
+Mensagem
+
+Cupom
+
+Senha Wi-Fi
+
+Tudo configurável.
+
+---
+
+# ETAPA 9 — Histórico de Impressões
+
+Persistir.
+
+Tabela própria.
+
+Campos sugeridos:
+
+id
+
+storeId
+
+printerId
+
+pedido
+
+tipo
+
+template
+
+conteúdo
+
+status
+
+tentativas
+
+erro
+
+createdAt
+
+printedAt
+
+Permitir:
+
+reimprimir
+
+filtrar
+
+buscar
+
+exportar
+
+---
+
+# ETAPA 10 — Fila
+
+Nenhuma impressão pode ser perdida.
+
+Criar fila.
+
+Estados:
+
+Pendente
+
+Enviando
+
+Impresso
+
+Erro
+
+Cancelado
+
+Retry automático.
+
+---
+
+# ETAPA 11 — Configurações
+
+Tela completa.
+
+Mostrar:
+
+impressoras
+
+status
+
+drivers
+
+teste
+
+fila
+
+templates
+
+histórico
+
+---
+
+# ETAPA 12 — Auditoria Corporativa
+
+Criar módulo completo.
+
+Não apenas logs.
+
+Sistema de auditoria.
+
+---
+
+Registrar automaticamente:
+
+Login
+
+Logout
+
+Refresh token
+
+Troca de senha
+
+Criação
+
+Edição
+
+Exclusão
+
+Produtos
+
+Categorias
+
+Clientes
+
+Pedidos
+
+Pagamento
+
+Entrega
+
+Estoque
+
+Ficha técnica
+
+Movimentação
+
+Configurações
+
+Permissões
+
+Papéis
+
+Integrações
+
+Impressões
+
+Falhas
+
+Webhooks
+
+Importações
+
+Tudo.
+
+---
+
+# ETAPA 13 — Estrutura
+
+Tabela.
+
+audit_logs
+
+Campos:
+
+id
+
+organizationId
+
+storeId
+
+userId
+
+membershipId
+
+entity
+
+entityId
+
+action
+
+before
+
+after
+
+metadata
+
+ip
+
+userAgent
+
+device
+
+browser
+
+origin
+
+channel
+
+sessionId
+
+requestId
+
+createdAt
+
+Preparar JSON estruturado.
+
+---
+
+# ETAPA 14 — Eventos
+
+Toda alteração relevante deverá gerar um evento.
+
+Exemplos.
+
+PRODUCT_CREATED
+
+PRODUCT_UPDATED
+
+PRODUCT_DELETED
+
+ORDER_CREATED
+
+ORDER_CONFIRMED
+
+PAYMENT_PAID
+
+STOCK_MOVEMENT
+
+USER_LOGIN
+
+ROLE_CHANGED
+
+PRINT_SENT
+
+PRINT_FAILED
+
+IFOOD_WEBHOOK_RECEIVED
+
+etc.
+
+Sem duplicidade.
+
+---
+
+# ETAPA 15 — Timeline
+
+Cada entidade deve possuir histórico.
+
+Produto.
+
+Cliente.
+
+Pedido.
+
+Entrega.
+
+Usuário.
+
+Mostrar:
+
+Quem
+
+Quando
+
+O que mudou
+
+Valor antigo
+
+Valor novo
+
+IP
+
+Origem
+
+---
+
+# ETAPA 16 — Segurança
+
+Auditoria nunca poderá ser apagada.
+
+Apenas arquivada.
+
+Registrar inclusive:
+
+tentativas inválidas
+
+acessos negados
+
+erros críticos
+
+---
+
+# ETAPA 17 — Pesquisa
+
+Pesquisar auditoria por:
+
+usuário
+
+pedido
+
+cliente
+
+produto
+
+ação
+
+data
+
+IP
+
+entidade
+
+---
+
+# ETAPA 18 — Exportação
+
+CSV
+
+Excel
+
+PDF
+
+JSON
+
+Sempre respeitando permissões.
+
+---
+
+# ETAPA 19 — Performance
+
+Auditoria nunca poderá deixar o sistema lento.
+
+Usar paginação.
+
+Lazy loading.
+
+Índices.
+
+---
+
+# ETAPA 20 — Preparação para Integrações
+
+Toda impressão e toda auditoria deverão estar preparadas para registrar futuramente:
+
+iFood
+
+99Food
+
+WhatsApp
+
+Mercado Pago
+
+Stone
+
+PIX
+
+Cardápio próprio
+
+Sem precisar refatorar.
+
+---
+
+# TESTES
+
+Executar navegação completa.
+
+Testar:
+
+Pedidos
+
+Estoque
+
+Clientes
+
+Produtos
+
+Entregas
+
+Pagamentos
+
+Impressão
+
+Fila
+
+Retry
+
+Erro
+
+Histórico
+
+Auditoria
+
+Corrigir automaticamente qualquer bug encontrado.
+
+---
+
+# RELATÓRIO FINAL
+
+Obrigatório.
+
+Incluir:
+
+- auditoria inicial
+- arquitetura adotada
+- arquivos criados
+- arquivos modificados
+- migrations
+- tabelas
+- endpoints
+- eventos
+- templates
+- impressão
+- fila
+- auditoria
+- testes executados
+- bugs encontrados
+- bugs corrigidos
+- riscos remanescentes
+- resultado do build
+- resultado do lint
+- resultado do tsc
+- hash do commit
+
+## Restrições
+
+- Não alterar regras de negócio existentes.
+- Não criar funcionalidades mock.
+- Não remover funcionalidades.
+- Não quebrar contratos da API.
+- Manter compatibilidade total com Supabase e Vercel.
+- Seguir a arquitetura atual do projeto.
+
+
+Eu não faria um fork do QZ Tray nem tentaria renomear o executável. O melhor caminho é criar o conceito "MarginFlow Print" dentro do sistema, mas continuar usando o QZ Tray oficial por baixo dos panos. Assim você aproveita um software estável, amplamente utilizado e evita manter um fork próprio.
+
+A longo prazo, quando o produto estiver maduro, vocês podem desenvolver um agente desktop próprio (por exemplo, MarginFlow Agent) que substitua o QZ Tray e concentre impressão, sincronização, backups e futuras integrações com balanças, leitores de código de barras e outros periféricos. Isso reduz bastante o custo de manutenção enquanto o produto ainda está evoluindo.
