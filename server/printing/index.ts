@@ -1,3 +1,5 @@
+import "./print-event-listener"
+
 export { printerRepository } from "./printer.repository"
 export type { PrinterCreateInput, PrinterUpdateInput } from "./printer.repository"
 

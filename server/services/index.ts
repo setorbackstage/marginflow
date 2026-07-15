@@ -87,3 +87,6 @@ export { ifoodSyncService, pollAllIfoodStores, processIfoodEvents } from "./ifoo
 
 export { passwordAuthService } from "./password-auth.service"
 export { notificationService } from "./notification.service"
+
+// Registers print-job event-bus listeners (order.created, order.confirmed, kitchen_ticket.created).
+import "@/server/printing"
