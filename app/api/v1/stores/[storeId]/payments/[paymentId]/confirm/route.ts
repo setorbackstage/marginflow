@@ -2,7 +2,7 @@ import "server-only"
 import type { NextRequest } from "next/server"
 import { prisma } from "@/server/db"
 import { paymentService, orderService, authorizationService } from "@/server/services"
-import { requireAuth, requireUuidParams } from "@/server/lib"
+import { requireAuth, requireUuidParams, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 import { toPaymentDetailResponse } from "../../_payment-response"
 
@@ -20,6 +20,7 @@ async function handleConfirmPayment(request: NextRequest, { params }: RouteConte
   // must land in the same database transaction as the payment status change —
   // same pattern as the order/kitchen/delivery status endpoints.
   const payment = await prisma.$transaction((tx) => paymentService.confirm(tx, storeId, paymentId))
+  void logAudit(prisma, { storeId, userId: actor.userId, action: "payment.confirmed", entityType: "Payment", entityId: paymentId, entityRef: paymentId })
   const [order, attempts] = await Promise.all([
     orderService.getById(prisma, payment.orderId),
     paymentService.listAttemptsByOrder(prisma, payment.orderId),

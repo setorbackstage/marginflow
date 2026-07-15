@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/server/db"
 import { orderService, authorizationService } from "@/server/services"
-import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
+import { requireAuth, parseJsonBody, requireUuidParams, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 import { getOrderWithDetailsOrThrow, toOrderResponse } from "../_order-response"
 
@@ -38,6 +38,7 @@ async function handleUpdateOrder(request: NextRequest, { params }: RouteContext)
 
   const input = await parseJsonBody(request, updateOrderSchema)
   await orderService.update(prisma, storeId, orderId, input)
+  void logAudit(prisma, { storeId, userId: actor.userId, action: "order.updated", entityType: "Order", entityId: orderId, entityRef: orderId })
 
   const updated = await getOrderWithDetailsOrThrow(storeId, orderId)
   return ok(await toOrderResponse(updated))

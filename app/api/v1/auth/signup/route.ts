@@ -2,7 +2,7 @@ import "server-only"
 import type { NextRequest } from "next/server"
 import { prisma } from "@/server/db"
 import { signupService } from "@/server/services"
-import { signupSchema, parseJsonBody, hashPassword } from "@/server/lib"
+import { signupSchema, parseJsonBody, hashPassword, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, created, setRefreshTokenCookie } from "@/server/lib/http"
 import { rateLimit, getClientIp } from "@/server/lib/rate-limit"
 import { toLoginResponse } from "../_auth-response"
@@ -38,6 +38,14 @@ async function handleSignup(request: NextRequest): Promise<Response> {
     }),
   )
 
+  void logAudit(prisma, {
+    storeId: result.memberships[0]?.membership.storeId ?? "system",
+    userId: result.user.id,
+    action: "user.signup",
+    entityType: "User",
+    entityId: result.user.id,
+    entityRef: result.user.email,
+  })
   const response = created(toLoginResponse(result))
   setRefreshTokenCookie(response, result.refreshToken)
   return response

@@ -4,7 +4,7 @@ import { z } from "zod"
 import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { orderService, authorizationService } from "@/server/services"
-import { requireAuth, parseQuery, parseJsonBody, requireUuidParams } from "@/server/lib"
+import { requireAuth, parseQuery, parseJsonBody, requireUuidParams, logAudit } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, created } from "@/server/lib/http"
 import { getOrderWithDetailsOrThrow, toOrderResponse } from "./_order-response"
 
@@ -144,6 +144,7 @@ async function handleCreateOrder(request: NextRequest, { params }: RouteContext)
   const input = await parseJsonBody(request, createOrderSchema)
 
   const newOrder = await prisma.$transaction((tx) => orderService.create(tx, storeId, input, actor.userId))
+  void logAudit(prisma, { storeId, userId: actor.userId, action: "order.created", entityType: "Order", entityId: newOrder.id, entityRef: String(newOrder.number) })
   const order = await getOrderWithDetailsOrThrow(storeId, newOrder.id)
   return created(await toOrderResponse(order))
 }

@@ -55,6 +55,9 @@ async function handleUpdateCustomer(request: NextRequest, { params }: RouteConte
   }
 
   const customer = await customerService.update(prisma, storeId, customerId, input)
+  if (hasFieldChanges) {
+    void logAudit(prisma, { storeId, userId: actor.userId, action: "customer.updated", entityType: "Customer", entityId: customerId, entityRef: customer.name })
+  }
   if (status !== undefined) {
     void logAudit(prisma, { storeId, userId: actor.userId, action: status === "BLOCKED" ? "customer.blocked" : "customer.unblocked", entityType: "Customer", entityId: customerId, entityRef: customer.name })
   }
