@@ -245,7 +245,7 @@ function JobsTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1) }}>
+        <Select value={status} onValueChange={(v) => { setStatus(v ?? "ALL"); setPage(1) }}>
           <SelectTrigger className="w-44">
             <SelectValue />
           </SelectTrigger>
