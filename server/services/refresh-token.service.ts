@@ -10,16 +10,9 @@ export interface RefreshResult {
   refreshToken: string
 }
 
-/**
- * Revokes every currently-active refresh token for a user. Used only when
- * a replayed (already-rotated) token is presented — API_SPEC.md's Refresh
- * Token Strategy: "the server detects the reuse... and invalidates the
- * entire session." Built from existing repository methods only
- * (`findManyByUser` + `update`) — no repository change.
- */
+/** Revokes every currently-active refresh token for a user via a single updateMany. */
 async function revokeAllActiveTokensForUser(db: DbClient, userId: string): Promise<void> {
-  const activeTokens = await refreshTokenRepository.findManyByUser(db, userId, { where: { revokedAt: null } })
-  await Promise.all(activeTokens.map((token) => refreshTokenRepository.update(db, token.id, { revokedAt: new Date() })))
+  await refreshTokenRepository.revokeAllForUser(db, userId)
 }
 
 /**

@@ -1,6 +1,6 @@
 import "server-only"
 import type { DbClient } from "../db"
-import { userRepository, passwordResetTokenRepository, invitationTokenRepository, membershipRepository } from "../repositories"
+import { userRepository, passwordResetTokenRepository, invitationTokenRepository, membershipRepository, refreshTokenRepository } from "../repositories"
 import { hashPassword, generateRawToken, hashToken } from "../lib"
 import { UnauthorizedError, NotFoundError, logger } from "../lib"
 
@@ -60,6 +60,8 @@ export const passwordAuthService = {
     await db.$transaction(async (tx) => {
       await userRepository.update(tx, record.userId, { passwordHash, status: "ACTIVE" })
       await passwordResetTokenRepository.update(tx, record.id, { revokedAt: new Date() })
+      // Revoga todas as sessões ativas — quem redefiniu a senha assume controle total.
+      await refreshTokenRepository.revokeAllForUser(tx, record.userId)
     })
 
     logger.info("password_auth.reset_password.success", { userId: record.userId })
@@ -95,6 +97,8 @@ export const passwordAuthService = {
         acceptedAt: new Date(),
       })
       await invitationTokenRepository.update(tx, record.id, { revokedAt: new Date() })
+      // Garante sessão limpa após ativação do convite.
+      await refreshTokenRepository.revokeAllForUser(tx, membership.userId)
     })
 
     logger.info("password_auth.accept_invitation.success", { membershipId: membership.id, userId: membership.userId })

@@ -47,4 +47,15 @@ export const refreshTokenRepository = {
   update(db: DbClient, id: string, data: Prisma.RefreshTokenUpdateInput): Promise<RefreshToken> {
     return db.refreshToken.update({ where: { id }, data })
   },
+
+  /**
+   * Revoga em massa todos os tokens ativos de um usuário.
+   * Usado em reset de senha, aceitação de convite e detecção de replay.
+   * Retorna o número de tokens revogados.
+   */
+  revokeAllForUser(db: DbClient, userId: string): Promise<number> {
+    return db.refreshToken
+      .updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } })
+      .then((r) => r.count)
+  },
 }

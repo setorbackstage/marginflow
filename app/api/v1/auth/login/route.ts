@@ -7,16 +7,44 @@ import { compose, withErrorHandling, withRequestContext, ok, setRefreshTokenCook
 import { rateLimit, getClientIp } from "@/server/lib/rate-limit"
 import { toLoginResponse } from "../_auth-response"
 
+const RATE_LIMIT_IP_MAX    = 10   // 10 tentativas por IP por minuto
+const RATE_LIMIT_EMAIL_MAX = 5    // 5 tentativas por e-mail a cada 15 min (anti-stuffing)
+const WINDOW_IP_MS         = 60_000
+const WINDOW_EMAIL_MS      = 15 * 60_000
+
+function rateLimitResponse(resetAt: number): Response {
+  return new Response(
+    JSON.stringify({
+      error: {
+        code: "RATE_LIMIT_EXCEEDED",
+        message: "Too many requests. Please try again later.",
+        status: 429,
+      },
+    }),
+    {
+      status: 429,
+      headers: {
+        "Content-Type": "application/json",
+        "Retry-After": String(Math.ceil((resetAt - Date.now()) / 1000)),
+      },
+    },
+  )
+}
+
 async function handleLogin(request: NextRequest): Promise<Response> {
-  const ip = getClientIp(request)
-  const rl = rateLimit(`login:${ip}`, 10, 60_000)
-  if (!rl.allowed) {
-    return new Response(
-      JSON.stringify({ error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests. Please try again later.", status: 429 } }),
-      { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
-    )
-  }
+  // 1. Rate limit por IP (rápido, antes de ler o body)
+  const ip   = getClientIp(request)
+  const ipRl = rateLimit(`login:ip:${ip}`, RATE_LIMIT_IP_MAX, WINDOW_IP_MS)
+  if (!ipRl.allowed) return rateLimitResponse(ipRl.resetAt)
+
+  // 2. Parseia o body para obter o e-mail
   const input = await parseJsonBody(request, loginSchema)
+
+  // 3. Rate limit por e-mail (credential stuffing distribuído burla o limite por IP)
+  const emailRl = rateLimit(`login:email:${input.email.toLowerCase()}`, RATE_LIMIT_EMAIL_MAX, WINDOW_EMAIL_MS)
+  if (!emailRl.allowed) return rateLimitResponse(emailRl.resetAt)
+
+  // 4. Autenticação
   const result = await loginService.login(prisma, input)
 
   void logAudit(prisma, {
