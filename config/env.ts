@@ -22,6 +22,14 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().min(1, "SUPABASE_URL is required"),
   /** Supabase anon key — used for Storage REST API uploads. */
   SUPABASE_ANON_KEY: z.string().min(1, "SUPABASE_ANON_KEY is required"),
+  /**
+   * Resend API key — transactional emails (reset de senha, convites).
+   * Opcional: se ausente, e-mails são logados em desenvolvimento e silenciados em produção.
+   * Obtenha em https://resend.com
+   */
+  RESEND_API_KEY: z.string().optional(),
+  /** Endereço remetente. Deve pertencer a um domínio verificado no Resend. */
+  RESEND_FROM_EMAIL: z.string().email().optional().default("noreply@marginflow.app"),
 })
 
 const parsed = envSchema.safeParse(process.env)

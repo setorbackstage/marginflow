@@ -2,6 +2,7 @@ import "server-only"
 import { eventBus } from "@/server/lib"
 import { notificationRepository, pushSubscriptionRepository } from "@/server/repositories"
 import { sendPushToSubscription, isPushConfigured } from "@/server/lib/push"
+import { sendEmail, invitationTemplate } from "@/server/lib/email"
 import { prisma } from "@/server/db"
 import { logger } from "@/server/lib/logger"
 import type { NotificationCreateInput } from "@/server/repositories"
@@ -172,6 +173,21 @@ eventBus.on("kitchen_ticket.ready", "notification-service:kitchen_ticket.ready",
     })
   } catch (err) {
     logger.warn("notification-service.kitchen.ready", { error: String(err) })
+  }
+})
+
+eventBus.on("membership.invited", "email-service:membership.invited", async (event) => {
+  try {
+    const { invitedEmail, invitedName, storeName, roleName, invitedByUserId: _, invitationToken, expiresAt } = event.payload
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+    const inviteUrl = `${appUrl}/accept-invitation?token=${invitationToken}`
+    void sendEmail({
+      to: invitedEmail,
+      subject: `Convite para ${storeName} — MarginFlow OS`,
+      html: invitationTemplate({ invitedName, storeName, roleName, inviteUrl, expiresAt }),
+    })
+  } catch (err) {
+    logger.warn("email-service.membership.invited", { error: String(err) })
   }
 })
 

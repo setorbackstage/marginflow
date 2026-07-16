@@ -3,6 +3,7 @@ import type { DbClient } from "../db"
 import { userRepository, passwordResetTokenRepository, invitationTokenRepository, membershipRepository, refreshTokenRepository } from "../repositories"
 import { hashPassword, generateRawToken, hashToken } from "../lib"
 import { UnauthorizedError, NotFoundError, logger } from "../lib"
+import { sendEmail, passwordResetTemplate } from "../lib/email"
 
 const RESET_TTL_MINUTES = 60
 
@@ -33,14 +34,16 @@ export const passwordAuthService = {
       expiresAt,
     })
 
-    // TODO: replace with real email provider (Resend, SendGrid, etc.)
-    // The raw token is logged here for development; in production it must be emailed.
-    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/reset-password?token=${rawToken}`
-    logger.info("password_auth.forgot_password.token_issued", {
-      userId: user.id,
-      expiresAt: expiresAt.toISOString(),
-      resetUrl, // DEVELOPMENT ONLY — remove or replace with email send in production
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+    const resetUrl = `${appUrl}/reset-password?token=${rawToken}`
+
+    void sendEmail({
+      to: user.email,
+      subject: "Redefinição de senha — MarginFlow OS",
+      html: passwordResetTemplate({ userName: user.name, resetUrl, expiresInMinutes: RESET_TTL_MINUTES }),
     })
+
+    logger.info("password_auth.forgot_password.token_issued", { userId: user.id, expiresAt: expiresAt.toISOString() })
   },
 
   /**

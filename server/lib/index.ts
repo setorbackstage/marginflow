@@ -22,3 +22,5 @@ export type { DomainEvent, DomainEventType, DomainEventOf, EventEnvelope } from 
 export * from "./auth"
 export { logAudit } from "./audit"
 export { rateLimit, getClientIp } from "./rate-limit"
+export { sendEmail } from "./email"
+export type { PasswordResetEmailData, InvitationEmailData } from "./email"
