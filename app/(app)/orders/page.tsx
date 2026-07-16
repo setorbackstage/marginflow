@@ -45,12 +45,11 @@ const KANBAN_COLUMNS: { status: string; label: string; accent: string }[] = [
   { status: "OUT_FOR_DELIVERY", label: "Saiu",         accent: "border-l-teal-400"    },
 ]
 
-// Valid drag transitions (can only advance, never go back)
+// Valid drag transitions — only PENDING→CONFIRMED is client-driven.
+// PREPARING/READY/OUT_FOR_DELIVERY are system-derived (Kitchen/Delivery own them)
+// and cannot be set via the orders/status endpoint.
 const VALID_DRAG_TRANSITIONS: Record<string, string> = {
-  PENDING:          "CONFIRMED",
-  CONFIRMED:        "PREPARING",
-  PREPARING:        "READY",
-  READY:            "OUT_FOR_DELIVERY",
+  PENDING: "CONFIRMED",
 }
 
 // ─── Kanban card ─────────────────────────────────────────────────────────────
@@ -115,7 +114,7 @@ function OrderKanbanCard({ order, onClick }: { order: OrderListItem; onClick: ()
 function OrdersKanbanView({ orders, onCardClick }: { orders: OrderListItem[]; onCardClick: (orderId: string) => void }) {
   const storeId    = useActiveStoreId()
   const queryClient = useQueryClient()
-  const canUpdate  = useCan("orders:update_status")
+  const canUpdate  = useCan("orders:edit")
 
   const handleCardDrop = React.useCallback(
     async (cardId: string, newColumnId: string) => {

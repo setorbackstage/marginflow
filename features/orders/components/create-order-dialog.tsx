@@ -158,7 +158,19 @@ export function CreateOrderDialog({ open, onOpenChange }: { open: boolean; onOpe
         })),
       },
       {
-        onSuccess: (order) => {
+        onSuccess: async (order) => {
+          // Advance DRAFT → PENDING immediately so the order appears in the
+          // Kanban and the kitchen is notified without the user having to
+          // manually click "Enviar pedido" on the detail screen.
+          try {
+            await import("@/features/orders/api").then(({ ordersApi }) =>
+              ordersApi.updateStatus(order.storeId, order.id, "PENDING"),
+            )
+          } catch {
+            // If the auto-advance fails (e.g. autoConfirm is off and the
+            // transition is rejected), the order still exists in DRAFT and the
+            // user can advance it manually from the detail screen.
+          }
           onOpenChange(false)
           router.push(`/orders/${order.id}`)
         },

@@ -40,6 +40,7 @@ function ChartsSkeleton() {
 // ─── Date preset ──────────────────────────────────────────────────────────
 
 const PRESETS = [
+  { label: "Hoje",    days: 0  },
   { label: "7 dias",  days: 6  },
   { label: "30 dias", days: 29 },
   { label: "90 dias", days: 89 },

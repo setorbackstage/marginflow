@@ -32,10 +32,13 @@ export const ORDER_CHANNEL_LABEL: Record<string, string> = {
  * table — PREPARING/READY/OUT_FOR_DELIVERY are system-derived (owned by
  * Kitchen/Delivery) and never offered here.
  */
-export const CLIENT_ORDER_TRANSITIONS: Partial<Record<OrderStatus, { target: OrderStatus; label: string }[]>> = {
+export const CLIENT_ORDER_TRANSITIONS: Partial<Record<OrderStatus, { target: OrderStatus; label: string; types?: string[] }[]>> = {
   DRAFT: [{ target: "PENDING", label: "Enviar pedido" }],
   PENDING: [{ target: "CONFIRMED", label: "Confirmar pedido" }],
-  READY: [{ target: "DELIVERED", label: "Marcar como retirado" }], // TAKEAWAY only
+  READY: [
+    { target: "DELIVERED", label: "Marcar como retirado", types: ["TAKEAWAY"] },
+    { target: "DELIVERED", label: "Fechar mesa",          types: ["DINE_IN"]  },
+  ],
 }
 
 export const CANCELLABLE_STATUSES: OrderStatus[] = ["DRAFT", "PENDING", "CONFIRMED", "PREPARING", "READY", "OUT_FOR_DELIVERY"]

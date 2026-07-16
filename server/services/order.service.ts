@@ -541,7 +541,9 @@ async function confirmOrder(db: DbClient, storeId: string, order: Order, opts: U
 }
 
 async function deliverTakeawayOrder(db: DbClient, storeId: string, order: Order, opts: UpdateOrderStatusOptions): Promise<Order> {
-  if (order.status !== "READY" || order.type !== "TAKEAWAY") {
+  // Allowed for TAKEAWAY ("Marcar como retirado") and DINE_IN ("Fechar mesa").
+  // DELIVERY orders reach DELIVERED via the Delivery module (OUT_FOR_DELIVERY → DELIVERED).
+  if (order.status !== "READY" || !["TAKEAWAY", "DINE_IN"].includes(order.type)) {
     throw new BadRequestError("INVALID_TRANSITION", "The requested transition is not allowed.")
   }
 
@@ -570,7 +572,6 @@ async function deliverTakeawayOrder(db: DbClient, storeId: string, order: Order,
 async function cancelOrder(db: DbClient, storeId: string, order: Order, opts: UpdateOrderStatusOptions): Promise<Order> {
   if (order.status === "DELIVERED") throw new ConflictError("ORDER_ALREADY_DELIVERED", "Cannot transition a delivered order.")
   if (order.status === "CANCELLED") throw new ConflictError("ORDER_ALREADY_CANCELLED", "Cannot transition a cancelled order.")
-  if (!opts.reason) throw new BadRequestError("CANCELLATION_REASON_REQUIRED", "Cancelling requires a reason.")
   // Business Rule 4: "Anonymous cancellations are not permitted." Unlike PREPARING/READY/
   // OUT_FOR_DELIVERY/DELIVERED (system-derived, triggeredByUserId legitimately null),
   // CANCELLED is always either a client-initiated call (must carry a real user) or the
@@ -608,7 +609,7 @@ async function cancelOrder(db: DbClient, storeId: string, order: Order, opts: Up
       orderId: order.id,
       orderNumber: order.number,
       previousStatus,
-      cancelledReason: opts.reason,
+      cancelledReason: opts.reason ?? "",
       cancelledByUserId: opts.triggeredByUserId,
       cancelledAt: cancelledAt.toISOString(),
       isManagerApproved: opts.isManagerApproved ?? false,

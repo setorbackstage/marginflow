@@ -18,7 +18,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field"
-import { useCreateIngredient, useUpdateIngredient } from "@/features/inventory/hooks"
+import { useCreateIngredient, useUpdateIngredient, useCreateMovement } from "@/features/inventory/hooks"
 import { INGREDIENT_STATUS_CONFIG } from "@/features/inventory/status"
 import { PurchaseCalculator } from "./purchase-calculator"
 import type { Ingredient } from "@/features/inventory/types"
@@ -49,6 +49,7 @@ const ingredientSchema = z.object({
   /** Cost is entered in R$ per base unit and converted to cents on submit. */
   costPerUnit: z.number().min(0, "Custo deve ser positivo"),
   minStock: z.number().min(0, "Deve ser positivo").nullable(),
+  initialStock: z.number().min(0, "Deve ser positivo").nullable(),
   status: z.enum(["ACTIVE", "INACTIVE"]),
   category: z.string().max(60).optional(),
 })
@@ -67,7 +68,8 @@ export function IngredientFormDialog({
   const isEdit = Boolean(ingredient)
   const create = useCreateIngredient()
   const update = useUpdateIngredient()
-  const isPending = create.isPending || update.isPending
+  const createMovement = useCreateMovement()
+  const isPending = create.isPending || update.isPending || createMovement.isPending
 
   const {
     register,
@@ -79,7 +81,7 @@ export function IngredientFormDialog({
     formState: { errors },
   } = useForm<IngredientFormValues>({
     resolver: zodResolver(ingredientSchema),
-    defaultValues: { name: "", unit: "G", costPerUnit: 0, minStock: null, status: "ACTIVE", category: "" },
+    defaultValues: { name: "", unit: "G", costPerUnit: 0, minStock: null, initialStock: null, status: "ACTIVE", category: "" },
   })
 
   React.useEffect(() => {
@@ -89,6 +91,7 @@ export function IngredientFormDialog({
         unit: ingredient?.unit ?? "G",
         costPerUnit: ingredient ? ingredient.costPerUnit / 100 : 0,
         minStock: ingredient?.minStock ?? null,
+        initialStock: null,
         status: ingredient?.status ?? "ACTIVE",
         category: ingredient?.category ?? "",
       })
@@ -109,7 +112,18 @@ export function IngredientFormDialog({
       // `unit` is immutable (API_SPEC.md) — never sent on update.
       update.mutate({ ingredientId: ingredient.id, input: base }, { onSuccess: () => onOpenChange(false) })
     } else {
-      create.mutate({ ...base, unit: values.unit }, { onSuccess: () => onOpenChange(false) })
+      create.mutate({ ...base, unit: values.unit }, {
+        onSuccess: (created) => {
+          if (values.initialStock && values.initialStock > 0) {
+            createMovement.mutate(
+              { ingredientId: created.id, type: "ENTRY", quantity: values.initialStock, reason: "Saldo de abertura" },
+              { onSuccess: () => onOpenChange(false), onError: () => onOpenChange(false) },
+            )
+          } else {
+            onOpenChange(false)
+          }
+        },
+      })
     }
   })
 
@@ -121,7 +135,7 @@ export function IngredientFormDialog({
           <DialogDescription>
             {isEdit
               ? "Atualize os dados do insumo. A unidade não pode ser alterada."
-              : "O estoque inicial é sempre 0 — registre uma entrada para o saldo de abertura."}
+              : "Preencha o estoque inicial para registrar o saldo de abertura automaticamente."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} noValidate>
@@ -230,6 +244,25 @@ export function IngredientFormDialog({
                 <FieldError errors={[errors.minStock]} />
               </Field>
             </div>
+
+            {!isEdit ? (
+              <Field>
+                <FieldLabel htmlFor="ingredient-initial-stock">Estoque inicial (opcional)</FieldLabel>
+                <Input
+                  id="ingredient-initial-stock"
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  placeholder="0"
+                  aria-invalid={!!errors.initialStock}
+                  {...register("initialStock", {
+                    setValueAs: (value) => (value === "" || value === null ? null : Number(value)),
+                  })}
+                />
+                <FieldError errors={[errors.initialStock]} />
+                <p className="mt-1 text-xs text-muted-foreground">Registra automaticamente uma entrada de "Saldo de abertura".</p>
+              </Field>
+            ) : null}
           </FieldGroup>
           <DialogFooter className="mt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

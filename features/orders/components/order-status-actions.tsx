@@ -41,12 +41,13 @@ export function OrderStatusActions({ order }: { order: OrderDetail }) {
   const [managerEmail, setManagerEmail] = React.useState("")
   const [managerApprovalPassword, setManagerApprovalPassword] = React.useState("")
 
-  // For TAKEAWAY, `READY -> DELIVERED` is the only client-callable transition
-  // this endpoint owns; DELIVERY orders reach DELIVERED via the Delivery
-  // module instead (API_SPEC.md's ownership note).
-  const visibleTransitions = (CLIENT_ORDER_TRANSITIONS[order.status] ?? []).filter(
-    (t) => (t.target !== "DELIVERED" || order.type === "TAKEAWAY") && can(TRANSITION_PERMISSION[t.target]),
-  )
+  // READY→DELIVERED is available for TAKEAWAY ("Marcar como retirado") and
+  // DINE_IN ("Fechar mesa"). DELIVERY orders reach DELIVERED via Delivery module.
+  const visibleTransitions = (CLIENT_ORDER_TRANSITIONS[order.status] ?? []).filter((t) => {
+    if (!can(TRANSITION_PERMISSION[t.target])) return false
+    if (t.types) return t.types.includes(order.type)
+    return true
+  })
 
   const canCancelNow = can("orders:cancel") && CANCELLABLE_STATUSES.includes(order.status)
 
@@ -147,7 +148,6 @@ export function OrderStatusActions({ order }: { order: OrderDetail }) {
             <Button
               variant="destructive"
               disabled={
-                cancelReason.trim().length === 0 ||
                 updateStatus.isPending ||
                 (needsManagerApproval && (managerEmail.trim().length === 0 || managerApprovalPassword.length === 0))
               }
