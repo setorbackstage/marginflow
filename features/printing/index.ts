@@ -1,5 +1,6 @@
 export { printingApi } from "./api"
 export { usePrinters, usePrintTemplates, usePrintRules, usePrintJobs, useUpdatePrintJob, useCreatePrinter, useUpdatePrinter, useDeletePrinter, useCreatePrintRule, useDeletePrintRule } from "./hooks"
 export { useQZTray } from "./hooks/use-qz-tray"
+export type { QZTrayState, QZStatus } from "./hooks/use-qz-tray"
 export type { Printer, PrintTemplate, PrintRule, PrintJob, PrintJobListParams } from "./types"
 export { PRINTER_TYPE_LABEL, PRINTER_INTERFACE_LABEL, PRINT_TEMPLATE_TYPE_LABEL, PRINT_JOB_STATUS_LABEL, PRINT_JOB_STATUS_COLOR, PRINT_EVENT_LABEL } from "./types"
