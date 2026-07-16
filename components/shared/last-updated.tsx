@@ -23,7 +23,7 @@ export function LastUpdated({ dataUpdatedAt, isFetching, className }: LastUpdate
       else setLabel(`há ${Math.floor(diffSec / 3600)}h`)
     }
     update()
-    const id = setInterval(update, 15_000)
+    const id = setInterval(update, 30_000)
     return () => clearInterval(id)
   }, [dataUpdatedAt])
 

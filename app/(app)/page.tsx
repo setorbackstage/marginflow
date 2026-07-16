@@ -474,7 +474,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             {store.data?.logoUrl ? (
               <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border">
-                <Image src={store.data.logoUrl} alt="" fill sizes="40px" className="object-cover" unoptimized />
+                <Image src={store.data.logoUrl} alt={activeMembership.storeName} fill sizes="40px" className="object-cover" />
               </div>
             ) : (
               <div className="flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
