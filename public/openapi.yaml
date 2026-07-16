@@ -1,0 +1,3184 @@
+openapi: 3.1.0
+info:
+  title: MarginFlow OS API
+  version: 1.0.0
+  description: |
+    API REST do MarginFlow OS — sistema de gestão para restaurantes e estabelecimentos food service.
+
+    ## Autenticação
+    A API usa dois tokens:
+    - **Access Token** (JWT Bearer, vida curta ~15 min) — enviado no header `Authorization: Bearer <token>`
+    - **Refresh Token** (opaco, HTTP-only cookie `refresh_token`, vida longa ~7 dias) — renovado via `POST /auth/refresh`
+
+    ## Envelope de resposta
+    Todas as respostas seguem o envelope:
+    ```json
+    { "data": <payload> }
+    ```
+    Listas paginadas:
+    ```json
+    { "data": [...], "pagination": { "page": 1, "limit": 20, "total": 120, "totalPages": 6 } }
+    ```
+    Erros:
+    ```json
+    { "error": { "code": "SOME_CODE", "message": "...", "status": 400 } }
+    ```
+
+    ## Isolamento de tenant
+    Todos os endpoints de loja validam que o usuário autenticado possui membership ativa naquela `storeId`.
+
+servers:
+  - url: /api/v1
+    description: Servidor atual
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Autenticação e sessões
+  - name: Store
+    description: Configurações da loja
+  - name: Products
+    description: Produtos, receitas e modificadores
+  - name: Categories
+    description: Categorias de produtos
+  - name: Menus
+    description: Cardápios digitais e seções
+  - name: Orders
+    description: Pedidos e itens
+  - name: Payments
+    description: Pagamentos e reembolsos
+  - name: Deliveries
+    description: Entregas e rotas
+  - name: Kitchen
+    description: Tickets de cozinha e KDS
+  - name: Inventory
+    description: Ingredientes, movimentações e insights
+  - name: Customers
+    description: CRM e clientes
+  - name: Team
+    description: Equipe, convites e roles
+  - name: Notifications
+    description: Notificações push e alertas
+  - name: Printers
+    description: Impressoras, templates e jobs
+  - name: Reports
+    description: Relatórios e dashboard analítico
+  - name: Audit
+    description: Log de auditoria
+  - name: Integrations
+    description: Integrações com plataformas externas
+  - name: Public
+    description: Endpoints públicos (sem autenticação)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ── Pagination ────────────────────────────────────────────────────────
+    PaginationMeta:
+      type: object
+      properties:
+        page: { type: integer, example: 1 }
+        limit: { type: integer, example: 20 }
+        total: { type: integer, example: 120 }
+        totalPages: { type: integer, example: 6 }
+      required: [page, limit, total, totalPages]
+
+    # ── Error ─────────────────────────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string, example: UNAUTHORIZED }
+            message: { type: string, example: Token inválido ou expirado. }
+            status: { type: integer, example: 401 }
+            details: { type: object, nullable: true }
+          required: [code, message, status]
+      required: [error]
+
+    # ── Auth / User ───────────────────────────────────────────────────────
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        status: { type: string, enum: [ACTIVE, INACTIVE, SUSPENDED] }
+        lastLoginAt: { type: string, format: date-time, nullable: true }
+      required: [id, name, email, status]
+
+    Role:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, example: OWNER }
+        displayName: { type: string, example: Proprietário }
+        permissions: { type: array, items: { type: string } }
+        isSystemRole: { type: boolean }
+      required: [id, name, displayName, permissions, isSystemRole]
+
+    Membership:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        roleId: { type: string, format: uuid }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+      required: [id, userId, storeId, roleId, status]
+
+    MembershipWithRole:
+      type: object
+      properties:
+        membership: { $ref: '#/components/schemas/Membership' }
+        role: { $ref: '#/components/schemas/Role' }
+        store: { $ref: '#/components/schemas/StoreBase' }
+      required: [membership, role, store]
+
+    LoginResult:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        user: { $ref: '#/components/schemas/User' }
+        memberships:
+          type: array
+          items: { $ref: '#/components/schemas/MembershipWithRole' }
+      required: [accessToken, refreshToken, user, memberships]
+
+    # ── Store ──────────────────────────────────────────────────────────────
+    StoreBase:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        accountId: { type: string, format: uuid }
+      required: [id, name, slug, accountId]
+
+    Store:
+      allOf:
+        - $ref: '#/components/schemas/StoreBase'
+        - type: object
+          properties:
+            phone: { type: string, nullable: true }
+            address: { type: string, nullable: true }
+            logoUrl: { type: string, nullable: true }
+            bannerUrl: { type: string, nullable: true }
+            primaryColor: { type: string, nullable: true }
+            status: { type: string, enum: [ACTIVE, INACTIVE, SUSPENDED] }
+            createdAt: { type: string, format: date-time }
+
+    StoreSettings:
+      type: object
+      properties:
+        currency: { type: string, example: BRL }
+        timezone: { type: string, example: America/Sao_Paulo }
+        language: { type: string, example: pt-BR }
+        serviceChargeEnabled: { type: boolean }
+        serviceChargePercent: { type: number, nullable: true }
+        defaultPrepTimeMins: { type: integer, nullable: true }
+
+    # ── Category ──────────────────────────────────────────────────────────
+    Category:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        sortOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+      required: [id, storeId, name, sortOrder]
+
+    # ── Product ───────────────────────────────────────────────────────────
+    Product:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        price: { type: number, format: float }
+        imageUrl: { type: string, nullable: true }
+        categoryId: { type: string, format: uuid, nullable: true }
+        status: { type: string, enum: [ACTIVE, INACTIVE, ARCHIVED] }
+        sortOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+      required: [id, storeId, name, price, status, sortOrder]
+
+    ModifierGroup:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        productId: { type: string, format: uuid }
+        name: { type: string }
+        required: { type: boolean }
+        minSelections: { type: integer }
+        maxSelections: { type: integer }
+        sortOrder: { type: integer }
+      required: [id, productId, name, required, minSelections, maxSelections, sortOrder]
+
+    Modifier:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        groupId: { type: string, format: uuid }
+        name: { type: string }
+        priceAdjustment: { type: number, format: float }
+        isDefault: { type: boolean }
+        sortOrder: { type: integer }
+      required: [id, groupId, name, priceAdjustment, isDefault, sortOrder]
+
+    RecipeItem:
+      type: object
+      properties:
+        ingredientId: { type: string, format: uuid }
+        quantity: { type: number }
+        unit: { type: string }
+      required: [ingredientId, quantity, unit]
+
+    # ── Menu ──────────────────────────────────────────────────────────────
+    Menu:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        isPublished: { type: boolean }
+        availabilitySchedule: { type: object, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required: [id, storeId, name, isPublished]
+
+    MenuSection:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        menuId: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        sortOrder: { type: integer }
+        productIds: { type: array, items: { type: string, format: uuid } }
+      required: [id, menuId, name, sortOrder, productIds]
+
+    # ── Order ─────────────────────────────────────────────────────────────
+    OrderItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        orderId: { type: string, format: uuid }
+        productId: { type: string, format: uuid }
+        productName: { type: string }
+        quantity: { type: integer }
+        unitPrice: { type: number }
+        totalPrice: { type: number }
+        notes: { type: string, nullable: true }
+        status: { type: string, enum: [PENDING, PREPARING, READY, DELIVERED, CANCELLED] }
+      required: [id, orderId, productId, productName, quantity, unitPrice, totalPrice, status]
+
+    Order:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        orderNumber: { type: integer }
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, PREPARING, READY, DELIVERED, CANCELLED]
+        channel: { type: string, enum: [COUNTER, DELIVERY, TABLE, WHATSAPP, IFOOD] }
+        customerId: { type: string, format: uuid, nullable: true }
+        tableNumber: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        subtotal: { type: number }
+        discount: { type: number }
+        serviceCharge: { type: number }
+        total: { type: number }
+        items: { type: array, items: { $ref: '#/components/schemas/OrderItem' } }
+        createdAt: { type: string, format: date-time }
+      required: [id, storeId, orderNumber, status, channel, subtotal, discount, serviceCharge, total]
+
+    # ── Payment ───────────────────────────────────────────────────────────
+    Payment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        orderId: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        amount: { type: number }
+        method: { type: string, enum: [CASH, CREDIT_CARD, DEBIT_CARD, PIX, VOUCHER, OTHER] }
+        status: { type: string, enum: [PENDING, CONFIRMED, REFUNDED, FAILED] }
+        externalRef: { type: string, nullable: true }
+        paidAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required: [id, orderId, storeId, amount, method, status]
+
+    # ── Delivery ──────────────────────────────────────────────────────────
+    Delivery:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        orderId: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        address: { type: string }
+        status: { type: string, enum: [PENDING, ASSIGNED, IN_TRANSIT, DELIVERED, FAILED] }
+        driverName: { type: string, nullable: true }
+        driverPhone: { type: string, nullable: true }
+        estimatedMinutes: { type: integer, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required: [id, orderId, storeId, address, status]
+
+    # ── Kitchen ───────────────────────────────────────────────────────────
+    KitchenTicket:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        orderId: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        status: { type: string, enum: [OPEN, IN_PROGRESS, DONE, CANCELLED] }
+        priority: { type: integer }
+        createdAt: { type: string, format: date-time }
+      required: [id, orderId, storeId, status, priority]
+
+    KitchenItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        ticketId: { type: string, format: uuid }
+        name: { type: string }
+        quantity: { type: integer }
+        status: { type: string, enum: [PENDING, PREPARING, DONE, CANCELLED] }
+        notes: { type: string, nullable: true }
+      required: [id, ticketId, name, quantity, status]
+
+    # ── Inventory ─────────────────────────────────────────────────────────
+    Ingredient:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        name: { type: string }
+        unit: { type: string, enum: [G, KG, ML, L, UN] }
+        currentStock: { type: number }
+        minStock: { type: number, nullable: true }
+        costPerUnit: { type: number, nullable: true }
+        category: { type: string, nullable: true }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        deletedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required: [id, storeId, name, unit, currentStock, status]
+
+    StockMovement:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        ingredientId: { type: string, format: uuid }
+        type: { type: string, enum: [ENTRY, EXIT, LOSS, ADJUSTMENT] }
+        quantityDelta: { type: number }
+        unitCost: { type: number, nullable: true }
+        reason: { type: string, nullable: true }
+        orderId: { type: string, format: uuid, nullable: true }
+        createdByUserId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+      required: [id, storeId, ingredientId, type, quantityDelta, createdByUserId]
+
+    # ── Customer ──────────────────────────────────────────────────────────
+    Customer:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string }
+        email: { type: string, format: email, nullable: true }
+        taxId: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        status: { type: string, enum: [ACTIVE, BLOCKED] }
+        totalOrders: { type: integer }
+        totalSpent: { type: number }
+        lastOrderAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required: [id, storeId, name, phone, status, totalOrders, totalSpent]
+
+    CustomerAddress:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        customerId: { type: string, format: uuid }
+        label: { type: string }
+        street: { type: string }
+        number: { type: string }
+        complement: { type: string, nullable: true }
+        neighborhood: { type: string }
+        city: { type: string }
+        state: { type: string }
+        postalCode: { type: string }
+        isDefault: { type: boolean }
+      required: [id, customerId, label, street, number, neighborhood, city, state, postalCode, isDefault]
+
+    # ── Notification ──────────────────────────────────────────────────────
+    Notification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        type: { type: string }
+        title: { type: string }
+        body: { type: string }
+        entityType: { type: string, nullable: true }
+        entityId: { type: string, nullable: true }
+        readAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required: [id, storeId, type, title, body]
+
+    # ── Printer ───────────────────────────────────────────────────────────
+    Printer:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        name: { type: string }
+        type: { type: string, enum: [THERMAL, LABEL, INKJET] }
+        connectionType: { type: string, enum: [USB, NETWORK, BLUETOOTH] }
+        address: { type: string, nullable: true }
+        isDefault: { type: boolean }
+        status: { type: string, enum: [ONLINE, OFFLINE, ERROR] }
+      required: [id, storeId, name, type, connectionType, isDefault, status]
+
+    PrintTemplate:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        name: { type: string }
+        type: { type: string, enum: [ORDER, RECEIPT, LABEL, KITCHEN] }
+        content: { type: string }
+        isDefault: { type: boolean }
+      required: [id, storeId, name, type, content, isDefault]
+
+    PrintRule:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        event: { type: string }
+        printerId: { type: string, format: uuid }
+        templateId: { type: string, format: uuid }
+        copies: { type: integer, minimum: 1 }
+        enabled: { type: boolean }
+      required: [id, storeId, event, printerId, templateId, copies, enabled]
+
+    PrintJob:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        printerId: { type: string, format: uuid }
+        templateId: { type: string, format: uuid, nullable: true }
+        status: { type: string, enum: [PENDING, PRINTING, DONE, FAILED] }
+        copies: { type: integer }
+        payload: { type: object }
+        createdAt: { type: string, format: date-time }
+      required: [id, storeId, printerId, status, copies, payload]
+
+    # ── Audit ─────────────────────────────────────────────────────────────
+    AuditLog:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        userId: { type: string, format: uuid, nullable: true }
+        action: { type: string, example: order.created }
+        entityType: { type: string, example: Order }
+        entityId: { type: string, nullable: true }
+        entityRef: { type: string, nullable: true }
+        metadata: { type: object, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required: [id, storeId, action, entityType]
+
+    # ── Integration ───────────────────────────────────────────────────────
+    Integration:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        platform: { type: string, enum: [IFOOD, RAPPI, AIQFOME] }
+        status: { type: string, enum: [ACTIVE, INACTIVE, ERROR] }
+        lastSyncAt: { type: string, format: date-time, nullable: true }
+        credentials: { type: object, nullable: true }
+      required: [id, storeId, platform, status]
+
+  responses:
+    Unauthorized:
+      description: Token inválido, expirado ou ausente
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Sem permissão para este recurso
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: Conflito (ex. e-mail já cadastrado)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    UnprocessableEntity:
+      description: Dados de entrada inválidos
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PATHS
+# ═══════════════════════════════════════════════════════════════════════════
+paths:
+
+  # ── AUTH ──────────────────────────────────────────────────────────────────
+
+  /auth/signup:
+    post:
+      tags: [Auth]
+      summary: Criar conta e loja
+      description: Provisiona uma conta, loja, roles padrão e retorna o usuário autenticado. Rate limit 5/min por IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                storeName: { type: string, minLength: 2, maxLength: 120 }
+                ownerName: { type: string, minLength: 2, maxLength: 80 }
+                email: { type: string, format: email }
+                passwordHash: { type: string, description: Hash bcrypt da senha }
+                phone: { type: string, minLength: 8, maxLength: 20 }
+                storeType: { type: string, enum: [RESTAURANT, BAR, CAFE, BAKERY, OTHER] }
+              required: [storeName, ownerName, email, passwordHash, phone, storeType]
+      responses:
+        '201':
+          description: Conta criada — retorna LoginResult
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LoginResult' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      description: Autentica email/senha. Rate limit 10/min por IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+              required: [email, password]
+      responses:
+        '200':
+          description: Autenticado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LoginResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout
+      description: Revoga o refresh token atual.
+      responses:
+        '204':
+          description: Sessão encerrada
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Renovar access token
+      description: Usa o cookie HTTP-only `refresh_token` para emitir um novo access token. Rate limit 30/min por IP.
+      security: []
+      responses:
+        '200':
+          description: Novo access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      accessToken: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Perfil do usuário autenticado
+      responses:
+        '200':
+          description: Perfil e memberships
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LoginResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Solicitar reset de senha
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email }
+              required: [email]
+      responses:
+        '204':
+          description: E-mail de reset enviado (resposta idêntica mesmo se e-mail não existir)
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Redefinir senha via token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 8 }
+              required: [token, password]
+      responses:
+        '204':
+          description: Senha redefinida
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/accept-invitation:
+    post:
+      tags: [Auth]
+      summary: Aceitar convite de equipe
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token: { type: string }
+                name: { type: string, minLength: 2 }
+                password: { type: string, minLength: 8 }
+              required: [token, name, password]
+      responses:
+        '200':
+          description: Convite aceito — retorna LoginResult
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/LoginResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/approval-password:
+    post:
+      tags: [Auth]
+      summary: Verificar senha de aprovação (override gerencial)
+      description: Valida a senha do manager para autorizar operações que requerem aprovação presencial.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                storeId: { type: string, format: uuid }
+                password: { type: string }
+              required: [storeId, password]
+      responses:
+        '200':
+          description: Senha válida
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      valid: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ── STORE ────────────────────────────────────────────────────────────────
+
+  /stores/{storeId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Store]
+      summary: Obter dados da loja
+      responses:
+        '200':
+          description: Loja
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Store' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Store]
+      summary: Atualizar loja
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                phone: { type: string, maxLength: 20, nullable: true }
+                address: { type: string, maxLength: 300, nullable: true }
+                logoUrl: { type: string, format: uri, nullable: true }
+                bannerUrl: { type: string, format: uri, nullable: true }
+                primaryColor: { type: string, pattern: '^#[0-9a-fA-F]{6}$', nullable: true }
+      responses:
+        '200':
+          description: Loja atualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Store' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /stores/{storeId}/settings:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Store]
+      summary: Obter configurações da loja
+      responses:
+        '200':
+          description: Configurações
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/StoreSettings' }
+    patch:
+      tags: [Store]
+      summary: Atualizar configurações da loja
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currency: { type: string }
+                timezone: { type: string }
+                language: { type: string }
+                serviceChargeEnabled: { type: boolean }
+                serviceChargePercent: { type: number, nullable: true }
+                defaultPrepTimeMins: { type: integer, nullable: true }
+      responses:
+        '200':
+          description: Configurações atualizadas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/StoreSettings' }
+
+  /stores/{storeId}/upload:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Store]
+      summary: Upload de imagem (logo ou banner)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Imagem JPEG, PNG, WebP ou GIF. Máximo 5 MB.
+                type:
+                  type: string
+                  enum: [logo, banner]
+              required: [file, type]
+      responses:
+        '200':
+          description: URL pública da imagem no Supabase Storage
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      url: { type: string, format: uri }
+        '400': { $ref: '#/components/responses/UnprocessableEntity' }
+        '413':
+          description: Arquivo maior que 5 MB
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ── CATEGORIES ────────────────────────────────────────────────────────────
+
+  /stores/{storeId}/categories:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Categories]
+      summary: Listar categorias
+      responses:
+        '200':
+          description: Lista de categorias
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Category' } }
+    post:
+      tags: [Categories]
+      summary: Criar categoria
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                description: { type: string, maxLength: 300, nullable: true }
+                sortOrder: { type: integer, minimum: 0 }
+              required: [name]
+      responses:
+        '201':
+          description: Categoria criada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Category' }
+
+  /stores/{storeId}/categories/{categoryId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: categoryId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Categories]
+      summary: Atualizar categoria
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                description: { type: string, maxLength: 300, nullable: true }
+                sortOrder: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: Categoria atualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Category' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Categories]
+      summary: Excluir categoria
+      responses:
+        '204':
+          description: Categoria excluída
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── PRODUCTS ──────────────────────────────────────────────────────────────
+
+  /stores/{storeId}/products:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Products]
+      summary: Listar produtos
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: status, in: query, schema: { type: string, enum: [ACTIVE, INACTIVE, ARCHIVED] } }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Lista paginada de produtos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Product' } }
+                  pagination: { $ref: '#/components/schemas/PaginationMeta' }
+    post:
+      tags: [Products]
+      summary: Criar produto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+                description: { type: string, maxLength: 600, nullable: true }
+                price: { type: number, minimum: 0 }
+                imageUrl: { type: string, format: uri, nullable: true }
+                categoryId: { type: string, format: uuid, nullable: true }
+                status: { type: string, enum: [ACTIVE, INACTIVE, ARCHIVED] }
+                sortOrder: { type: integer, minimum: 0 }
+              required: [name, price]
+      responses:
+        '201':
+          description: Produto criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Product' }
+
+  /stores/{storeId}/products/{productId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: productId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Products]
+      summary: Obter produto
+      responses:
+        '200':
+          description: Produto
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Product' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Products]
+      summary: Atualizar produto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+                description: { type: string, maxLength: 600, nullable: true }
+                price: { type: number, minimum: 0 }
+                imageUrl: { type: string, format: uri, nullable: true }
+                categoryId: { type: string, format: uuid, nullable: true }
+                status: { type: string, enum: [ACTIVE, INACTIVE, ARCHIVED] }
+                sortOrder: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: Produto atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Product' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Products]
+      summary: Arquivar produto (soft delete)
+      responses:
+        '204':
+          description: Produto arquivado
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/products/{productId}/recipe:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: productId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Products]
+      summary: Obter receita do produto
+      responses:
+        '200':
+          description: Receita
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/RecipeItem' } }
+    put:
+      tags: [Products]
+      summary: Definir/substituir receita do produto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      ingredientId: { type: string, format: uuid }
+                      quantity: { type: number, minimum: 0.001 }
+                    required: [ingredientId, quantity]
+              required: [items]
+      responses:
+        '200':
+          description: Receita atualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/RecipeItem' } }
+
+  /stores/{storeId}/products/{productId}/modifier-groups:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: productId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Products]
+      summary: Listar grupos de modificadores
+      responses:
+        '200':
+          description: Grupos de modificadores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/ModifierGroup' } }
+    post:
+      tags: [Products]
+      summary: Criar grupo de modificadores
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                required: { type: boolean }
+                minSelections: { type: integer, minimum: 0 }
+                maxSelections: { type: integer, minimum: 1 }
+                sortOrder: { type: integer, minimum: 0 }
+              required: [name, required, minSelections, maxSelections]
+      responses:
+        '201':
+          description: Grupo criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ModifierGroup' }
+
+  /stores/{storeId}/products/{productId}/modifier-groups/{groupId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: productId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: groupId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Products]
+      summary: Atualizar grupo de modificadores
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                required: { type: boolean }
+                minSelections: { type: integer, minimum: 0 }
+                maxSelections: { type: integer, minimum: 1 }
+                sortOrder: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: Grupo atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ModifierGroup' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Products]
+      summary: Excluir grupo de modificadores
+      responses:
+        '204': { description: Excluído }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/products/{productId}/modifier-groups/{groupId}/modifiers:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: productId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: groupId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Products]
+      summary: Listar modificadores do grupo
+      responses:
+        '200':
+          description: Modificadores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Modifier' } }
+    post:
+      tags: [Products]
+      summary: Criar modificador
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                priceAdjustment: { type: number }
+                isDefault: { type: boolean }
+                sortOrder: { type: integer, minimum: 0 }
+              required: [name, priceAdjustment]
+      responses:
+        '201':
+          description: Modificador criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Modifier' }
+
+  /stores/{storeId}/products/{productId}/modifier-groups/{groupId}/modifiers/{modifierId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: productId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: groupId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: modifierId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Products]
+      summary: Atualizar modificador
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                priceAdjustment: { type: number }
+                isDefault: { type: boolean }
+                sortOrder: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: Modificador atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Modifier' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Products]
+      summary: Excluir modificador
+      responses:
+        '204': { description: Excluído }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── MENUS ─────────────────────────────────────────────────────────────────
+
+  /stores/{storeId}/menus:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Menus]
+      summary: Listar cardápios
+      responses:
+        '200':
+          description: Lista de cardápios
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Menu' } }
+    post:
+      tags: [Menus]
+      summary: Criar cardápio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+                description: { type: string, maxLength: 500, nullable: true }
+                availabilitySchedule: { type: object, nullable: true }
+              required: [name]
+      responses:
+        '201':
+          description: Cardápio criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Menu' }
+
+  /stores/{storeId}/menus/{menuId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: menuId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Menus]
+      summary: Obter cardápio
+      responses:
+        '200':
+          description: Cardápio
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Menu' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Menus]
+      summary: Atualizar cardápio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+                description: { type: string, maxLength: 500, nullable: true }
+                availabilitySchedule: { type: object, nullable: true }
+      responses:
+        '200':
+          description: Cardápio atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Menu' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Menus]
+      summary: Excluir cardápio
+      responses:
+        '204': { description: Excluído }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/menus/{menuId}/publish:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: menuId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Menus]
+      summary: Publicar cardápio
+      responses:
+        '200':
+          description: Cardápio publicado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Menu' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/menus/{menuId}/unpublish:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: menuId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Menus]
+      summary: Despublicar cardápio
+      responses:
+        '200':
+          description: Cardápio despublicado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Menu' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/menus/{menuId}/sections:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: menuId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Menus]
+      summary: Listar seções do cardápio
+      responses:
+        '200':
+          description: Seções
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/MenuSection' } }
+    post:
+      tags: [Menus]
+      summary: Criar seção no cardápio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                description: { type: string, maxLength: 300, nullable: true }
+                sortOrder: { type: integer, minimum: 0 }
+                productIds: { type: array, items: { type: string, format: uuid } }
+              required: [name, productIds]
+      responses:
+        '201':
+          description: Seção criada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/MenuSection' }
+
+  # ── ORDERS ────────────────────────────────────────────────────────────────
+
+  /stores/{storeId}/orders:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Orders]
+      summary: Listar pedidos
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, CONFIRMED, PREPARING, READY, DELIVERED, CANCELLED] } }
+        - { name: channel, in: query, schema: { type: string, enum: [COUNTER, DELIVERY, TABLE, WHATSAPP, IFOOD] } }
+        - { name: customerId, in: query, schema: { type: string, format: uuid } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Lista paginada de pedidos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Order' } }
+                  pagination: { $ref: '#/components/schemas/PaginationMeta' }
+    post:
+      tags: [Orders]
+      summary: Criar pedido
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel: { type: string, enum: [COUNTER, DELIVERY, TABLE, WHATSAPP, IFOOD] }
+                customerId: { type: string, format: uuid, nullable: true }
+                tableNumber: { type: string, nullable: true }
+                notes: { type: string, maxLength: 500, nullable: true }
+                discount: { type: number, minimum: 0 }
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    properties:
+                      productId: { type: string, format: uuid }
+                      quantity: { type: integer, minimum: 1 }
+                      unitPrice: { type: number, minimum: 0 }
+                      notes: { type: string, nullable: true }
+                      selectedModifiers:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            modifierId: { type: string, format: uuid }
+                    required: [productId, quantity, unitPrice]
+              required: [channel, items]
+      responses:
+        '201':
+          description: Pedido criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Order' }
+
+  /stores/{storeId}/orders/{orderId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Orders]
+      summary: Obter pedido
+      responses:
+        '200':
+          description: Pedido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Order' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Orders]
+      summary: Atualizar pedido (campos gerais)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes: { type: string, maxLength: 500, nullable: true }
+                tableNumber: { type: string, nullable: true }
+                discount: { type: number, minimum: 0 }
+      responses:
+        '200':
+          description: Pedido atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Order' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/orders/{orderId}/status:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Orders]
+      summary: Atualizar status do pedido
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, enum: [CONFIRMED, PREPARING, READY, DELIVERED, CANCELLED] }
+                reason: { type: string, nullable: true }
+              required: [status]
+      responses:
+        '200':
+          description: Status atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Order' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/orders/{orderId}/items:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Orders]
+      summary: Listar itens do pedido
+      responses:
+        '200':
+          description: Itens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/OrderItem' } }
+    post:
+      tags: [Orders]
+      summary: Adicionar item ao pedido
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                productId: { type: string, format: uuid }
+                quantity: { type: integer, minimum: 1 }
+                unitPrice: { type: number, minimum: 0 }
+                notes: { type: string, nullable: true }
+              required: [productId, quantity, unitPrice]
+      responses:
+        '201':
+          description: Item adicionado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/OrderItem' }
+
+  /stores/{storeId}/orders/{orderId}/items/{itemId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Orders]
+      summary: Atualizar item do pedido
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity: { type: integer, minimum: 1 }
+                notes: { type: string, nullable: true }
+                status: { type: string, enum: [PENDING, PREPARING, READY, DELIVERED, CANCELLED] }
+      responses:
+        '200':
+          description: Item atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/OrderItem' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Orders]
+      summary: Remover item do pedido
+      responses:
+        '204': { description: Item removido }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/orders/{orderId}/payment:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Orders]
+      summary: Obter pagamento do pedido
+      responses:
+        '200':
+          description: Pagamento
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Payment' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/orders/{orderId}/timeline:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Orders]
+      summary: Timeline de eventos do pedido
+      responses:
+        '200':
+          description: Eventos do pedido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        event: { type: string }
+                        at: { type: string, format: date-time }
+                        userId: { type: string, format: uuid, nullable: true }
+
+  # ── PAYMENTS ──────────────────────────────────────────────────────────────
+
+  /stores/{storeId}/payments:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Payments]
+      summary: Listar pagamentos
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, CONFIRMED, REFUNDED, FAILED] } }
+        - { name: method, in: query, schema: { type: string, enum: [CASH, CREDIT_CARD, DEBIT_CARD, PIX, VOUCHER, OTHER] } }
+      responses:
+        '200':
+          description: Lista paginada de pagamentos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Payment' } }
+                  pagination: { $ref: '#/components/schemas/PaginationMeta' }
+    post:
+      tags: [Payments]
+      summary: Registrar pagamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderId: { type: string, format: uuid }
+                amount: { type: number, minimum: 0.01 }
+                method: { type: string, enum: [CASH, CREDIT_CARD, DEBIT_CARD, PIX, VOUCHER, OTHER] }
+                externalRef: { type: string, nullable: true }
+              required: [orderId, amount, method]
+      responses:
+        '201':
+          description: Pagamento registrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Payment' }
+
+  /stores/{storeId}/payments/{paymentId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: paymentId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Payments]
+      summary: Obter pagamento
+      responses:
+        '200':
+          description: Pagamento
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Payment' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/payments/{paymentId}/confirm:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: paymentId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Payments]
+      summary: Confirmar pagamento
+      responses:
+        '200':
+          description: Pagamento confirmado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Payment' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/payments/{paymentId}/refund:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: paymentId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Payments]
+      summary: Reembolsar pagamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 300, nullable: true }
+      responses:
+        '200':
+          description: Pagamento reembolsado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Payment' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── DELIVERIES ────────────────────────────────────────────────────────────
+
+  /stores/{storeId}/deliveries:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Deliveries]
+      summary: Listar entregas
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, ASSIGNED, IN_TRANSIT, DELIVERED, FAILED] } }
+      responses:
+        '200':
+          description: Lista paginada de entregas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Delivery' } }
+                  pagination: { $ref: '#/components/schemas/PaginationMeta' }
+    post:
+      tags: [Deliveries]
+      summary: Criar entrega
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderId: { type: string, format: uuid }
+                address: { type: string, minLength: 5, maxLength: 300 }
+                driverName: { type: string, nullable: true }
+                driverPhone: { type: string, nullable: true }
+                estimatedMinutes: { type: integer, minimum: 1, nullable: true }
+              required: [orderId, address]
+      responses:
+        '201':
+          description: Entrega criada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Delivery' }
+
+  /stores/{storeId}/deliveries/{deliveryId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: deliveryId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Deliveries]
+      summary: Obter entrega
+      responses:
+        '200':
+          description: Entrega
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Delivery' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Deliveries]
+      summary: Atualizar entrega
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                driverName: { type: string, nullable: true }
+                driverPhone: { type: string, nullable: true }
+                estimatedMinutes: { type: integer, minimum: 1, nullable: true }
+      responses:
+        '200':
+          description: Entrega atualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Delivery' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/deliveries/{deliveryId}/status:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: deliveryId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Deliveries]
+      summary: Atualizar status da entrega
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, enum: [ASSIGNED, IN_TRANSIT, DELIVERED, FAILED] }
+              required: [status]
+      responses:
+        '200':
+          description: Status atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Delivery' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── KITCHEN ───────────────────────────────────────────────────────────────
+
+  /stores/{storeId}/kitchen/tickets:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Kitchen]
+      summary: Listar tickets de cozinha
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [OPEN, IN_PROGRESS, DONE, CANCELLED] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Tickets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/KitchenTicket' } }
+                  pagination: { $ref: '#/components/schemas/PaginationMeta' }
+
+  /stores/{storeId}/kitchen/tickets/{ticketId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: ticketId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Kitchen]
+      summary: Obter ticket de cozinha
+      responses:
+        '200':
+          description: Ticket
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/KitchenTicket' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/kitchen/tickets/{ticketId}/status:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: ticketId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Kitchen]
+      summary: Atualizar status do ticket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, enum: [IN_PROGRESS, DONE, CANCELLED] }
+              required: [status]
+      responses:
+        '200':
+          description: Status atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/KitchenTicket' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/kitchen/items/{itemId}/status:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Kitchen]
+      summary: Atualizar status de item na cozinha
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, enum: [PREPARING, DONE, CANCELLED] }
+              required: [status]
+      responses:
+        '200':
+          description: Status atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/KitchenItem' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── INVENTORY ──────────────────────────────────────────────────────────────
+
+  /stores/{storeId}/inventory/ingredients:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Inventory]
+      summary: Listar ingredientes
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: status, in: query, schema: { type: string, enum: [ACTIVE, INACTIVE] } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: lowStock, in: query, schema: { type: boolean } }
+      responses:
+        '200':
+          description: Lista paginada de ingredientes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Ingredient' } }
+                  pagination: { $ref: '#/components/schemas/PaginationMeta' }
+    post:
+      tags: [Inventory]
+      summary: Criar ingrediente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+                unit: { type: string, enum: [G, KG, ML, L, UN] }
+                currentStock: { type: number, minimum: 0 }
+                minStock: { type: number, minimum: 0, nullable: true }
+                costPerUnit: { type: number, minimum: 0, nullable: true }
+                category: { type: string, nullable: true }
+              required: [name, unit]
+      responses:
+        '201':
+          description: Ingrediente criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Ingredient' }
+
+  /stores/{storeId}/inventory/ingredients/{ingredientId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: ingredientId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Inventory]
+      summary: Obter ingrediente
+      responses:
+        '200':
+          description: Ingrediente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Ingredient' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Inventory]
+      summary: Atualizar ingrediente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+                unit: { type: string, enum: [G, KG, ML, L, UN] }
+                minStock: { type: number, minimum: 0, nullable: true }
+                costPerUnit: { type: number, minimum: 0, nullable: true }
+                category: { type: string, nullable: true }
+                status: { type: string, enum: [ACTIVE, INACTIVE] }
+      responses:
+        '200':
+          description: Ingrediente atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Ingredient' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Inventory]
+      summary: Excluir ingrediente (soft delete)
+      responses:
+        '204': { description: Ingrediente excluído }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/inventory/movements:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Inventory]
+      summary: Listar movimentações de estoque
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: ingredientId, in: query, schema: { type: string, format: uuid } }
+        - { name: type, in: query, schema: { type: string, enum: [ENTRY, EXIT, LOSS, ADJUSTMENT] } }
+      responses:
+        '200':
+          description: Lista paginada de movimentações
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/StockMovement' } }
+                  pagination: { $ref: '#/components/schemas/PaginationMeta' }
+    post:
+      tags: [Inventory]
+      summary: Registrar movimentação manual de estoque
+      description: |
+        Tipos e direção:
+        - **ENTRY** — entrada (delta positivo). Aceita `costPerUnit` opcional para atualizar custo.
+        - **EXIT** — saída manual (delta negativo). Não pode deixar saldo negativo (BR41).
+        - **LOSS** — perda/vencimento (delta negativo). Requer `reason`.
+        - **ADJUSTMENT** — ajuste de inventário. Requer `direction` (INCREASE | DECREASE) e `reason`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ingredientId: { type: string, format: uuid }
+                type: { type: string, enum: [ENTRY, EXIT, LOSS, ADJUSTMENT] }
+                quantity: { type: number, minimum: 0.001 }
+                costPerUnit: { type: number, minimum: 0, nullable: true }
+                reason: { type: string, maxLength: 300, nullable: true }
+                direction:
+                  type: string
+                  enum: [INCREASE, DECREASE]
+                  description: Obrigatório quando type=ADJUSTMENT
+              required: [ingredientId, type, quantity]
+      responses:
+        '201':
+          description: Movimentação registrada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/StockMovement' }
+        '400':
+          description: Saldo insuficiente (BR41)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/inventory/insights:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Inventory]
+      summary: Insights de estoque (CMV, giro, itens críticos)
+      responses:
+        '200':
+          description: Insights
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      cmvTotal: { type: number }
+                      cmvPercent: { type: number }
+                      lowStockCount: { type: integer }
+                      topConsumed:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            ingredientId: { type: string, format: uuid }
+                            name: { type: string }
+                            consumed: { type: number }
+
+  /stores/{storeId}/inventory/alerts:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Inventory]
+      summary: Listar ingredientes com alerta de estoque baixo
+      responses:
+        '200':
+          description: Ingredientes abaixo do mínimo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Ingredient' } }
+
+  # ── CUSTOMERS ─────────────────────────────────────────────────────────────
+
+  /stores/{storeId}/customers:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Customers]
+      summary: Listar clientes
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: status, in: query, schema: { type: string, enum: [ACTIVE, BLOCKED] } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string, enum: [name, last_order_at, total_spent, total_orders, created_at], default: last_order_at } }
+        - { name: order, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200':
+          description: Lista paginada de clientes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Customer' } }
+                  pagination: { $ref: '#/components/schemas/PaginationMeta' }
+    post:
+      tags: [Customers]
+      summary: Criar cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                phone: { type: string, minLength: 8, maxLength: 20 }
+                email: { type: string, format: email, nullable: true }
+                taxId: { type: string, pattern: '^\d{11}$', nullable: true, description: CPF (11 dígitos) }
+                notes: { type: string, maxLength: 500, nullable: true }
+              required: [name, phone]
+      responses:
+        '201':
+          description: Cliente criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Customer' }
+
+  /stores/{storeId}/customers/{customerId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: customerId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Customers]
+      summary: Obter cliente
+      responses:
+        '200':
+          description: Cliente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Customer' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Customers]
+      summary: Atualizar cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                phone: { type: string, minLength: 8, maxLength: 20 }
+                email: { type: string, format: email, nullable: true }
+                taxId: { type: string, pattern: '^\d{11}$', nullable: true }
+                notes: { type: string, maxLength: 500, nullable: true }
+                status: { type: string, enum: [ACTIVE, BLOCKED] }
+      responses:
+        '200':
+          description: Cliente atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Customer' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Customers]
+      summary: Excluir cliente
+      responses:
+        '204': { description: Cliente excluído }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/customers/{customerId}/addresses:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: customerId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Customers]
+      summary: Listar endereços do cliente
+      responses:
+        '200':
+          description: Endereços
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/CustomerAddress' } }
+    post:
+      tags: [Customers]
+      summary: Adicionar endereço ao cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label: { type: string, minLength: 1, maxLength: 50 }
+                street: { type: string, minLength: 1, maxLength: 200 }
+                number: { type: string, maxLength: 20 }
+                complement: { type: string, maxLength: 100, nullable: true }
+                neighborhood: { type: string, maxLength: 100 }
+                city: { type: string, maxLength: 100 }
+                state: { type: string, maxLength: 2 }
+                postalCode: { type: string, maxLength: 10 }
+                isDefault: { type: boolean }
+              required: [label, street, number, neighborhood, city, state, postalCode]
+      responses:
+        '201':
+          description: Endereço criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/CustomerAddress' }
+
+  /stores/{storeId}/customers/{customerId}/addresses/{addressId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: customerId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: addressId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Customers]
+      summary: Atualizar endereço
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label: { type: string, minLength: 1, maxLength: 50 }
+                street: { type: string, minLength: 1, maxLength: 200 }
+                number: { type: string, maxLength: 20 }
+                complement: { type: string, maxLength: 100, nullable: true }
+                neighborhood: { type: string, maxLength: 100 }
+                city: { type: string, maxLength: 100 }
+                state: { type: string, maxLength: 2 }
+                postalCode: { type: string, maxLength: 10 }
+                isDefault: { type: boolean }
+      responses:
+        '200':
+          description: Endereço atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/CustomerAddress' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Customers]
+      summary: Remover endereço
+      responses:
+        '204': { description: Endereço removido }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/customers/{customerId}/orders:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: customerId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Customers]
+      summary: Listar pedidos do cliente
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Pedidos do cliente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Order' } }
+                  pagination: { $ref: '#/components/schemas/PaginationMeta' }
+
+  /stores/{storeId}/customers/segments:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Customers]
+      summary: Segmentos CRM (VIP, recorrentes, inativos, novos)
+      responses:
+        '200':
+          description: Dados dos segmentos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      vip: { type: integer }
+                      recurrent: { type: integer }
+                      inactive: { type: integer }
+                      new: { type: integer }
+
+  # ── TEAM ──────────────────────────────────────────────────────────────────
+
+  /stores/{storeId}/team:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Team]
+      summary: Listar membros da equipe
+      responses:
+        '200':
+          description: Membros
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        user: { $ref: '#/components/schemas/User' }
+                        membership: { $ref: '#/components/schemas/Membership' }
+                        role: { $ref: '#/components/schemas/Role' }
+
+  /stores/{storeId}/team/invite:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Team]
+      summary: Convidar membro para a equipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email }
+                roleId: { type: string, format: uuid }
+              required: [email, roleId]
+      responses:
+        '201':
+          description: Convite enviado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      invitationToken: { type: string }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /stores/{storeId}/team/{userId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [Team]
+      summary: Remover membro da equipe
+      responses:
+        '204': { description: Membro removido }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/team/{userId}/role:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Team]
+      summary: Alterar role do membro
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roleId: { type: string, format: uuid }
+              required: [roleId]
+      responses:
+        '200':
+          description: Role atualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Membership' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/roles:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Team]
+      summary: Listar roles disponíveis na loja
+      responses:
+        '200':
+          description: Roles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Role' } }
+
+  # ── NOTIFICATIONS ─────────────────────────────────────────────────────────
+
+  /stores/{storeId}/notifications:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Notifications]
+      summary: Listar notificações
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: unreadOnly, in: query, schema: { type: boolean } }
+      responses:
+        '200':
+          description: Notificações
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Notification' } }
+                  pagination: { $ref: '#/components/schemas/PaginationMeta' }
+
+  /stores/{storeId}/notifications/{notificationId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: notificationId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Notifications]
+      summary: Marcar notificação como lida
+      responses:
+        '200':
+          description: Notificação marcada como lida
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Notification' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/notifications/read-all:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Notifications]
+      summary: Marcar todas as notificações como lidas
+      responses:
+        '204': { description: Todas marcadas como lidas }
+
+  /stores/{storeId}/push-subscriptions:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Notifications]
+      summary: Registrar subscription de push notification (Web Push)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                endpoint: { type: string, format: uri }
+                keys:
+                  type: object
+                  properties:
+                    p256dh: { type: string }
+                    auth: { type: string }
+                  required: [p256dh, auth]
+              required: [endpoint, keys]
+      responses:
+        '201':
+          description: Subscription registrada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+
+  /stores/{storeId}/push-subscriptions/{subscriptionId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: subscriptionId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [Notifications]
+      summary: Remover subscription de push
+      responses:
+        '204': { description: Subscription removida }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/alerts/check:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Notifications]
+      summary: Disparar verificação de alertas inteligentes
+      responses:
+        '200':
+          description: Alertas verificados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      checked: { type: integer }
+                      triggered: { type: integer }
+
+  # ── PRINTERS ──────────────────────────────────────────────────────────────
+
+  /stores/{storeId}/printers:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Printers]
+      summary: Listar impressoras
+      responses:
+        '200':
+          description: Impressoras
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Printer' } }
+    post:
+      tags: [Printers]
+      summary: Cadastrar impressora
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                type: { type: string, enum: [THERMAL, LABEL, INKJET] }
+                connectionType: { type: string, enum: [USB, NETWORK, BLUETOOTH] }
+                address: { type: string, nullable: true }
+                isDefault: { type: boolean }
+              required: [name, type, connectionType]
+      responses:
+        '201':
+          description: Impressora cadastrada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Printer' }
+
+  /stores/{storeId}/printers/{printerId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: printerId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Printers]
+      summary: Atualizar impressora
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                address: { type: string, nullable: true }
+                isDefault: { type: boolean }
+                status: { type: string, enum: [ONLINE, OFFLINE, ERROR] }
+      responses:
+        '200':
+          description: Impressora atualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Printer' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Printers]
+      summary: Remover impressora
+      responses:
+        '204': { description: Impressora removida }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/print-templates:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Printers]
+      summary: Listar templates de impressão
+      responses:
+        '200':
+          description: Templates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/PrintTemplate' } }
+    post:
+      tags: [Printers]
+      summary: Criar template de impressão
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                type: { type: string, enum: [ORDER, RECEIPT, LABEL, KITCHEN] }
+                content: { type: string }
+                isDefault: { type: boolean }
+              required: [name, type, content]
+      responses:
+        '201':
+          description: Template criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PrintTemplate' }
+
+  /stores/{storeId}/print-templates/{templateId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: templateId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Printers]
+      summary: Atualizar template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                content: { type: string }
+                isDefault: { type: boolean }
+      responses:
+        '200':
+          description: Template atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PrintTemplate' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Printers]
+      summary: Excluir template
+      responses:
+        '204': { description: Template excluído }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/print-rules:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Printers]
+      summary: Listar regras de impressão automática
+      responses:
+        '200':
+          description: Regras
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/PrintRule' } }
+    post:
+      tags: [Printers]
+      summary: Criar regra de impressão automática
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event: { type: string, description: 'Ex: order.created, order.status.ready' }
+                printerId: { type: string, format: uuid }
+                templateId: { type: string, format: uuid }
+                copies: { type: integer, minimum: 1, maximum: 10 }
+                enabled: { type: boolean }
+              required: [event, printerId, templateId, copies]
+      responses:
+        '201':
+          description: Regra criada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PrintRule' }
+
+  /stores/{storeId}/print-rules/{ruleId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: ruleId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Printers]
+      summary: Atualizar regra de impressão
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                printerId: { type: string, format: uuid }
+                templateId: { type: string, format: uuid }
+                copies: { type: integer, minimum: 1, maximum: 10 }
+                enabled: { type: boolean }
+      responses:
+        '200':
+          description: Regra atualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PrintRule' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Printers]
+      summary: Excluir regra de impressão
+      responses:
+        '204': { description: Regra excluída }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/print-jobs:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Printers]
+      summary: Listar jobs de impressão
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, PRINTING, DONE, FAILED] } }
+      responses:
+        '200':
+          description: Jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/PrintJob' } }
+                  pagination: { $ref: '#/components/schemas/PaginationMeta' }
+    post:
+      tags: [Printers]
+      summary: Enfileirar job de impressão manual
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                printerId: { type: string, format: uuid }
+                templateId: { type: string, format: uuid, nullable: true }
+                copies: { type: integer, minimum: 1, maximum: 10 }
+                payload: { type: object }
+              required: [printerId, payload]
+      responses:
+        '201':
+          description: Job enfileirado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PrintJob' }
+
+  /stores/{storeId}/print-jobs/{jobId}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: jobId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Printers]
+      summary: Obter job de impressão
+      responses:
+        '200':
+          description: Job
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PrintJob' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Printers]
+      summary: Atualizar status do job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, enum: [PRINTING, DONE, FAILED] }
+              required: [status]
+      responses:
+        '200':
+          description: Job atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PrintJob' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/print-jobs/pending:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Printers]
+      summary: Listar jobs pendentes (polling do agente de impressão)
+      responses:
+        '200':
+          description: Jobs pendentes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/PrintJob' } }
+
+  # ── REPORTS ───────────────────────────────────────────────────────────────
+
+  /stores/{storeId}/reports/overview:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Reports]
+      summary: Visão geral analítica (dashboard)
+      parameters:
+        - { name: dateFrom, in: query, required: true, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, required: true, schema: { type: string, format: date } }
+        - { name: granularity, in: query, schema: { type: string, enum: [day, week, month], default: day } }
+      responses:
+        '200':
+          description: Dados analíticos do período
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      totalRevenue: { type: number }
+                      totalOrders: { type: integer }
+                      avgTicket: { type: number }
+                      cmvTotal: { type: number }
+                      cmvPercent: { type: number }
+                      revenueByDay:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date: { type: string, format: date }
+                            revenue: { type: number }
+                            orders: { type: integer }
+                      topProducts:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            productId: { type: string, format: uuid }
+                            name: { type: string }
+                            quantity: { type: integer }
+                            revenue: { type: number }
+                      ordersByChannel:
+                        type: object
+                        additionalProperties: { type: integer }
+                      ordersByStatus:
+                        type: object
+                        additionalProperties: { type: integer }
+
+  # ── AUDIT ─────────────────────────────────────────────────────────────────
+
+  /stores/{storeId}/audit:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Audit]
+      summary: Log de auditoria
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: action, in: query, schema: { type: string, description: 'Ex: order.created' } }
+        - { name: userId, in: query, schema: { type: string, format: uuid } }
+        - { name: entityType, in: query, schema: { type: string, description: 'Ex: Order, Customer' } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Log de auditoria
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/AuditLog' } }
+                  pagination: { $ref: '#/components/schemas/PaginationMeta' }
+
+  # ── INTEGRATIONS ──────────────────────────────────────────────────────────
+
+  /stores/{storeId}/integrations:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Integrations]
+      summary: Listar integrações da loja
+      responses:
+        '200':
+          description: Integrações
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Integration' } }
+
+  /stores/{storeId}/integrations/{platform}:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: platform, in: path, required: true, schema: { type: string, enum: [IFOOD, RAPPI, AIQFOME] } }
+    get:
+      tags: [Integrations]
+      summary: Obter integração por plataforma
+      responses:
+        '200':
+          description: Integração
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Integration' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Integrations]
+      summary: Configurar integração
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                credentials: { type: object }
+                status: { type: string, enum: [ACTIVE, INACTIVE] }
+      responses:
+        '200':
+          description: Integração atualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Integration' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stores/{storeId}/integrations/{platform}/sync:
+    parameters:
+      - { name: storeId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: platform, in: path, required: true, schema: { type: string, enum: [IFOOD, RAPPI, AIQFOME] } }
+    post:
+      tags: [Integrations]
+      summary: Disparar sincronização manual com a plataforma
+      responses:
+        '200':
+          description: Sincronização disparada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      synced: { type: integer }
+                      errors: { type: integer }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── PUBLIC ────────────────────────────────────────────────────────────────
+
+  /public/stores/{slug}:
+    parameters:
+      - { name: slug, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [Public]
+      summary: Obter cardápio público da loja pelo slug
+      description: Endpoint público sem autenticação. Retorna dados do cardápio para o canal de vendas digital.
+      security: []
+      responses:
+        '200':
+          description: Cardápio público
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      store: { $ref: '#/components/schemas/StoreBase' }
+                      menus: { type: array, items: { $ref: '#/components/schemas/Menu' } }
+                      categories: { type: array, items: { $ref: '#/components/schemas/Category' } }
+                      products: { type: array, items: { $ref: '#/components/schemas/Product' } }
+        '404': { $ref: '#/components/responses/NotFound' }
