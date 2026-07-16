@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { login, signup, logout, fetchMe, setApprovalPassword, forgotPassword, resetPassword, acceptInvitation } from "./api"
+import { login, signup, logout, fetchMe, setApprovalPassword, forgotPassword, resetPassword, acceptInvitation, updateProfile, changePassword } from "./api"
 import { SESSION_KEY } from "./session"
 import type { LoginInput, SignupInput } from "./types"
 import type { SetApprovalPasswordInput } from "./api"
@@ -91,5 +91,25 @@ export function useAcceptInvitation() {
       toast.success("Conta ativada! Faça login.")
       router.replace("/login")
     },
+  })
+}
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (patch: { name?: string; phone?: string | null }) => updateProfile(patch),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(SESSION_KEY, updated)
+      toast.success("Perfil atualizado.")
+    },
+    onError: (error) => toast.error(errorMessage(error, "Não foi possível atualizar o perfil.")),
+  })
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (input: { currentPassword: string; newPassword: string; confirmPassword: string }) => changePassword(input),
+    onSuccess: () => toast.success("Senha alterada com sucesso."),
+    onError: (error) => toast.error(errorMessage(error, "Não foi possível alterar a senha.")),
   })
 }

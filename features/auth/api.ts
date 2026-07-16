@@ -55,3 +55,13 @@ export function resetPassword(token: string, password: string): Promise<void> {
 export function acceptInvitation(token: string, password: string): Promise<void> {
   return api.post("/auth/accept-invitation", { token, password })
 }
+
+/** `PATCH /auth/me` — updates the caller's display name and/or phone number. */
+export function updateProfile(patch: { name?: string; phone?: string | null }): Promise<Session> {
+  return api.patch<Session>("/auth/me", patch)
+}
+
+/** `POST /auth/me/change-password` — changes the caller's login password. */
+export function changePassword(input: { currentPassword: string; newPassword: string; confirmPassword: string }): Promise<void> {
+  return api.post("/auth/me/change-password", input)
+}

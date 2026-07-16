@@ -14,6 +14,8 @@ export interface OnboardingSettings {
   welcomeDismissed?: boolean
   completedAt?: string | null
   recipeCreated?: boolean
+  /** Sinaliza que o tour do dashboard deve ser disparado após o WelcomeDialog. */
+  tourPending?: boolean
 }
 
 export interface ChecklistItem {

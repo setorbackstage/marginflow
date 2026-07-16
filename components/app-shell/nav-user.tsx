@@ -4,6 +4,7 @@ import {
   ChevronsUpDown,
   LogOut,
   Settings,
+  User,
   Loader2,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -72,6 +73,10 @@ export function NavUser() {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
+          <DropdownMenuItem className="gap-2" onClick={() => router.push("/profile")}>
+            <User />
+            Meu perfil
+          </DropdownMenuItem>
           <DropdownMenuItem className="gap-2" onClick={() => router.push("/settings")}>
             <Settings />
             Configurações

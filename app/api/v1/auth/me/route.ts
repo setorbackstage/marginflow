@@ -1,9 +1,10 @@
 import "server-only"
 import type { NextRequest } from "next/server"
+import { z } from "zod"
 import { prisma } from "@/server/db"
-import { meService } from "@/server/services"
+import { meService, userService } from "@/server/services"
 import type { MeProfile } from "@/server/services"
-import { requireAuth } from "@/server/lib"
+import { requireAuth, parseJsonBody } from "@/server/lib"
 import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
 
 /** API_SPEC.md `GET /api/v1/auth/me` — response envelope shape. */
@@ -35,10 +36,24 @@ function toMeResponse(profile: MeProfile) {
   }
 }
 
+const updateProfileSchema = z.object({
+  name: z.string().min(2, "Nome deve ter ao menos 2 caracteres.").optional(),
+  phone: z.string().nullable().optional(),
+})
+
 async function handleMe(request: NextRequest): Promise<Response> {
   const actor = requireAuth(request)
   const profile = await meService.getProfile(prisma, actor.userId)
   return ok(toMeResponse(profile))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleMe)
+async function handleUpdateProfile(request: NextRequest): Promise<Response> {
+  const actor = requireAuth(request)
+  const body = await parseJsonBody(request, updateProfileSchema)
+  await userService.updateProfile(prisma, actor.userId, body)
+  const profile = await meService.getProfile(prisma, actor.userId)
+  return ok(toMeResponse(profile))
+}
+
+export const GET   = compose(withRequestContext, withErrorHandling)(handleMe)
+export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdateProfile)

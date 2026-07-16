@@ -18,6 +18,8 @@ import {
 
 import { useAuth, useCan } from "@/features/auth"
 import { useStore } from "@/features/stores"
+import { useOnboardingSettings, useSetTourPending } from "@/features/onboarding"
+import { DashboardTour } from "@/components/onboarding/dashboard-tour"
 import { useDashboardCounts, useDashboardOrdersToday, useRecentOrders, useRecentStockMovements, useDashboardRecentPayments, useDashboardRecentCustomers } from "@/features/dashboard/hooks"
 import { useStockAlerts, useInventoryValue, useInventoryInsights, formatQuantity, MOVEMENT_TYPE_CONFIG } from "@/features/inventory"
 import { ORDER_STATUS_CONFIG, ORDER_CHANNEL_LABEL } from "@/features/orders"
@@ -400,6 +402,8 @@ export default function DashboardPage() {
   const ordersToday = useDashboardOrdersToday()
   const canViewInventory = useCan("inventory:view")
   const canViewFinance = useCan("finance:view")
+  const { settings: onboardingSettings } = useOnboardingSettings()
+  const setTourPending = useSetTourPending()
 
   const firstName = session.user.name?.split(" ")[0] ?? "operador"
 
@@ -457,6 +461,12 @@ export default function DashboardPage() {
   }
 
   return (
+    <>
+      <DashboardTour
+        active={onboardingSettings.tourPending === true}
+        onComplete={() => setTourPending(false)}
+        onSkip={() => setTourPending(false)}
+      />
     <div className="flex flex-col gap-6">
       <PageHeader
         title={`Olá, ${firstName}`}
@@ -554,5 +564,6 @@ export default function DashboardPage() {
         <RecentCustomersCard />
       </div>
     </div>
+    </>
   )
 }

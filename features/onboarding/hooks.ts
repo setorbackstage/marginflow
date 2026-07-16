@@ -92,6 +92,40 @@ export function useCompleteOnboarding(): () => void {
 // useMarkRecipeCreated
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// useSetTourPending — ativa/desativa o tour do dashboard
+// ---------------------------------------------------------------------------
+
+export function useSetTourPending(): (pending: boolean) => void {
+  const storeId = useActiveStoreId()
+  const queryClient = useQueryClient()
+  const { data: settingsData } = useStoreSettings()
+
+  const mutation = useMutation({
+    mutationFn: (pending: boolean) => {
+      const currentPrefs =
+        typeof settingsData?.notificationPreferences === "object" && settingsData.notificationPreferences !== null
+          ? settingsData.notificationPreferences
+          : {}
+      const currentOnboarding =
+        typeof currentPrefs["onboarding"] === "object" && currentPrefs["onboarding"] !== null
+          ? (currentPrefs["onboarding"] as Record<string, unknown>)
+          : {}
+      return storesApi.updateSettings(storeId, {
+        notificationPreferences: {
+          ...currentPrefs,
+          onboarding: { ...currentOnboarding, tourPending: pending },
+        },
+      })
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["stores", storeId, "settings"] })
+    },
+  })
+
+  return (pending: boolean) => mutation.mutate(pending)
+}
+
 export function useMarkRecipeCreated(): () => void {
   const storeId = useActiveStoreId()
   const queryClient = useQueryClient()

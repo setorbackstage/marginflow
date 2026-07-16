@@ -27,7 +27,7 @@ export function ChecklistWidget() {
         className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs font-medium text-muted-foreground hover:bg-muted/50 transition-colors"
       >
         <span>Configuração inicial</span>
-        {expanded ? <ChevronDown className="size-3" /> : <ChevronUp className="size-3" />}
+        {expanded ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
       </button>
 
       {expanded && (
