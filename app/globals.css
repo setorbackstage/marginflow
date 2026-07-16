@@ -124,5 +124,17 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Safe area insets para iPhone X+ no modo standalone (PWA) */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
+  /* Garante que scrollable containers respeitam safe areas */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply rounded-full bg-border; }
 }

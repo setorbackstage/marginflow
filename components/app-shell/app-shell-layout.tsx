@@ -13,6 +13,8 @@ import { useNewOrderNotifier } from "@/features/orders/use-new-order-notifier"
 import { useRealtimeInvalidator } from "@/hooks/use-realtime-invalidator"
 import { useAlertCheck } from "@/features/notifications"
 import { WelcomeDialog } from "@/components/onboarding/welcome-dialog"
+import { PwaInstallPrompt } from "@/components/shared/pwa-install-prompt"
+import { useServiceWorker } from "@/hooks/use-service-worker"
 
 function NewOrderNotifier() {
   useNewOrderNotifier()
@@ -51,6 +53,7 @@ function resolveActiveNav(pathname: string): { url: string; title: string } {
  * Next.js navigation.
  */
 export function AppShellLayout({ children }: { children: React.ReactNode }) {
+  useServiceWorker()
   const pathname = usePathname()
   const router = useRouter()
 
@@ -69,6 +72,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
         <OfflineBanner />
         <PageContainer>{children}</PageContainer>
       </SidebarInset>
+      <PwaInstallPrompt />
     </SidebarProvider>
   )
 }
