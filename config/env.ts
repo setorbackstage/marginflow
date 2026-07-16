@@ -30,6 +30,12 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   /** Endereço remetente. Deve pertencer a um domínio verificado no Resend. */
   RESEND_FROM_EMAIL: z.string().email().optional().default("noreply@marginflow.app"),
+  /**
+   * Segredo compartilhado configurado no portal iFood para autenticar webhooks recebidos.
+   * Se ausente, a verificação é pulada (compatibilidade retroativa).
+   * Passe no header `x-ifood-webhook-secret` ao registrar o endpoint no iFood.
+   */
+  IFOOD_WEBHOOK_SECRET: z.string().optional(),
 })
 
 const parsed = envSchema.safeParse(process.env)

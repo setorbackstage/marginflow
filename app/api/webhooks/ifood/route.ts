@@ -17,8 +17,26 @@ import type { NextRequest } from "next/server"
 import { processIfoodEvents } from "@/server/services"
 import type { IfoodEvent } from "@/server/integrations/ifood"
 import { logger } from "@/server/lib"
+import { env } from "@/config/env"
+
+// ---------------------------------------------------------------------------
+// Verificação de segredo compartilhado — header x-ifood-webhook-secret.
+// Se IFOOD_WEBHOOK_SECRET não estiver configurado, a verificação é pulada
+// para manter compatibilidade retroativa com ambientes de desenvolvimento.
+// ---------------------------------------------------------------------------
+
+function verifyWebhookSecret(req: NextRequest): boolean {
+  if (!env.IFOOD_WEBHOOK_SECRET) return true
+  const incoming = req.headers.get("x-ifood-webhook-secret")
+  return incoming === env.IFOOD_WEBHOOK_SECRET
+}
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  if (!verifyWebhookSecret(req)) {
+    logger.warn("ifood.webhook.unauthorized", { ip: req.headers.get("x-forwarded-for") ?? "unknown" })
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 })
+  }
+
   let body: unknown
   try {
     body = await req.json()

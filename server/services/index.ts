@@ -87,6 +87,8 @@ export { ifoodSyncService, pollAllIfoodStores, processIfoodEvents } from "./ifoo
 
 export { passwordAuthService } from "./password-auth.service"
 export { notificationService } from "./notification.service"
+export { webhookDeliveryService, SUPPORTED_EVENTS } from "./webhook-delivery.service"
 
 // Registers print-job event-bus listeners (order.created, order.confirmed, kitchen_ticket.created).
 import "@/server/printing"
+// NOTE: webhook-delivery.service listeners are registered via the re-export above.

@@ -187,6 +187,7 @@ model Store {
   printTemplates           PrintTemplate[]
   printRules               PrintRule[]
   printJobs                PrintJob[]
+  webhookEndpoints         WebhookEndpoint[]
 
   @@index([accountId])
   @@map("stores")
@@ -1386,4 +1387,30 @@ model PrintJob {
   @@index([storeId, status])
   @@index([printerId, status])
   @@map("print_jobs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Outbound Webhooks
+// ─────────────────────────────────────────────────────────────────────────
+
+/// External HTTPS endpoint registered to receive MarginFlow domain events.
+/// Payloads are signed with HMAC-SHA256 using the stored secret; callers
+/// must verify the `X-MarginFlow-Signature` header before trusting the body.
+model WebhookEndpoint {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId  String   @map("store_id") @db.Uuid
+  url      String   @db.Text
+  /// HMAC-SHA256 signing secret — stored plaintext; NEVER returned in API responses.
+  secret   String   @db.Text
+  /// Domain event types to fan out, e.g. ["order.created", "payment.paid"].
+  /// Empty array = subscribe to all supported events.
+  events   String[] @default([])
+  isActive Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@map("webhook_endpoints")
 }
