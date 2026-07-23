@@ -225,7 +225,7 @@ export const ingredientService = {
         quantityDelta: input.quantityDelta,
         unitCost: ingredient.costPerUnit,
         reason: input.reason,
-        createdByUserId: actorUserId,
+        createdByUser: { connect: { id: actorUserId } },
       })
       return updated
     })
