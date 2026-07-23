@@ -7,11 +7,6 @@ import { ConflictError, NotFoundError } from "../lib/errors"
 export interface CreateIngredientInput {
   name: string
   unit: "G" | "ML" | "UN"
-import { ConflictError, NotFoundError } from "../lib/errors"
-
-export interface CreateIngredientInput {
-  name: string
-  unit: "G" | "ML" | "UN"
   costPerUnit?: number
   /** Opening balance. Omit for 0 (legacy behavior). */
   currentStock?: number
