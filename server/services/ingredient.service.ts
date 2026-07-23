@@ -7,6 +7,11 @@ import { ConflictError, NotFoundError } from "../lib/errors"
 export interface CreateIngredientInput {
   name: string
   unit: "G" | "ML" | "UN"
+import { ConflictError, NotFoundError } from "../lib/errors"
+
+export interface CreateIngredientInput {
+  name: string
+  unit: "G" | "ML" | "UN"
   costPerUnit?: number
   /** Opening balance. Omit for 0 (legacy behavior). */
   currentStock?: number
@@ -219,7 +224,7 @@ export const ingredientService = {
         currentStock: { increment: input.quantityDelta },
       })
       await stockMovementRepository.create(tx, {
-        storeId,
+        store: { connect: { id: storeId } },
         ingredientId: ingredient.id,
         type: input.type,
         quantityDelta: input.quantityDelta,
