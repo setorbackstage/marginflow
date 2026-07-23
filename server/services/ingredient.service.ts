@@ -220,7 +220,7 @@ export const ingredientService = {
       })
       await stockMovementRepository.create(tx, {
         store: { connect: { id: storeId } },
-        ingredientId: ingredient.id,
+        ingredient: { connect: { id: ingredient.id } },
         type: input.type,
         quantityDelta: input.quantityDelta,
         unitCost: ingredient.costPerUnit,
