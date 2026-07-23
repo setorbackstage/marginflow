@@ -13,6 +13,7 @@ import {
   Bell,
   Printer,
   Settings,
+  Plug,
 } from "lucide-react"
 
 import type { NavGroup } from "@/types/navigation"
@@ -53,8 +54,9 @@ export const navGroups: NavGroup[] = [
   {
     label: "Sistema",
     items: [
-      { title: "Impressão", url: "/printing", icon: Printer },
-      { title: "Configurações", url: "/settings", icon: Settings },
+      { title: "Integrações",   url: "/integrations", icon: Plug    },
+      { title: "Impressão",     url: "/printing",      icon: Printer },
+      { title: "Configurações", url: "/settings",      icon: Settings },
     ],
   },
 ]

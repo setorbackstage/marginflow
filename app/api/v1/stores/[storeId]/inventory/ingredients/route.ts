@@ -58,6 +58,8 @@ const createIngredientSchema = z.object({
   name: z.string().min(2).max(120),
   unit: z.enum(["G", "ML", "UN"]),
   costPerUnit: z.number().min(0).optional(),
+  /** Opening balance. Defaults to 0 when omitted (matches legacy behavior). */
+  currentStock: z.number().optional(),
   minStock: z.number().min(0).nullable().optional(),
   status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
   category: z.string().max(60).nullable().optional(),

@@ -8,6 +8,8 @@ export interface CreateIngredientInput {
   name: string
   unit: "G" | "ML" | "UN"
   costPerUnit?: number
+  /** Opening balance. Omit for 0 (legacy behavior). */
+  currentStock?: number
   minStock?: number | null
   status?: "ACTIVE" | "INACTIVE"
   category?: string | null
@@ -114,6 +116,7 @@ export const ingredientService = {
       name: input.name,
       unit: input.unit,
       costPerUnit: input.costPerUnit ?? 0,
+      currentStock: input.currentStock ?? 0,
       minStock: input.minStock ?? null,
       status: input.status ?? "ACTIVE",
       category: input.category ?? null,
@@ -195,6 +198,39 @@ export const ingredientService = {
       byQuantity: [...insights].sort((a, b) => b.totalConsumed - a.totalConsumed).slice(0, INSIGHT_LIMIT),
       byCost: [...insights].sort((a, b) => b.totalCost - a.totalCost).slice(0, INSIGHT_LIMIT),
     }
+  },
+
+  /**
+   * BUG-05 fix: manual stock entry / adjustment / loss. Records a StockMovement
+   * (type ENTRY/ADJUSTMENT/LOSS) and applies the delta to currentStock atomically.
+   * There was previously no API path to record incoming merchandise or correct
+   * a wrong balance even though the `inventory:adjust` permission existed.
+   */
+  async adjustStock(
+    db: DbClient,
+    storeId: string,
+    actorUserId: string,
+    input: { ingredientId: string; quantityDelta: number; type: "ENTRY" | "ADJUSTMENT" | "LOSS"; reason: string },
+  ): Promise<Ingredient> {
+    const ingredient = await getIngredientOrThrow(db, storeId, input.ingredientId)
+
+    const result = await db.$transaction(async (tx) => {
+      const updated = await ingredientRepository.update(tx, ingredient.id, {
+        currentStock: { increment: input.quantityDelta },
+      })
+      await stockMovementRepository.create(tx, {
+        storeId,
+        ingredientId: ingredient.id,
+        type: input.type,
+        quantityDelta: input.quantityDelta,
+        unitCost: ingredient.costPerUnit,
+        reason: input.reason,
+        createdByUserId: actorUserId,
+      })
+      return updated
+    })
+
+    return result
   },
 
   /** Business Rule 44: blocked while any recipe references the ingredient. */

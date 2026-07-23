@@ -1,0 +1,575 @@
+# SPRINT P1 — ECOSSISTEMA DE PEDIDOS (IFOOD • 99FOOD • CARDÁPIO PRÓPRIO • PAGAMENTOS)
+
+## Objetivo
+
+Transformar o MarginFlow em um hub central de pedidos.
+
+Após esta sprint, o restaurante deverá conseguir operar a maior parte da operação diária dentro do MarginFlow, recebendo pedidos externos, gerenciando o próprio cardápio e vendendo diretamente ao consumidor.
+
+NÃO alterar a arquitetura existente.
+
+NÃO quebrar contratos.
+
+Reutilizar ao máximo os módulos já implementados (Pedidos, Estoque, Ficha Técnica, Cozinha, Entregas, Pagamentos, Notificações, Auditoria e Kanban).
+
+Toda funcionalidade deve ser integrada aos módulos existentes.
+
+---
+
+# ETAPA 1 • Auditoria
+
+Antes de escrever código:
+
+Auditar completamente:
+
+- integração iFood
+- integração 99Food
+- Cardápio
+- Pedidos
+- Pagamentos
+- Estoque
+- Ficha Técnica
+
+Mapear:
+
+- o que já existe
+- o que está parcial
+- o que falta
+
+Nenhuma duplicação de lógica será permitida.
+
+---
+
+# ETAPA 2 • Integração iFood Enterprise
+
+A integração deve deixar de ser apenas "receber pedidos".
+
+Implementar suporte completo para:
+
+## Pedidos
+
+Receber
+
+Aceitar
+
+Recusar
+
+Cancelar
+
+Confirmar preparo
+
+Pedido pronto
+
+Saiu para entrega
+
+Concluído
+
+Webhook resiliente
+
+Retry
+
+Logs
+
+Dead Letter Queue quando necessário.
+
+---
+
+## Cardápio
+
+Sincronizar:
+
+Categorias
+
+Produtos
+
+Modificadores
+
+Grupos
+
+Preços
+
+Disponibilidade
+
+Imagem
+
+Descrição
+
+Tempo
+
+Horários
+
+Atualizações incrementais
+
+Health Check
+
+---
+
+## Operação
+
+Pausar loja
+
+Retomar loja
+
+Pausar produto
+
+Estoque indisponível
+
+Produto indisponível
+
+Tempo estimado
+
+Status da loja
+
+---
+
+## Auditoria
+
+Toda chamada da API deverá gerar histórico:
+
+requisição
+
+resposta
+
+erro
+
+retry
+
+latência
+
+status
+
+---
+
+# ETAPA 3 • Integração 99Food
+
+Criar arquitetura equivalente.
+
+Mesmo padrão do iFood.
+
+Mesmo nível de qualidade.
+
+Mesmo fluxo operacional.
+
+Nada hardcoded.
+
+Provider único.
+
+---
+
+# ETAPA 4 • Provider de Marketplaces
+
+Criar camada única.
+
+Exemplo:
+
+MarketplaceProvider
+
+iFoodProvider
+
+NinetyNineProvider
+
+Todos os pedidos entram por um fluxo comum.
+
+O restante do sistema NÃO deve saber de onde veio.
+
+Pedidos internos.
+
+iFood.
+
+99Food.
+
+Cardápio próprio.
+
+Tudo convergindo para OrderService.
+
+---
+
+# ETAPA 5 • Cardápio Público MarginFlow
+
+Criar o módulo definitivo.
+
+Cada loja terá:
+
+Subdomínio
+
+ou
+
+Domínio personalizado.
+
+Exemplos:
+
+burger.marginflow.app
+
+pizza.marginflow.app
+
+pedidos.restaurante.com.br
+
+---
+
+## Página pública
+
+Logo
+
+Banner
+
+Categorias
+
+Produtos
+
+Busca
+
+Filtros
+
+Destaques
+
+Mais vendidos
+
+Novidades
+
+Horários
+
+Taxa de entrega
+
+Tempo estimado
+
+Informações da loja
+
+Redes sociais
+
+---
+
+## Produto
+
+Imagem
+
+Descrição
+
+Preço
+
+Variações
+
+Modificadores
+
+Observação
+
+Quantidade
+
+Adicionar ao carrinho
+
+---
+
+## Carrinho
+
+Editar
+
+Remover
+
+Cupom
+
+Observações
+
+Entrega
+
+Retirada
+
+Mesa (estrutura preparada)
+
+---
+
+# ETAPA 6 • Checkout
+
+Implementar fluxo completo.
+
+Cliente
+
+Telefone
+
+Endereço
+
+Complemento
+
+Referência
+
+Pagamento
+
+PIX
+
+Cartão
+
+Dinheiro
+
+Troco
+
+Agendamento
+
+Entrega
+
+Retirada
+
+---
+
+# ETAPA 7 • Gateway de Pagamentos
+
+Criar arquitetura preparada para múltiplos gateways.
+
+Provider Pattern.
+
+Preparar suporte para:
+
+Mercado Pago
+
+Asaas
+
+Pagar.me
+
+Stripe
+
+Stone
+
+PagSeguro
+
+Sem hardcode.
+
+---
+
+# ETAPA 8 • PIX
+
+Fluxo completo.
+
+QR Code
+
+Copia e Cola
+
+Expiração
+
+Webhook
+
+Confirmação automática
+
+Cancelamento
+
+Timeout
+
+Retry
+
+---
+
+# ETAPA 9 • Estoque
+
+Integrar todos os pedidos.
+
+Pedido vindo de:
+
+iFood
+
+99Food
+
+Cardápio próprio
+
+PDV
+
+Todos devem gerar exatamente o mesmo fluxo de estoque.
+
+---
+
+# ETAPA 10 • Ficha Técnica
+
+Mesmo comportamento.
+
+Consumo
+
+CMV
+
+Baixa
+
+Estorno
+
+Sem diferenciação por origem do pedido.
+
+---
+
+# ETAPA 11 • Kanban
+
+Os pedidos externos entram automaticamente.
+
+Sem refresh.
+
+Realtime.
+
+Com identificação visual da origem.
+
+Exemplo:
+
+iFood
+
+99Food
+
+Site
+
+PDV
+
+---
+
+# ETAPA 12 • Notificações
+
+Recebeu pedido.
+
+Mudou status.
+
+Pagamento aprovado.
+
+Pagamento recusado.
+
+Pedido cancelado.
+
+Pedido pronto.
+
+Integração caiu.
+
+Webhook falhou.
+
+Tudo em tempo real.
+
+---
+
+# ETAPA 13 • Dashboard
+
+Adicionar indicadores por canal.
+
+Pedidos
+
+Receita
+
+Ticket médio
+
+CMV
+
+Lucro
+
+Separados por:
+
+PDV
+
+iFood
+
+99Food
+
+Site
+
+---
+
+# ETAPA 14 • Cliente
+
+Cliente único.
+
+Se pedir pelo:
+
+PDV
+
+Site
+
+iFood
+
+99Food
+
+O histórico deve convergir quando possível.
+
+Preparar estrutura para fidelidade.
+
+---
+
+# ETAPA 15 • Auditoria
+
+Registrar:
+
+origem
+
+marketplace
+
+payload
+
+tempo
+
+latência
+
+tentativas
+
+status
+
+---
+
+# ETAPA 16 • UX
+
+Tudo deve parecer uma única plataforma.
+
+O usuário não pode perceber diferenças entre pedidos internos e externos.
+
+---
+
+# ETAPA 17 • Testes
+
+Executar testes completos:
+
+Pedido iFood
+
+Pedido 99Food
+
+Pedido Site
+
+PIX
+
+Cartão
+
+Dinheiro
+
+Estoque
+
+CMV
+
+Kanban
+
+Entrega
+
+Cancelamento
+
+Reembolso
+
+Impressão
+
+Notificações
+
+Dashboard
+
+---
+
+# ETAPA 18 • Relatório Final
+
+Obrigatório.
+
+Informar:
+
+Arquivos criados
+
+Arquivos alterados
+
+Novas APIs
+
+Integrações
+
+Fluxos
+
+Testes
+
+Validação
+
+Build
+
+TypeScript
+
+ESLint
+
+Produção
+
+Pendências
+
+Nenhuma funcionalidade poderá ser marcada como pronta sem validação prática.
