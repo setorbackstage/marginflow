@@ -5,7 +5,7 @@ import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { deliveryService, authorizationService } from "@/server/services"
 import { requireAuth, parseQuery, requireUuidParams } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, withRateLimit} from "@/server/lib/http"
 import { toDeliveryResponse } from "./_delivery-response"
 
 interface RouteContext {

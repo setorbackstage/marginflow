@@ -6,7 +6,7 @@ import { prisma } from "@/server/db"
 import { menuService, authorizationService } from "@/server/services"
 import type { CreateMenuInput } from "@/server/services"
 import { requireAuth, parseJsonBody, parseQuery, requireUuidParams } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, ok, created } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, created, withRateLimit} from "@/server/lib/http"
 import { toMenuListItem, toMenuDetailResponse } from "./_menu-response"
 
 interface RouteContext {

@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { prisma } from "@/server/db"
 import { signupService } from "@/server/services"
 import { signupSchema, parseJsonBody, hashPassword, logAudit } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, created, setRefreshTokenCookie } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, created, setRefreshTokenCookie, withRateLimit} from "@/server/lib/http"
 import { rateLimit, getClientIp } from "@/server/lib/rate-limit"
 import { toLoginResponse } from "../_auth-response"
 

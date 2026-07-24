@@ -4,7 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/server/db"
 import { orderService, authorizationService } from "@/server/services"
 import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, ok, noContent } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, noContent, withRateLimit} from "@/server/lib/http"
 import { getOrderWithDetailsOrThrow, toOrderItemResponse } from "../../../_order-response"
 
 interface RouteContext {

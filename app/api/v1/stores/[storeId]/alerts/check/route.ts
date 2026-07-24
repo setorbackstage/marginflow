@@ -15,7 +15,7 @@ import { prisma } from "@/server/db"
 import { authorizationService } from "@/server/services"
 import { notificationRepository, pushSubscriptionRepository } from "@/server/repositories"
 import { requireAuth, requireUuidParams } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, withRateLimit} from "@/server/lib/http"
 import { sendPushToSubscription, isPushConfigured, type PushSubscriptionKeys } from "@/server/lib/push"
 import { logger } from "@/server/lib/logger"
 

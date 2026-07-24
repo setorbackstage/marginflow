@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { prisma } from "@/server/db"
 import { authorizationService } from "@/server/services"
 import { requireAuth, requireUuidParams } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, withRateLimit} from "@/server/lib/http"
 
 interface RouteContext {
   params: Promise<{ storeId: string }>

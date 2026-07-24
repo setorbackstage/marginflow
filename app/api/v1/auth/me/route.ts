@@ -5,7 +5,7 @@ import { prisma } from "@/server/db"
 import { meService, userService } from "@/server/services"
 import type { MeProfile } from "@/server/services"
 import { requireAuth, parseJsonBody } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, withRateLimit} from "@/server/lib/http"
 
 /** API_SPEC.md `GET /api/v1/auth/me` — response envelope shape. */
 function toMeResponse(profile: MeProfile) {

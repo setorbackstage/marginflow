@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { prisma } from "@/server/db"
 import { paymentService, orderService, authorizationService } from "@/server/services"
 import { requireAuth, requireUuidParams, logAudit } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, withRateLimit} from "@/server/lib/http"
 import { toPaymentDetailResponse } from "../../_payment-response"
 
 interface RouteContext {

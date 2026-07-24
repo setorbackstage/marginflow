@@ -6,7 +6,7 @@ import { prisma } from "@/server/db"
 import { stockMovementService, authorizationService } from "@/server/services"
 import type { StockMovementWithRelations } from "@/server/repositories"
 import { requireAuth, parseQuery, parseJsonBody, requireUuidParams, logAudit } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, created } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, created, withRateLimit} from "@/server/lib/http"
 import { BadRequestError } from "@/server/lib/errors"
 
 interface RouteContext {

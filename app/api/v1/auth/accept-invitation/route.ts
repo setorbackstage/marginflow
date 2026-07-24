@@ -4,8 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/server/db"
 import { passwordAuthService } from "@/server/services"
 import { parseJsonBody, logAudit } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
-
+import {compose, withErrorHandling, withRequestContext, ok, withRateLimit} from "@/server/lib/http"
 const schema = z.object({
   token: z.string().min(1),
   password: z.string().min(8, "A senha deve ter no mínimo 8 caracteres"),

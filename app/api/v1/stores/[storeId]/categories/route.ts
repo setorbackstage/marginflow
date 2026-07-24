@@ -5,7 +5,7 @@ import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { categoryService, authorizationService } from "@/server/services"
 import { requireAuth, parseJsonBody, parseQuery, requireUuidParams } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, ok, created } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, created, withRateLimit} from "@/server/lib/http"
 import { toCategoryResponse } from "./_category-response"
 
 interface RouteContext {

@@ -5,7 +5,7 @@ import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { ingredientService, authorizationService } from "@/server/services"
 import { requireAuth, parseQuery, parseJsonBody, requireUuidParams } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, created } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, created, withRateLimit} from "@/server/lib/http"
 import { toIngredientResponse } from "../_ingredient-response"
 
 interface RouteContext {

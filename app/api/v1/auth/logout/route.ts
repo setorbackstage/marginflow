@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { prisma } from "@/server/db"
 import { logoutService } from "@/server/services"
 import { REFRESH_TOKEN_COOKIE_NAME, requireAuth, logAudit } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, noContent } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, noContent, withRateLimit} from "@/server/lib/http"
 
 async function handleLogout(request: NextRequest): Promise<Response> {
   const actor = requireAuth(request)

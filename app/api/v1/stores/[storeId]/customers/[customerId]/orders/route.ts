@@ -5,7 +5,7 @@ import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { customerService, orderService, authorizationService } from "@/server/services"
 import { requireAuth, parseQuery, requireUuidParams } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, withRateLimit} from "@/server/lib/http"
 
 interface RouteContext {
   params: Promise<{ storeId: string; customerId: string }>
@@ -72,7 +72,7 @@ async function handleListCustomerOrders(request: NextRequest, { params }: RouteC
       skip: (query.page - 1) * query.limit,
       take: query.limit,
     }),
-    orderService.count(prisma, { storeId, ...where }),
+    orderService.count(prisma, storeId, where),
   ])
 
   return paginated(orders.map(toOrderListItem), buildPaginationMeta(query.page, query.limit, total))

@@ -3,12 +3,7 @@ import type { NextRequest } from "next/server"
 import { prisma } from "@/server/db"
 import { publicMenuService, toPublicStorefrontDTO } from "@/server/services"
 import { NotFoundError } from "@/server/lib"
-import {
-  compose,
-  withErrorHandling,
-  withRequestContext,
-  ok,
-} from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, withRateLimit} from "@/server/lib/http"
 
 interface RouteContext {
   params: Promise<{ slug: string }>

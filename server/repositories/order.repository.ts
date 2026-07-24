@@ -17,7 +17,7 @@ export const orderRepository = {
     return db.order.findUnique({ where: { storeId, id }, select: { id: true } }).then(Boolean)
   },
 
-  findByIdWithDetails(db: DbClient, storeId: string, id: string) {
+  findByIdWithDetails(db: DbClient, id: string) {
     return db.order.findUnique({
       where: { storeId, id },
       include: {

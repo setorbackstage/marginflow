@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { prisma } from "@/server/db"
 import { refreshTokenService } from "@/server/services"
 import { REFRESH_TOKEN_COOKIE_NAME, UnauthorizedError } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, ok, setRefreshTokenCookie } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, setRefreshTokenCookie, withRateLimit} from "@/server/lib/http"
 import { rateLimit, getClientIp } from "@/server/lib/rate-limit"
 
 async function handleRefresh(request: NextRequest): Promise<Response> {

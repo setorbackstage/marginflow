@@ -6,7 +6,7 @@ import { prisma } from "@/server/db"
 import { productService, authorizationService } from "@/server/services"
 import type { CreateProductInput } from "@/server/services"
 import { requireAuth, parseJsonBody, parseQuery, requireUuidParams, logAudit } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, created } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, created, withRateLimit} from "@/server/lib/http"
 import { toProductListItem, toProductDetailResponse } from "./_product-response"
 
 interface RouteContext {

@@ -4,7 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/server/db"
 import { paymentService, authorizationService } from "@/server/services"
 import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, created } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, created, withRateLimit} from "@/server/lib/http"
 
 interface RouteContext {
   params: Promise<{ storeId: string; orderId: string }>

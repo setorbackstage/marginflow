@@ -5,7 +5,7 @@ import { prisma } from "@/server/db"
 import { authorizationService } from "@/server/services"
 import { printJobService } from "@/server/printing"
 import { requireAuth, parseJsonBody, parseQuery, requireUuidParams, logAudit } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, created } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, created, withRateLimit} from "@/server/lib/http"
 
 interface RouteContext {
   params: Promise<{ storeId: string }>

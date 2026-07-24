@@ -5,7 +5,7 @@ import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/server/db"
 import { paymentService, authorizationService } from "@/server/services"
 import { requireAuth, parseQuery, requireUuidParams } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, paginated, buildPaginationMeta, withRateLimit} from "@/server/lib/http"
 import { toPaymentListItem } from "./_payment-response"
 
 interface RouteContext {

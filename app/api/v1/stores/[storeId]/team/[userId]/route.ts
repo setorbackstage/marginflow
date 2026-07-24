@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { prisma } from "@/server/db"
 import { membershipService, authorizationService } from "@/server/services"
 import { requireAuth, requireUuidParams } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, ok, noContent } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, noContent, withRateLimit} from "@/server/lib/http"
 import { toTeamMemberDetail } from "../_team-response"
 
 interface RouteContext {

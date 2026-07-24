@@ -6,7 +6,7 @@ import { storeService, authorizationService } from "@/server/services"
 import type { UpdateStoreInput } from "@/server/services"
 import type { Store } from "@/generated/prisma/client"
 import { requireAuth, requireUuidParams, parseJsonBody, toJsonInput } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, withRateLimit} from "@/server/lib/http"
 
 interface RouteContext {
   params: Promise<{ storeId: string }>

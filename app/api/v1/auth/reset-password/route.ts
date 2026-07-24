@@ -4,7 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/server/db"
 import { passwordAuthService } from "@/server/services"
 import { parseJsonBody, logAudit } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, withRateLimit} from "@/server/lib/http"
 import { rateLimit, getClientIp } from "@/server/lib/rate-limit"
 
 const schema = z.object({

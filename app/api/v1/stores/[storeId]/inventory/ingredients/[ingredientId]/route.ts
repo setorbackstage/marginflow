@@ -4,7 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/server/db"
 import { ingredientService, authorizationService } from "@/server/services"
 import { requireAuth, parseJsonBody, requireUuidParams } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, ok, noContent } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, noContent, withRateLimit} from "@/server/lib/http"
 import { toIngredientResponse } from "../../_ingredient-response"
 
 interface RouteContext {

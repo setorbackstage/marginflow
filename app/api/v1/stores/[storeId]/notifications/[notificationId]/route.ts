@@ -4,7 +4,7 @@ import { prisma } from "@/server/db"
 import { notificationService, authorizationService } from "@/server/services"
 import { requireAuth, requireUuidParams } from "@/server/lib"
 import { NotFoundError } from "@/server/lib/errors"
-import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, withRateLimit} from "@/server/lib/http"
 
 interface RouteContext {
   params: Promise<{ storeId: string; notificationId: string }>

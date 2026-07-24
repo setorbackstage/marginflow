@@ -4,7 +4,7 @@ import { z } from "zod"
 import { prisma } from "@/server/db"
 import { meService } from "@/server/services"
 import { requireAuth, parseJsonBody, logAudit } from "@/server/lib"
-import { compose, withErrorHandling, withRequestContext, ok } from "@/server/lib/http"
+import {compose, withErrorHandling, withRequestContext, ok, withRateLimit} from "@/server/lib/http"
 
 /** API_SPEC.md `PATCH /api/v1/auth/approval-password` — request body. */
 const setApprovalPasswordSchema = z.object({
