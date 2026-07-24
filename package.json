@@ -47,6 +47,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
+    "@swc/plugin-emotion": "^14.15.0",
     "@tailwindcss/postcss": "^4.2.0",
     "@types/node": "^24",
     "@types/pg": "^8.20.0",
