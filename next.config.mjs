@@ -5,7 +5,7 @@ const nextConfig = {
   },
   experimental: {
     workerThreads: true,
-    swcPlugins: [['@swc/plugin-emotion', {}]],
+    // swcPlugins: [['@swc/plugin-emotion', {}]], // Temporarily disabled to fix build
   },
   async headers() {
     // In production NEXT_PUBLIC_APP_URL must be set to the real origin.
