@@ -9,24 +9,24 @@ import type { Order, Prisma } from "../../generated/prisma/client"
  * transition (`update`), not a row removal.
  */
 export const orderRepository = {
-  findById(db: DbClient, id: string): Promise<Order | null> {
-    return db.order.findUnique({ where: { id } })
+  findById(db: DbClient, storeId: string, id: string): Promise<Order | null> {
+    return db.order.findUnique({ where: { storeId, id } })
   },
 
-  exists(db: DbClient, id: string): Promise<boolean> {
-    return db.order.findUnique({ where: { id }, select: { id: true } }).then(Boolean)
+  exists(db: DbClient, storeId: string, id: string): Promise<boolean> {
+    return db.order.findUnique({ where: { storeId, id }, select: { id: true } }).then(Boolean)
   },
 
-  findByIdWithDetails(db: DbClient, id: string) {
+  findByIdWithDetails(db: DbClient, storeId: string, id: string) {
     return db.order.findUnique({
-      where: { id },
+      where: { storeId, id },
       include: {
         items: true,
         statusTransitions: { orderBy: { occurredAt: "desc" } },
         kitchenTicket: true,
         payment: true,
         delivery: true,
-      },
+      }
     })
   },
 
@@ -44,19 +44,19 @@ export const orderRepository = {
       orderBy?: Prisma.OrderOrderByWithRelationInput
       skip?: number
       take?: number
-    } = {},
+    } = {}
   ) {
     return db.order.findMany({
       where: { storeId, ...params.where },
       orderBy: params.orderBy ?? { createdAt: "desc" },
       skip: params.skip,
       take: params.take,
-      include: { customer: { select: { name: true, phone: true } } },
+      include: { customer: { select: { name: true, phone: true } } }
     })
   },
 
-  count(db: DbClient, where: Prisma.OrderWhereInput): Promise<number> {
-    return db.order.count({ where })
+  count(db: DbClient, storeId: string, where: Prisma.OrderWhereInput): Promise<number> {
+    return db.order.count({ where: { storeId, ...where } })
   },
 
   /**
