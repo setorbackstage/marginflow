@@ -30,5 +30,5 @@ async function handleDelete(request: NextRequest, { params }: RouteContext): Pro
   return ok(null)
 }
 
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleMarkRead)
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleDelete)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleMarkRead)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleDelete)

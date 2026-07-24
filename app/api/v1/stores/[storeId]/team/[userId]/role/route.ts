@@ -26,4 +26,4 @@ async function handleChangeRole(request: NextRequest, { params }: RouteContext):
   return ok(toTeamMemberDetail(member))
 }
 
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleChangeRole)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleChangeRole)

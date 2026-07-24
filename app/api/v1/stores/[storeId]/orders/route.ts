@@ -149,5 +149,5 @@ async function handleCreateOrder(request: NextRequest, { params }: RouteContext)
   return created(await toOrderResponse(order))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListOrders)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreateOrder)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListOrders)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreateOrder)

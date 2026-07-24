@@ -37,4 +37,4 @@ async function handleListTeam(request: NextRequest, { params }: RouteContext): P
   return ok(members.map(toTeamMemberListItem))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListTeam)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListTeam)

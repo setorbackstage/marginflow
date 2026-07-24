@@ -27,4 +27,4 @@ async function handleRefresh(request: NextRequest): Promise<Response> {
   return response
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleRefresh)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleRefresh)

@@ -26,4 +26,4 @@ async function handleSync(req: NextRequest, ctx: RouteContext) {
   return ok(result)
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleSync)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleSync)

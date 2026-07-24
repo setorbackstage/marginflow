@@ -54,5 +54,5 @@ async function handleCreateModifier(request: NextRequest, { params }: RouteConte
   return created(toModifierResponse(modifier))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListModifiers)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreateModifier)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListModifiers)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreateModifier)

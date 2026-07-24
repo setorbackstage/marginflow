@@ -205,4 +205,4 @@ async function handleDashboard(request: NextRequest, { params }: RouteContext): 
   })
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleDashboard)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleDashboard)

@@ -54,5 +54,5 @@ async function handleCreateAddress(request: NextRequest, { params }: RouteContex
   return created(toAddressResponse(address))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListAddresses)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreateAddress)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListAddresses)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreateAddress)

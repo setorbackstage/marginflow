@@ -31,4 +31,4 @@ async function handleUpdateTicketStatus(request: NextRequest, { params }: RouteC
   return ok(toTicketResponse(ticket))
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleUpdateTicketStatus)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateTicketStatus)

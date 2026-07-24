@@ -31,4 +31,4 @@ async function handleListRoles(request: NextRequest, { params }: RouteContext): 
   return ok(roles.map(toRoleResponse))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListRoles)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListRoles)

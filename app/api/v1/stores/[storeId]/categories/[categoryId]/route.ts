@@ -48,6 +48,6 @@ async function handleDeleteCategory(request: NextRequest, { params }: RouteConte
   return noContent()
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetCategory)
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdateCategory)
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleDeleteCategory)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetCategory)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateCategory)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleDeleteCategory)

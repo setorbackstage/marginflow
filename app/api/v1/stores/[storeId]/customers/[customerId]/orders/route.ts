@@ -78,4 +78,4 @@ async function handleListCustomerOrders(request: NextRequest, { params }: RouteC
   return paginated(orders.map(toOrderListItem), buildPaginationMeta(query.page, query.limit, total))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListCustomerOrders)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListCustomerOrders)

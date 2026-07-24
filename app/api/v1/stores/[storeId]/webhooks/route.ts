@@ -46,5 +46,5 @@ async function handleCreate(req: NextRequest, ctx: RouteContext) {
   return created(endpoint)
 }
 
-export const GET  = compose(withRequestContext, withErrorHandling)(handleList)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreate)
+export const GET  = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleList)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreate)

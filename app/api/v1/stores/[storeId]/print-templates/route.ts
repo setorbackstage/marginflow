@@ -38,5 +38,5 @@ async function handleCreatePrintTemplate(request: NextRequest, { params }: Route
   return created(template)
 }
 
-export const GET  = compose(withRequestContext, withErrorHandling)(handleListPrintTemplates)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreatePrintTemplate)
+export const GET  = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListPrintTemplates)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreatePrintTemplate)

@@ -18,4 +18,4 @@ async function handleReadAll(request: NextRequest, { params }: RouteContext): Pr
   return ok({ marked: count })
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleReadAll)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleReadAll)

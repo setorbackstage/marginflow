@@ -28,5 +28,5 @@ async function handleRevoke(request: NextRequest, { params }: RouteContext): Pro
   return noContent()
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetTeamMember)
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleRevoke)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetTeamMember)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleRevoke)

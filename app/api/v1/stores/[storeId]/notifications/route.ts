@@ -28,4 +28,4 @@ async function handleList(request: NextRequest, { params }: RouteContext): Promi
   return ok({ ...result, unread })
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleList)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleList)

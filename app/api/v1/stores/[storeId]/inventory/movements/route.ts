@@ -131,5 +131,5 @@ async function handleCreateMovement(request: NextRequest, { params }: RouteConte
   return created({ ...toMovementResponse(movement), currentStock: result.currentStock })
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListMovements)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreateMovement)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListMovements)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreateMovement)

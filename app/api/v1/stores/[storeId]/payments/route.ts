@@ -63,4 +63,4 @@ async function handleListPayments(request: NextRequest, { params }: RouteContext
   return paginated(payments.map(toPaymentListItem), buildPaginationMeta(query.page, query.limit, total))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListPayments)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListPayments)

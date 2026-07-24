@@ -19,4 +19,4 @@ async function handleListPendingJobs(request: NextRequest, { params }: RouteCont
   return ok(jobs)
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListPendingJobs)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListPendingJobs)

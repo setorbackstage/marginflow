@@ -55,4 +55,4 @@ async function handleListDeliveries(request: NextRequest, { params }: RouteConte
   )
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListDeliveries)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListDeliveries)

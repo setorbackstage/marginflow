@@ -93,4 +93,4 @@ async function handleReportsCustomers(request: NextRequest, { params }: RouteCon
   })
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleReportsCustomers)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleReportsCustomers)

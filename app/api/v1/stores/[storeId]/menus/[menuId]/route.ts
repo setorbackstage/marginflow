@@ -59,6 +59,6 @@ async function handleDeleteMenu(request: NextRequest, { params }: RouteContext):
   return noContent()
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetMenu)
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdateMenu)
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleDeleteMenu)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetMenu)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateMenu)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleDeleteMenu)

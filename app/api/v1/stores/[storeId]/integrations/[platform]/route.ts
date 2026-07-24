@@ -79,5 +79,5 @@ async function handleSetPaused(req: NextRequest, ctx: RouteContext) {
   return ok({ isPaused: body.paused })
 }
 
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleDisconnect)
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleSetPaused)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleDisconnect)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleSetPaused)

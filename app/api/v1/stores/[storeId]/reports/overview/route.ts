@@ -154,4 +154,4 @@ async function handleReportsOverview(request: NextRequest, { params }: RouteCont
   })
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleReportsOverview)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleReportsOverview)

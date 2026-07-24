@@ -53,5 +53,5 @@ async function handleDeleteModifierGroup(request: NextRequest, { params }: Route
   return noContent()
 }
 
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdateModifierGroup)
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleDeleteModifierGroup)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateModifierGroup)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleDeleteModifierGroup)

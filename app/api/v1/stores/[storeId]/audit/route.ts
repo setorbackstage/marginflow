@@ -52,4 +52,4 @@ async function handleListAuditLogs(request: NextRequest, { params }: RouteContex
   return paginated(mapped, buildPaginationMeta(query.page, query.limit, total))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListAuditLogs)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListAuditLogs)

@@ -90,5 +90,5 @@ async function handleCreateProduct(request: NextRequest, { params }: RouteContex
   return created(toProductDetailResponse(detail))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListProducts)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreateProduct)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListProducts)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreateProduct)

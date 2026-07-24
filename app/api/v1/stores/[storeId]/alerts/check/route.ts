@@ -150,4 +150,4 @@ async function handleCheckAlerts(request: NextRequest, { params }: RouteContext)
   return ok({ fired })
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleCheckAlerts)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCheckAlerts)

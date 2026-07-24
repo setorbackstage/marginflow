@@ -73,5 +73,5 @@ async function handleCreateModifierGroup(request: NextRequest, { params }: Route
   })
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListModifierGroups)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreateModifierGroup)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListModifierGroups)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreateModifierGroup)

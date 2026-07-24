@@ -64,5 +64,5 @@ async function handleUpdateCustomer(request: NextRequest, { params }: RouteConte
   return ok(await toCustomerDetailResponse(customer))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetCustomer)
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdateCustomer)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetCustomer)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateCustomer)

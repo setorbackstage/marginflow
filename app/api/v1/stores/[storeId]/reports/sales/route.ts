@@ -86,4 +86,4 @@ async function handleReportsSales(request: NextRequest, { params }: RouteContext
   return ok({ groupBy, series, totals })
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleReportsSales)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleReportsSales)

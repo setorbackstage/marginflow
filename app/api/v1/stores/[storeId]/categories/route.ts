@@ -52,5 +52,5 @@ async function handleCreateCategory(request: NextRequest, { params }: RouteConte
   return created(await toCategoryResponse(category))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListCategories)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreateCategory)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListCategories)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreateCategory)

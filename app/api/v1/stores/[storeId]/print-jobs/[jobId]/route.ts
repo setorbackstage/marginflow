@@ -52,5 +52,5 @@ async function handleUpdatePrintJob(request: NextRequest, { params }: RouteConte
   return ok(job)
 }
 
-export const GET   = compose(withRequestContext, withErrorHandling)(handleGetPrintJob)
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdatePrintJob)
+export const GET   = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetPrintJob)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdatePrintJob)

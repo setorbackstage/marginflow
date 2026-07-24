@@ -29,4 +29,4 @@ async function handleGetInsights(request: NextRequest, { params }: RouteContext)
   return ok({ stale, topByQuantity: consumption.byQuantity, topByCost: consumption.byCost, productsWithoutRecipe })
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetInsights)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetInsights)

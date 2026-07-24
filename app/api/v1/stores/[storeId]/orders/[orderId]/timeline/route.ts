@@ -46,4 +46,4 @@ async function handleGetTimeline(request: NextRequest, { params }: RouteContext)
   )
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetTimeline)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetTimeline)

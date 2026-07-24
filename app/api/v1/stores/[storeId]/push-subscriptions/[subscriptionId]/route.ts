@@ -24,4 +24,4 @@ async function handleUnsubscribe(request: NextRequest, { params }: RouteContext)
   return noContent()
 }
 
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleUnsubscribe)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUnsubscribe)

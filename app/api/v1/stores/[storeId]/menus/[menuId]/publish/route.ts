@@ -19,4 +19,4 @@ async function handlePublish(request: NextRequest, { params }: RouteContext): Pr
   return ok(toMenuResponse(menu))
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handlePublish)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handlePublish)

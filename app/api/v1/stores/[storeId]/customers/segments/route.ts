@@ -38,4 +38,4 @@ async function handleGetSegments(_request: NextRequest, { params }: RouteContext
   return ok({ total, active, blocked, newLast30, frequent, atRisk, churned })
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetSegments)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetSegments)

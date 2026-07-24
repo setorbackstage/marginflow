@@ -35,4 +35,4 @@ async function handleCreateAdjustment(request: NextRequest, { params }: RouteCon
   return created(adjustment)
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreateAdjustment)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreateAdjustment)

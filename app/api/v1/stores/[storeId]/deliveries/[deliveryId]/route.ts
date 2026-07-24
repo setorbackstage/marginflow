@@ -44,5 +44,5 @@ async function handleAssignCourier(request: NextRequest, { params }: RouteContex
   return ok(toDeliveryResponse(delivery, order.number))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetDelivery)
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleAssignCourier)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetDelivery)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleAssignCourier)

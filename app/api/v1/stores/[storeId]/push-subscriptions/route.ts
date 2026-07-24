@@ -42,5 +42,5 @@ async function handleGetStatus(request: NextRequest, { params }: RouteContext): 
   return ok({ subscribed: subs.length > 0, count: subs.length })
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleSubscribe)
-export const GET  = compose(withRequestContext, withErrorHandling)(handleGetStatus)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleSubscribe)
+export const GET  = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetStatus)

@@ -30,4 +30,4 @@ async function handleSetApprovalPassword(request: NextRequest): Promise<Response
   return ok({ success: true })
 }
 
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleSetApprovalPassword)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleSetApprovalPassword)

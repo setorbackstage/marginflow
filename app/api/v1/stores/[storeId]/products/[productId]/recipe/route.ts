@@ -66,7 +66,7 @@ async function handleMethodNotAllowed(): Promise<Response> {
   )
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetRecipe)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetRecipe)
 export const POST = handleMethodNotAllowed
-export const PUT = compose(withRequestContext, withErrorHandling)(handleUpsertRecipe)
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleDeleteRecipe)
+export const PUT = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpsertRecipe)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleDeleteRecipe)

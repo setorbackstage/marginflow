@@ -67,4 +67,4 @@ async function handleUpload(request: NextRequest, { params }: RouteContext): Pro
   return ok({ url: publicUrl })
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleUpload)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpload)

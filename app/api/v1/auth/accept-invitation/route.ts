@@ -25,4 +25,4 @@ async function handler(request: NextRequest): Promise<Response> {
   return ok({ message: "Convite aceito. Você já pode fazer login." })
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handler)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handler)

@@ -29,4 +29,4 @@ async function handleConfirmPayment(request: NextRequest, { params }: RouteConte
   return ok(toPaymentDetailResponse(payment, order.number, attempts))
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleConfirmPayment)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleConfirmPayment)

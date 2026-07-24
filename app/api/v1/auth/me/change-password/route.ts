@@ -24,4 +24,4 @@ async function handleChangePassword(request: NextRequest): Promise<Response> {
   return ok({ message: "Senha alterada com sucesso." })
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleChangePassword)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleChangePassword)

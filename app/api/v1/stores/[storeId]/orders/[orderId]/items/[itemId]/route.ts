@@ -52,5 +52,5 @@ async function handleRemoveItem(request: NextRequest, { params }: RouteContext):
   return noContent()
 }
 
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdateItem)
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleRemoveItem)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateItem)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleRemoveItem)

@@ -58,5 +58,5 @@ async function handleConnect(req: NextRequest, ctx: RouteContext) {
   return created(toIntegrationResponse(integration))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleList)
-export const POST = compose(withRequestContext, withErrorHandling)(handleConnect)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleList)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleConnect)

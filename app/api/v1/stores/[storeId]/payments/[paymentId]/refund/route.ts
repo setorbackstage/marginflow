@@ -37,4 +37,4 @@ async function handleRefundPayment(request: NextRequest, { params }: RouteContex
   })
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleRefundPayment)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleRefundPayment)

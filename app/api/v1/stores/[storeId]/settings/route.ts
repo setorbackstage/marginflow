@@ -84,5 +84,5 @@ async function handleUpdateSettings(request: NextRequest, { params }: RouteConte
   return ok(toSettingsResponse(settings))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetSettings)
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdateSettings)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetSettings)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateSettings)

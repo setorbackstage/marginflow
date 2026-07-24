@@ -24,4 +24,4 @@ async function handleGetPayment(request: NextRequest, { params }: RouteContext):
   return ok(toPaymentDetailResponse(payment, order.number, attempts))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetPayment)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetPayment)

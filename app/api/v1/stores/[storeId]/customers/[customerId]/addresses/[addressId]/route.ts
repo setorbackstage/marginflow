@@ -54,5 +54,5 @@ async function handleDeleteAddress(request: NextRequest, { params }: RouteContex
   return noContent()
 }
 
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdateAddress)
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleDeleteAddress)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateAddress)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleDeleteAddress)

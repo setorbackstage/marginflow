@@ -34,4 +34,4 @@ async function handler(request: NextRequest): Promise<Response> {
   return ok({ message: "Se esse e-mail estiver cadastrado, você receberá as instruções em breve." })
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handler)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handler)

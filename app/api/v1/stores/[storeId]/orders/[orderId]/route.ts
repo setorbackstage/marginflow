@@ -44,5 +44,5 @@ async function handleUpdateOrder(request: NextRequest, { params }: RouteContext)
   return ok(await toOrderResponse(updated))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetOrder)
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdateOrder)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetOrder)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateOrder)

@@ -105,4 +105,4 @@ async function handleUpdateStatus(request: NextRequest, { params }: RouteContext
   return ok(await toOrderResponse(updated))
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleUpdateStatus)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateStatus)

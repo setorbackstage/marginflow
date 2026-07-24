@@ -34,4 +34,4 @@ async function handler(request: NextRequest): Promise<Response> {
   return ok({ message: "Senha redefinida com sucesso." })
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handler)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handler)

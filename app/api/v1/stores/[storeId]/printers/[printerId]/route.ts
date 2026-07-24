@@ -52,6 +52,6 @@ async function handleDeletePrinter(request: NextRequest, { params }: RouteContex
   return noContent()
 }
 
-export const GET    = compose(withRequestContext, withErrorHandling)(handleGetPrinter)
-export const PATCH  = compose(withRequestContext, withErrorHandling)(handleUpdatePrinter)
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleDeletePrinter)
+export const GET    = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetPrinter)
+export const PATCH  = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdatePrinter)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleDeletePrinter)

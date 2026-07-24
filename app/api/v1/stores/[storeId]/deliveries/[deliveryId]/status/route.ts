@@ -44,4 +44,4 @@ async function handleUpdateStatus(request: NextRequest, { params }: RouteContext
   return ok(toDeliveryResponse(delivery, order.number))
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleUpdateStatus)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateStatus)

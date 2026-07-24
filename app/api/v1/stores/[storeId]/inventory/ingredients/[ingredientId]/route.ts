@@ -62,6 +62,6 @@ async function handleDeleteIngredient(request: NextRequest, { params }: RouteCon
   return noContent()
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetIngredient)
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdateIngredient)
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleDeleteIngredient)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetIngredient)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateIngredient)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleDeleteIngredient)

@@ -27,4 +27,4 @@ async function handleUpdateItemStatus(request: NextRequest, { params }: RouteCon
   return ok(toKitchenItemResponse(item))
 }
 
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdateItemStatus)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateItemStatus)

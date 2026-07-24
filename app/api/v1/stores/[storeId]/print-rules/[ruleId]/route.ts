@@ -42,5 +42,5 @@ async function handleDeletePrintRule(request: NextRequest, { params }: RouteCont
   return noContent()
 }
 
-export const PATCH  = compose(withRequestContext, withErrorHandling)(handleUpdatePrintRule)
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleDeletePrintRule)
+export const PATCH  = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdatePrintRule)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleDeletePrintRule)

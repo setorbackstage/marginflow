@@ -51,4 +51,4 @@ async function handleSignup(request: NextRequest): Promise<Response> {
   return response
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleSignup)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleSignup)

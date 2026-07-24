@@ -19,4 +19,4 @@ async function handleGetTicket(request: NextRequest, { params }: RouteContext): 
   return ok(toTicketResponse(ticket))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetTicket)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetTicket)

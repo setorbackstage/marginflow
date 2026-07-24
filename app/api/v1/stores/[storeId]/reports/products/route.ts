@@ -99,4 +99,4 @@ async function handleReportsProducts(request: NextRequest, { params }: RouteCont
   return paginated(rows, buildPaginationMeta(page, limit, total))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleReportsProducts)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleReportsProducts)

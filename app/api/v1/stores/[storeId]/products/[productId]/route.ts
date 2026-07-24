@@ -64,6 +64,6 @@ async function handleDeleteProduct(request: NextRequest, { params }: RouteContex
   return noContent()
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetProduct)
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdateProduct)
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleDeleteProduct)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetProduct)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateProduct)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleDeleteProduct)

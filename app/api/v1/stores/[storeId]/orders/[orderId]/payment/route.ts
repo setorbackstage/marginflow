@@ -39,4 +39,4 @@ async function handleInitiatePayment(request: NextRequest, { params }: RouteCont
   })
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleInitiatePayment)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleInitiatePayment)

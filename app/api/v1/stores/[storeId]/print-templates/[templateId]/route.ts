@@ -49,6 +49,6 @@ async function handleDeletePrintTemplate(request: NextRequest, { params }: Route
   return noContent()
 }
 
-export const GET    = compose(withRequestContext, withErrorHandling)(handleGetPrintTemplate)
-export const PATCH  = compose(withRequestContext, withErrorHandling)(handleUpdatePrintTemplate)
-export const DELETE = compose(withRequestContext, withErrorHandling)(handleDeletePrintTemplate)
+export const GET    = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetPrintTemplate)
+export const PATCH  = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdatePrintTemplate)
+export const DELETE = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleDeletePrintTemplate)

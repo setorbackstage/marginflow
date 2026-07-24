@@ -61,4 +61,4 @@ async function handleLogin(request: NextRequest): Promise<Response> {
   return response
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleLogin)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleLogin)

@@ -27,4 +27,4 @@ async function handleLogout(request: NextRequest): Promise<Response> {
   return response
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleLogout)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleLogout)

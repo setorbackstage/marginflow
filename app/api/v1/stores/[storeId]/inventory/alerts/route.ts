@@ -22,4 +22,4 @@ async function handleListAlerts(request: NextRequest, { params }: RouteContext):
   return ok(await ingredientService.listAlerts(prisma, storeId))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListAlerts)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListAlerts)

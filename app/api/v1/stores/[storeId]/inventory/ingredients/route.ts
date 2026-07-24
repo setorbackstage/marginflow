@@ -75,5 +75,5 @@ async function handleCreateIngredient(request: NextRequest, { params }: RouteCon
   return created(toIngredientResponse(ingredient))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListIngredients)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreateIngredient)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListIngredients)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreateIngredient)

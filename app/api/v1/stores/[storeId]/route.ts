@@ -96,5 +96,5 @@ async function handleUpdateStore(request: NextRequest, { params }: RouteContext)
   return ok(toStoreResponse(store))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleGetStore)
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdateStore)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetStore)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateStore)

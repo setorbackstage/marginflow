@@ -37,7 +37,4 @@ async function handleGetStorefront(
   return ok(toPublicStorefrontDTO(storefront))
 }
 
-export const GET = compose(
-  withRequestContext,
-  withErrorHandling,
-)(handleGetStorefront)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleGetStorefront)

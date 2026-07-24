@@ -99,4 +99,4 @@ async function handleReportsOrders(request: NextRequest, { params }: RouteContex
   })
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleReportsOrders)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleReportsOrders)

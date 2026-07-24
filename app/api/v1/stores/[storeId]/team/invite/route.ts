@@ -36,4 +36,4 @@ async function handleInviteMember(request: NextRequest, { params }: RouteContext
   })
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleInviteMember)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleInviteMember)

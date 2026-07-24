@@ -19,4 +19,4 @@ async function handleUnpublish(request: NextRequest, { params }: RouteContext): 
   return ok(toMenuResponse(menu))
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleUnpublish)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUnpublish)

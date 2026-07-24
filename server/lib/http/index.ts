@@ -1,4 +1,5 @@
 export { ok, created, noContent, paginated, buildPaginationMeta } from "./responses"
 export type { PaginationMeta } from "./responses"
 export { compose, withErrorHandling, withRequestContext } from "./middleware"
+export { withRateLimit } from "./with-rate-limit"
 export { setRefreshTokenCookie } from "./refresh-token-cookie"

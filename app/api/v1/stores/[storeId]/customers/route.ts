@@ -80,5 +80,5 @@ async function handleCreateCustomer(request: NextRequest, { params }: RouteConte
   return created(await toCustomerDetailResponse(customer))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListCustomers)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreateCustomer)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListCustomers)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreateCustomer)

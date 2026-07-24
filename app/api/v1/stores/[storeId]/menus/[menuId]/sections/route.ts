@@ -34,4 +34,4 @@ async function handleReplaceSections(request: NextRequest, { params }: RouteCont
   return ok(toMenuDetailResponse(menu))
 }
 
-export const PUT = compose(withRequestContext, withErrorHandling)(handleReplaceSections)
+export const PUT = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleReplaceSections)

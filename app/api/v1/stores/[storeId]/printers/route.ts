@@ -41,5 +41,5 @@ async function handleCreatePrinter(request: NextRequest, { params }: RouteContex
   return created(printer)
 }
 
-export const GET  = compose(withRequestContext, withErrorHandling)(handleListPrinters)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreatePrinter)
+export const GET  = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListPrinters)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreatePrinter)

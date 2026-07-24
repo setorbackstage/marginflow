@@ -58,5 +58,5 @@ async function handleCreateMenu(request: NextRequest, { params }: RouteContext):
   return created(toMenuDetailResponse(detail))
 }
 
-export const GET = compose(withRequestContext, withErrorHandling)(handleListMenus)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreateMenu)
+export const GET = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListMenus)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreateMenu)

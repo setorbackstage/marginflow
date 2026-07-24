@@ -55,5 +55,5 @@ async function handleUpdateProfile(request: NextRequest): Promise<Response> {
   return ok(toMeResponse(profile))
 }
 
-export const GET   = compose(withRequestContext, withErrorHandling)(handleMe)
-export const PATCH = compose(withRequestContext, withErrorHandling)(handleUpdateProfile)
+export const GET   = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleMe)
+export const PATCH = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleUpdateProfile)

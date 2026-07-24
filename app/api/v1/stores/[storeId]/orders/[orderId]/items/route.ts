@@ -49,4 +49,4 @@ async function handleAddItem(request: NextRequest, { params }: RouteContext): Pr
   })
 }
 
-export const POST = compose(withRequestContext, withErrorHandling)(handleAddItem)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleAddItem)

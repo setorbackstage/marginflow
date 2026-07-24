@@ -59,5 +59,5 @@ async function handleCreatePrintJob(request: NextRequest, { params }: RouteConte
   return created(job)
 }
 
-export const GET  = compose(withRequestContext, withErrorHandling)(handleListPrintJobs)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreatePrintJob)
+export const GET  = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListPrintJobs)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreatePrintJob)

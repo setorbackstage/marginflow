@@ -40,5 +40,5 @@ async function handleCreatePrintRule(request: NextRequest, { params }: RouteCont
   return created(rule)
 }
 
-export const GET  = compose(withRequestContext, withErrorHandling)(handleListPrintRules)
-export const POST = compose(withRequestContext, withErrorHandling)(handleCreatePrintRule)
+export const GET  = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleListPrintRules)
+export const POST = compose(withRequestContext, withRateLimit(), withErrorHandling)(handleCreatePrintRule)
