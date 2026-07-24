@@ -219,13 +219,13 @@ export const ingredientService = {
         currentStock: { increment: input.quantityDelta },
       })
       await stockMovementRepository.create(tx, {
-        storeId,
-        ingredientId: ingredient.id,
+        store: { connect: { id: storeId } },
+        ingredient: { connect: { id: ingredient.id } },
         type: input.type,
         quantityDelta: input.quantityDelta,
         unitCost: ingredient.costPerUnit,
         reason: input.reason,
-        createdByUserId: actorUserId,
+        createdByUser: { connect: { id: actorUserId } },
       })
       return updated
     })
