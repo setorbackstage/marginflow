@@ -3,10 +3,14 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    swcPlugins: [['@swc/plugin-emotion', {}]],
+    workerThreads: 2,
+  },
   async headers() {
     // In production NEXT_PUBLIC_APP_URL must be set to the real origin.
     // Falling back to localhost prevents the wildcard "*" from ever reaching prod.
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     return [
       {
@@ -35,8 +39,10 @@ const nextConfig = {
           { key: "Access-Control-Allow-Headers", value: "Content-Type, Authorization" },
         ],
       },
-    ]
+    ];
   },
-}
+  compress: true,
+  productionBrowserSourceMaps: false,
+};
 
-export default nextConfig
+export default nextConfig;
