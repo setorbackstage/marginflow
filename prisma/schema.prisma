@@ -1151,7 +1151,7 @@ model StockMovement {
   store         Store      @relation(fields: [storeId], references: [id], onDelete: Restrict)
   ingredient    Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
   order         Order?     @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  createdByUser User?      @relation("StockMovementCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdByUser User?      @relation("StockMovementCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   /// Idempotency for automatic movements. NULL order_id rows (manual) are
   /// unaffected — PostgreSQL treats NULLs as distinct (file header, 3a).
