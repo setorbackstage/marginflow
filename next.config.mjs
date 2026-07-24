@@ -4,7 +4,6 @@ const nextConfig = {
     unoptimized: true,
   },
   experimental: {
-    swcPlugins: [['@swc/plugin-emotion', {}]],
     workerThreads: true,
   },
   async headers() {
