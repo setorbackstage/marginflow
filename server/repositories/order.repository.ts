@@ -14,12 +14,12 @@ export const orderRepository = {
   },
 
   exists(db: DbClient, storeId: string, id: string): Promise<boolean> {
-    return db.order.findUnique({ where: { storeId, id }, select: { id: true } }).then(Boolean)
+    return db.order.findUnique({ where: { id }, select: { id: true } }).then(Boolean)
   },
 
   findByIdWithDetails(db: DbClient, id: string) {
     return db.order.findUnique({
-      where: { storeId, id },
+      where: { id },
       include: {
         items: true,
         statusTransitions: { orderBy: { occurredAt: "desc" } },

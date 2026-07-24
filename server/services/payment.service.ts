@@ -44,7 +44,7 @@ export const paymentService = {
 
   /** `POST /orders/:orderId/payment` — creates a Payment (PENDING) and its initiating PaymentAttempt. */
   async initiate(db: DbClient, storeId: string, orderId: string, input: InitiatePaymentInput): Promise<{ payment: Payment; attemptId: string }> {
-    const order = await orderRepository.findById(db, orderId)
+    const order = await orderRepository.findById(db, storeId, orderId)
     if (!order || order.storeId !== storeId) throw new NotFoundError("ORDER_NOT_FOUND", "Order does not exist in this store.")
     if (UNPAYABLE_ORDER_STATUSES.includes(order.status)) {
       throw new BadRequestError("ORDER_NOT_PAYABLE", "Order is in DRAFT, PENDING, or CANCELLED status.")
@@ -120,7 +120,7 @@ export const paymentService = {
       successfulAttempt: pendingAttempt ? { connect: { id: pendingAttempt.id } } : undefined,
     })
 
-    const order = await orderRepository.findById(db, payment.orderId)
+    const order = await orderRepository.findById(db, storeId, payment.orderId)
     await eventBus.publish(
       createEvent("payment.paid", storeId, null, {
         paymentId,

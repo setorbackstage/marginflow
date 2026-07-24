@@ -152,7 +152,7 @@ eventBus.on("kitchen_ticket.ready", "delivery.service:kitchen_ticket.ready", asy
   })
 
   // Auto-assign iFood platform courier when the order is handled by iFood logistics
-  const order = await orderRepository.findById(db, event.payload.orderId)
+  const order = await orderRepository.findById(db, event.storeId, event.payload.orderId)
   if (order?.deliveredBy === "IFOOD") {
     delivery = await deliveryRepository.update(db, delivery.id, {
       courierName: "Entregador iFood",
