@@ -438,8 +438,8 @@ export async function pollIfoodStoreOnce(storeId: string): Promise<{ eventsProce
 // Domain event listeners — sync our status changes back to iFood
 // ─────────────────────────────────────────────────────────────────────────
 
-async function getExternalId(db: DbClient, orderId: string): Promise<{ externalId: string; channel: string } | null> {
-  const order = await orderRepository.findById(db, orderId)
+async function getExternalId(db: DbClient, storeId: string, orderId: string): Promise<{ externalId: string; channel: string } | null> {
+  const order = await orderRepository.findById(db, $2, )
   if (!order || order.channel !== "MARKETPLACE" || !order.externalId) return null
   return { externalId: order.externalId, channel: order.channel }
 }
@@ -450,7 +450,7 @@ async function withIfoodAction(
   action: (token: string, externalId: string) => Promise<void>,
   label: string,
 ): Promise<void> {
-  const ctx = await getExternalId(db, orderId)
+  const ctx = await getExternalId(db, $2, )
   if (!ctx) return // not a marketplace order
 
   try {
@@ -474,12 +474,12 @@ async function withIfoodAction(
 
 // order.confirmed → POST /confirm to iFood
 eventBus.on("order.confirmed", "ifood-sync:order.confirmed", async (event, db) => {
-  await withIfoodAction(db, event.payload.orderId, confirmIfoodOrder, "confirm")
+  await withIfoodAction(db, event.storeId, $2, confirmIfoodOrder, "confirm")
 })
 
 // order.ready → POST /readyToPickup (for TAKEAWAY orders or iFood-handled delivery)
 eventBus.on("order.ready", "ifood-sync:order.ready", async (event, db) => {
-  await withIfoodAction(db, event.payload.orderId, markIfoodOrderReadyToPickup, "ready_to_pickup")
+  await withIfoodAction(db, event.storeId, $2, markIfoodOrderReadyToPickup, "ready_to_pickup")
 })
 
 // order.out_for_delivery → POST /dispatch (merchant-handled delivery)
