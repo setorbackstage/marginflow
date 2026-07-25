@@ -5,6 +5,10 @@
  *  1. Prepaid (isPrepaid=true): payment and attempt created with PAID/CAPTURED status and payment.paid event published
  *  2. COD (isPrepaid=false): payment created with PENDING status and payment.created event published
  *  3. Idempotency: if the order already exists (findByExternalId returns a hit), registration is skipped entirely
+ *
+ * Also covers the COD auto-confirm-on-delivery branch in processIfoodEvents (CONCLUDED event):
+ *  4. A PENDING payment is marked PAID when the marketplace confirms delivery
+ *  5. Idempotency: a CONCLUDED event re-delivered by iFood must not re-capture an already-PAID payment
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
@@ -17,11 +21,16 @@ vi.mock("@/server/repositories", () => ({
   },
   orderItemRepository: { createMany: vi.fn() },
   orderStatusTransitionRepository: { create: vi.fn() },
-  marketplaceIntegrationRepository: { findByStoreAndType: vi.fn(), findByMerchantId: vi.fn().mockResolvedValue(null), update: vi.fn() },
+  marketplaceIntegrationRepository: {
+    findByStoreAndType: vi.fn(),
+    findByMerchantId: vi.fn().mockResolvedValue(null),
+    findActiveByPlatform: vi.fn().mockResolvedValue([]),
+    update: vi.fn(),
+  },
   storeSettingsRepository: { findByStoreId: vi.fn() },
   paymentRepository: { create: vi.fn(), update: vi.fn(), findByOrderId: vi.fn() },
-  paymentAttemptRepository: { create: vi.fn(), update: vi.fn() },
-  deliveryRepository: { create: vi.fn() },
+  paymentAttemptRepository: { create: vi.fn(), update: vi.fn(), findManyByOrder: vi.fn() },
+  deliveryRepository: { create: vi.fn(), findByOrderId: vi.fn() },
   customerRepository: {
     findByStoreAndPhone: vi.fn(),
     create: vi.fn(),
@@ -37,11 +46,11 @@ vi.mock("@/server/lib", () => ({
 }))
 
 vi.mock("@/server/services/order.service", () => ({
-  orderService: { confirmOrder: vi.fn(), create: vi.fn() },
+  orderService: { confirmOrder: vi.fn(), create: vi.fn(), updateStatus: vi.fn() },
 }))
 
 vi.mock("@/server/services/delivery.service", () => ({
-  deliveryService: { create: vi.fn() },
+  deliveryService: { create: vi.fn(), updateStatus: vi.fn() },
 }))
 
 vi.mock("@/server/integrations/ifood", () => ({
@@ -56,7 +65,7 @@ vi.mock("@/server/integrations/ifood", () => ({
   setIfoodItemAvailability: vi.fn(),
   IfoodApiError: class IfoodApiError extends Error {},
   pollIfoodEvents: vi.fn(),
-  acknowledgeIfoodEvents: vi.fn(),
+  acknowledgeIfoodEvents: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock("@/server/db", () => ({
@@ -71,9 +80,17 @@ vi.mock("@/server/lib/json", () => ({
 
 import { prisma } from "@/server/db"
 import { ifoodSyncService } from "@/server/services/ifood-sync.service"
-import { paymentRepository, paymentAttemptRepository, orderRepository } from "@/server/repositories"
+import {
+  paymentRepository,
+  paymentAttemptRepository,
+  orderRepository,
+  marketplaceIntegrationRepository,
+  deliveryRepository,
+} from "@/server/repositories"
+import { deliveryService } from "@/server/services/delivery.service"
 import { eventBus } from "@/server/lib"
 import { mapIfoodOrder } from "@/server/integrations/ifood"
+import type { IfoodEvent } from "@/server/integrations/ifood"
 
 const STORE_ID = "store-1"
 const IFOOD_ORDER_ID = "ifood-order-1"
@@ -177,6 +194,81 @@ describe("ingestIfoodOrder – payment auto-registration", () => {
     )
     const events = (eventBus.publish as ReturnType<typeof vi.fn>).mock.calls.map((c) => (c[0] as { type: string }).type)
     expect(events).toContain("payment.created")
+    expect(events).not.toContain("payment.paid")
+  })
+})
+
+describe("processIfoodEvents – COD payment confirmation on delivery (CONCLUDED)", () => {
+  const MERCHANT_ID = "merchant-1"
+  const ORDER_ID = "order-1"
+  const DELIVERY_ID = "delivery-1"
+
+  function buildConcludedEvent(): IfoodEvent {
+    return {
+      id: "event-1",
+      fullCode: "CONCLUDED",
+      orderId: IFOOD_ORDER_ID,
+      merchantId: MERCHANT_ID,
+    } as IfoodEvent
+  }
+
+  beforeEach(() => {
+    ;(marketplaceIntegrationRepository.findByMerchantId as ReturnType<typeof vi.fn>).mockResolvedValue({
+      storeId: STORE_ID,
+      merchantId: MERCHANT_ID,
+    })
+    ;(orderRepository.findByExternalId as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: ORDER_ID,
+      deliveredBy: "IFOOD",
+      customerId: null,
+    })
+    ;(deliveryRepository.findByOrderId as ReturnType<typeof vi.fn>).mockResolvedValue({ id: DELIVERY_ID })
+    ;(deliveryService.updateStatus as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
+  })
+
+  it("marks a PENDING COD payment PAID and publishes payment.paid", async () => {
+    ;(paymentRepository.findByOrderId as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "payment-1",
+      status: "PENDING",
+      amount: 55,
+      method: "CASH",
+      gateway: "IFOOD",
+    })
+    ;(paymentAttemptRepository.findManyByOrder as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: "attempt-1", status: "PENDING" },
+    ])
+
+    await ifoodSyncService.processIfoodEvents([buildConcludedEvent()])
+
+    expect(paymentAttemptRepository.update).toHaveBeenCalledWith(
+      expect.anything(),
+      "attempt-1",
+      expect.objectContaining({ status: "CAPTURED" }),
+    )
+    expect(paymentRepository.update).toHaveBeenCalledWith(
+      expect.anything(),
+      "payment-1",
+      expect.objectContaining({ status: "PAID" }),
+    )
+    const events = (eventBus.publish as ReturnType<typeof vi.fn>).mock.calls.map((c) => (c[0] as { type: string }).type)
+    expect(events).toContain("payment.paid")
+  })
+
+  it("idempotency: a redelivered CONCLUDED event does not re-capture an already-PAID payment", async () => {
+    ;(paymentRepository.findByOrderId as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "payment-1",
+      status: "PAID",
+      amount: 55,
+      method: "CASH",
+      gateway: "IFOOD",
+    })
+
+    await ifoodSyncService.processIfoodEvents([buildConcludedEvent()])
+
+    expect(paymentAttemptRepository.findManyByOrder).not.toHaveBeenCalled()
+    expect(paymentAttemptRepository.update).not.toHaveBeenCalled()
+    expect(paymentRepository.update).not.toHaveBeenCalled()
+    const events = (eventBus.publish as ReturnType<typeof vi.fn>).mock.calls.map((c) => (c[0] as { type: string }).type)
     expect(events).not.toContain("payment.paid")
   })
 })
