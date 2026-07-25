@@ -58,7 +58,6 @@ export function usePushNotifications() {
         }
       })
       .catch(() => {})
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSupported, storeId])
 
   const subscribe = React.useCallback(async () => {
