@@ -40,7 +40,7 @@ async function handleUpdateStatus(request: NextRequest, { params }: RouteContext
       isManagerOrOwner,
     }),
   )
-  const order = await orderService.getById(prisma, delivery.orderId)
+  const order = await orderService.getById(prisma, storeId, delivery.orderId)
   return ok(toDeliveryResponse(delivery, order.number))
 }
 

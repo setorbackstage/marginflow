@@ -67,7 +67,7 @@ export const storeService = {
     await getStoreOrThrow(db, storeId)
 
     if (input.currency) {
-      const orderCount = await orderRepository.count(db, { storeId })
+      const orderCount = await orderRepository.count(db, storeId, {})
       if (orderCount > 0) {
         throw new ConflictError("CURRENCY_CHANGE_BLOCKED", "Cannot change currency once the store has orders.")
       }

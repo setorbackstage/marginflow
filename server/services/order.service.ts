@@ -79,8 +79,8 @@ const KITCHEN_STARTED_STATUSES = ["PREPARING", "READY", "OUT_FOR_DELIVERY"]
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────
 
-async function getOrderOrThrow(db: DbClient, id: string): Promise<Order> {
-  const order = await orderRepository.findById(db, id)
+async function getOrderOrThrow(db: DbClient, storeId: string, id: string): Promise<Order> {
+  const order = await orderRepository.findById(db, storeId, id)
   if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order does not exist in this store.")
   return order
 }
@@ -88,13 +88,13 @@ async function getOrderOrThrow(db: DbClient, id: string): Promise<Order> {
 /**
  * Store Isolation (API_SPEC.md) for every mutation this service owns
  * (`update`, `addItem`, `updateItem`, `removeItem`, `updateStatus`) — kept
- * separate from `getById` (unchecked) because Payments' and Deliveries'
- * routes already call `getById` with an `order.orderId` that was already
- * verified store-scoped via the Payment/Delivery record itself; changing
- * that call site is out of scope here.
+ * separate from `getById` since `getById` is already store-scoped at the
+ * repository level (`orderRepository.findById` filters by storeId), while
+ * this helper additionally guards against a storeId/id mismatch reaching
+ * a mutation path.
  */
 async function getOrderInStoreOrThrow(db: DbClient, storeId: string, id: string): Promise<Order> {
-  const order = await getOrderOrThrow(db, id)
+  const order = await getOrderOrThrow(db, storeId, id)
   if (order.storeId !== storeId) throw new NotFoundError("ORDER_NOT_FOUND", "Order does not exist in this store.")
   return order
 }
@@ -628,14 +628,14 @@ async function cancelOrder(db: DbClient, storeId: string, order: Order, opts: Up
 
 eventBus.on("kitchen_ticket.status_changed", "order.service:kitchen_ticket.status_changed", async (event, db) => {
   if (event.payload.newStatus !== "PREPARING") return
-  const order = await orderRepository.findById(db, event.payload.orderId)
+  const order = await orderRepository.findById(db, event.storeId, event.payload.orderId)
   if (!order || order.status !== "CONFIRMED") return
   await orderRepository.update(db, order.id, { status: "PREPARING" })
   await recordTransition(db, order.id, "PREPARING", null)
 })
 
 eventBus.on("kitchen_ticket.ready", "order.service:kitchen_ticket.ready", async (event, db) => {
-  const order = await orderRepository.findById(db, event.payload.orderId)
+  const order = await orderRepository.findById(db, event.storeId, event.payload.orderId)
   if (!order || order.status !== "PREPARING") return
 
   const readyAt = new Date(event.payload.readyAt)
@@ -654,7 +654,7 @@ eventBus.on("kitchen_ticket.ready", "order.service:kitchen_ticket.ready", async 
 })
 
 eventBus.on("delivery.dispatched", "order.service:delivery.dispatched", async (event, db) => {
-  const order = await orderRepository.findById(db, event.payload.orderId)
+  const order = await orderRepository.findById(db, event.storeId, event.payload.orderId)
   if (!order || order.status !== "READY") return
 
   await orderRepository.update(db, order.id, { status: "OUT_FOR_DELIVERY" })
@@ -671,7 +671,7 @@ eventBus.on("delivery.dispatched", "order.service:delivery.dispatched", async (e
 })
 
 eventBus.on("delivery.delivered", "order.service:delivery.delivered", async (event, db) => {
-  const order = await orderRepository.findById(db, event.payload.orderId)
+  const order = await orderRepository.findById(db, event.storeId, event.payload.orderId)
   if (!order || order.status !== "OUT_FOR_DELIVERY") return
 
   const deliveredAt = new Date(event.payload.deliveredAt)

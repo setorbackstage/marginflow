@@ -22,7 +22,7 @@ async function handleConfirmPayment(request: NextRequest, { params }: RouteConte
   const payment = await prisma.$transaction((tx) => paymentService.confirm(tx, storeId, paymentId))
   void logAudit(prisma, { storeId, userId: actor.userId, action: "payment.confirmed", entityType: "Payment", entityId: paymentId, entityRef: paymentId })
   const [order, attempts] = await Promise.all([
-    orderService.getById(prisma, payment.orderId),
+    orderService.getById(prisma, storeId, payment.orderId),
     paymentService.listAttemptsByOrder(prisma, payment.orderId),
   ])
 

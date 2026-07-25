@@ -78,7 +78,7 @@ export const kitchenService = {
 
     let deliveryAddressSnapshot: DeliveryAddressSnapshotPayload | null = null
     if (ticket.orderType === "DELIVERY") {
-      const order = await orderRepository.findById(db, ticket.orderId)
+      const order = await orderRepository.findById(db, storeId, ticket.orderId)
       const address = order?.deliveryAddress as Record<string, unknown> | null
       if (address) {
         deliveryAddressSnapshot = {

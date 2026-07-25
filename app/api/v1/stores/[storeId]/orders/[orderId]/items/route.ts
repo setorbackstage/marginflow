@@ -36,7 +36,7 @@ async function handleAddItem(request: NextRequest, { params }: RouteContext): Pr
 
   const input = await parseJsonBody(request, createOrderItemSchema)
   const item = await orderService.addItem(prisma, storeId, orderId, input)
-  const order = await orderService.getById(prisma, orderId)
+  const order = await orderService.getById(prisma, storeId, orderId)
 
   return created({
     item: toOrderItemResponse(item),

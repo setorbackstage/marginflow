@@ -27,7 +27,7 @@ async function handleGetDelivery(request: NextRequest, { params }: RouteContext)
   await authorizationService.requirePermission(prisma, actor.userId, storeId, "delivery:view")
 
   const delivery = await deliveryService.getById(prisma, storeId, deliveryId)
-  const order = await orderService.getById(prisma, delivery.orderId)
+  const order = await orderService.getById(prisma, storeId, delivery.orderId)
   return ok(toDeliveryResponse(delivery, order.number))
 }
 
@@ -40,7 +40,7 @@ async function handleAssignCourier(request: NextRequest, { params }: RouteContex
   const isManagerOrOwner = await authorizationService.isManagerOrOwner(prisma, actor.userId, storeId)
 
   const delivery = await deliveryService.assignCourier(prisma, storeId, deliveryId, input, isManagerOrOwner)
-  const order = await orderService.getById(prisma, delivery.orderId)
+  const order = await orderService.getById(prisma, storeId, delivery.orderId)
   return ok(toDeliveryResponse(delivery, order.number))
 }
 

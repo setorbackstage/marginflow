@@ -27,7 +27,7 @@ async function handleUpdateItem(request: NextRequest, { params }: RouteContext):
 
   const input = await parseJsonBody(request, updateOrderItemSchema)
   const item = await orderService.updateItem(prisma, storeId, orderId, itemId, input)
-  const order = await orderService.getById(prisma, orderId)
+  const order = await orderService.getById(prisma, storeId, orderId)
 
   return ok({
     item: toOrderItemResponse(item),

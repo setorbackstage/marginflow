@@ -17,7 +17,7 @@ async function handleGetPayment(request: NextRequest, { params }: RouteContext):
 
   const payment = await paymentService.getById(prisma, storeId, paymentId)
   const [order, attempts] = await Promise.all([
-    orderService.getById(prisma, payment.orderId),
+    orderService.getById(prisma, storeId, payment.orderId),
     paymentService.listAttemptsByOrder(prisma, payment.orderId),
   ])
 
