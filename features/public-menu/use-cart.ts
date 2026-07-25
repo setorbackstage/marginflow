@@ -26,7 +26,6 @@ export function useCart(storeSlug: string) {
       // Corrupt/unavailable storage — start empty rather than crash the page.
     }
     setHydrated(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey])
 
   React.useEffect(() => {

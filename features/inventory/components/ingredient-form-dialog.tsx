@@ -260,7 +260,7 @@ export function IngredientFormDialog({
                   })}
                 />
                 <FieldError errors={[errors.initialStock]} />
-                <p className="mt-1 text-xs text-muted-foreground">Registra automaticamente uma entrada de "Saldo de abertura".</p>
+                <p className="mt-1 text-xs text-muted-foreground">Registra automaticamente uma entrada de &quot;Saldo de abertura&quot;.</p>
               </Field>
             ) : null}
           </FieldGroup>
