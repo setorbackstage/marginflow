@@ -12,23 +12,31 @@ export function withRateLimit(options: { points?: number; duration?: number } = 
   const rateLimiter = new RateLimiterMemory({ points, duration });
 
   return (handler: any) => {
-    return async (req: any, res: any) => {
+    return async (req: any, ...rest: any[]) => {
       try {
-        // Extract IP address from request
-        const ip =
-          req.headers['x-forwarded-for']?.split(',')[0] ||
-          req.headers['x-real-ip'] ||
-          req.socket.remoteAddress ||
-          '';
+        // Extract IP address from request (App Router: Headers object; legacy: plain object)
+        let ip = '';
+        if (req?.headers?.get) {
+          ip =
+            req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+            req.headers.get('x-real-ip') ||
+            '';
+        } else if (req?.headers) {
+          const fwd = req.headers['x-forwarded-for'];
+          ip =
+            (typeof fwd === 'string' ? fwd.split(',')[0]?.trim() : fwd?.[0]) ||
+            req.headers['x-real-ip'] ||
+            req.socket?.remoteAddress ||
+            '';
+        }
 
         // Consume one point for this IP
-        await rateLimiter.consume(ip);
+        await rateLimiter.consume(ip || 'unknown');
 
-        // If we reach here, rate limit, the above will throw
-        return handler(req, res);
+        return handler(req, ...rest);
       } catch (err) {
-        // Rate limit exceeded
-        if (err instanceof Error && err.name === 'RateLimiterError') {
+        // Rate limit exceeded (rate-limiter-flexible rejects with RateLimiterRes, not Error)
+        if (err && typeof err === 'object' && 'msBeforeNext' in err) {
           return new Response('Too Many Requests', { status: 429 });
         }
         throw err;
