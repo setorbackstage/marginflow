@@ -32,22 +32,28 @@ const envSchema = z.object({
   RESEND_FROM_EMAIL: z.string().email().optional().default("noreply@marginflow.app"),
   /**
    * Segredo compartilhado configurado no portal iFood para autenticar webhooks recebidos.
-   * Se ausente, a verificação é pulada (compatibilidade retroativa).
+   * OBRIGATÓRIO em produção: sem ele, o endpoint /api/webhooks/ifood responde 503.
    * Passe no header `x-ifood-webhook-secret` ao registrar o endpoint no iFood.
    */
-  IFOOD_WEBHOOK_SECRET: z.string().optional(),
+  IFOOD_WEBHOOK_SECRET: z.string().min(1, "IFOOD_WEBHOOK_SECRET is required"),
   /**
    * 99Food open API configuration.
    * NINETYNINEFOOD_APP_ID / NINETYNINEFOOD_APP_SECRET: credentials from the 99Food
    *   partner portal (openapi.99food.com). Used to fetch the `auth_token`.
-   * NINETYNINEFOOD_WEBHOOK_SECRET: optional shared secret for webhook verification
-   *   (header `x-99food-webhook-secret`). If absent, verification is skipped.
+   * NINETYNINEFOOD_WEBHOOK_SECRET: OBRIGATÓRIO em produção. Shared secret for webhook
+   *   verification (header `x-99food-webhook-secret`). Sem ele, /api/webhooks/99food
+   *   responde 503 — a verificação NUNCA é pulada (VULN-001).
    * NINETYNINEFOOD_BASE_URL: API base (defaults to https://openapi.99food.com).
    */
   NINETYNINEFOOD_APP_ID: z.string().optional(),
   NINETYNINEFOOD_APP_SECRET: z.string().optional(),
-  NINETYNINEFOOD_WEBHOOK_SECRET: z.string().optional(),
+  NINETYNINEFOOD_WEBHOOK_SECRET: z.string().min(1, "NINETYNINEFOOD_WEBHOOK_SECRET is required"),
   NINETYNINEFOOD_BASE_URL: z.string().optional(),
+  /**
+   * Supabase SERVICE_ROLE key — usada APENAS server-side para escrita no Storage
+   * (uploads). NUNCA exposta ao cliente (não tem prefixo NEXT_PUBLIC_).
+   */
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY is required"),
 })
 
 const parsed = envSchema.safeParse(process.env)
