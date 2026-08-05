@@ -15,7 +15,7 @@ export const marketplaceIntegrationService = {
   },
 
   async connect(db: DbClient, storeId: string, input: ConnectMarketplaceInput): Promise<MarketplaceIntegration> {
-    const SUPPORTED = ["IFOOD", "RAPPI", "UBER_EATS"]
+    const SUPPORTED = ["IFOOD", "RAPPI", "UBER_EATS", "99FOOD"]
     if (!SUPPORTED.includes(input.platform)) {
       throw new BadRequestError("UNSUPPORTED_PLATFORM", `Platform "${input.platform}" is not supported. Supported: ${SUPPORTED.join(", ")}.`)
     }
