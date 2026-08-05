@@ -94,6 +94,9 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
       customerName: mapped.customerName ?? null,
       customerPhone: mapped.customerPhone ?? null,
       customerDocument: mapped.customerDocument ?? null,
+      // Platform of origin — distinct from channel (always MARKETPLACE) so the UI
+      // can tell iFood apart from 99Food (P1-05).
+      platform: "IFOOD",
     })
 
     await orderItemRepository.createMany(
@@ -127,6 +130,28 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
         customerId: customerId ?? null,
         grandTotal: order.grandTotal,
         itemCount: mapped.items.length,
+      }),
+      tx,
+    )
+
+    // Marketplace orders arrive already paid/accepted by the platform. Publish
+    // `order.confirmed` so the ecosystem (kitchen ticket, stock consumption,
+    // printing, notifications, iFood sync) fires — without this, marketplace
+    // orders stayed stuck in PENDING forever (P0-01).
+    await eventBus.publish(
+      createEvent("order.confirmed", storeId, null, {
+        orderId: order.id,
+        orderNumber: order.number,
+        type: order.type,
+        channel: order.channel,
+        items: mapped.items.map((item) => ({
+          orderItemId: "",
+          productId: item.productId ?? null,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitTotal,
+          subtotal: item.subtotal,
+        })),
       }),
       tx,
     )
