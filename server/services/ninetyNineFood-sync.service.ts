@@ -134,7 +134,8 @@ async function ingestNinetyNineFoodOrder(
         orderId: order.id,
         orderNumber: order.number,
         type: order.type,
-        channel: order.channel,
+        orderNotes: order.notes ?? null,
+        confirmedAt: new Date().toISOString(),
         items: mapped.items.map((item) => ({
           orderItemId: "",
           productId: item.productId ?? null,
