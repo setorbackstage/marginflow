@@ -149,6 +149,8 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
           productId: item.productId ?? null,
           productName: item.productName,
           quantity: item.quantity,
+          modifierSummary: [],
+          notes: item.notes ?? null,
           unitPrice: item.unitTotal,
           subtotal: item.subtotal,
         })),
