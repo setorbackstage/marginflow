@@ -2,6 +2,8 @@ export type OrderType = "DELIVERY" | "TAKEAWAY" | "DINE_IN"
 export type OrderChannel = "IN_STORE" | "PHONE" | "MARKETPLACE" | "WHATSAPP" | "KIOSK"
 export type OrderStatus = "DRAFT" | "PENDING" | "CONFIRMED" | "PREPARING" | "READY" | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELLED"
 
+export type OrderPlatform = "IFOOD" | "99FOOD" | "RAPPI" | "UBER_EATS" | null
+
 export interface OrderListItem {
   id: string
   storeId: string
@@ -9,6 +11,7 @@ export interface OrderListItem {
   status: OrderStatus
   type: OrderType
   channel: OrderChannel
+  platform: OrderPlatform | null
   customerId: string | null
   customerName: string | null
   customerPhone: string | null
