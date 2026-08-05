@@ -1,11 +1,19 @@
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 
 /**
- * Returns a higher-order function that wraps an API handler with rate limiting by IP.
- * @param options - Options for the rate limiter.
- * @param options.points - Number of points to consume per interval (default: 100).
- * @param options.duration - Duration in seconds during which points are consumed (default: 60).
- * @returns A higher-order function that wraps an API handler.
+ * Wraps an API handler with per-IP rate limiting (best-effort).
+ *
+ * ⚠️ LIMITAÇÃO CONHECIDA (VULN-003): em ambientes serverless (Vercel), cada
+ * invocação roda em isolado efêmero e o `RateLimiterMemory` NÃO persiste entre
+ * instâncias. Isto NÃO protege contra ataque distribuído em produção — é uma
+ * defesa best-effort por instância, não uma barreira real. Para proteção
+ * efetiva em produção, use Vercel Edge Rate Limiting ou um backend compartilhado
+ * (Redis/Upstash/KV). Documentado para evitar falsa sensação de proteção.
+ *
+ * O login (`server/lib/rate-limit.ts`) aplica limite adicional por e-mail.
+ *
+ * @param options.points - Number of requests allowed per window (default 100).
+ * @param options.duration - Window in seconds (default 60).
  */
 export function withRateLimit(options: { points?: number; duration?: number } = {}) {
   const { points = 100, duration = 60 } = options;
