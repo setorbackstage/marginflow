@@ -22,7 +22,7 @@ export interface NinetyNineFoodTokenResponse {
  */
 export async function getNinetyNineFoodAccessToken(storeId: string): Promise<string> {
   const config = await prisma.marketplaceAppConfig.findUnique({
-    where: { storeId_platform: { storeId, platform: "99FOOD" } },
+    where: { platform: "99FOOD" },
   })
 
   if (config?.accessToken && config.tokenExpiresAt) {
@@ -67,9 +67,8 @@ async function refreshNinetyNineFoodToken(storeId: string): Promise<string> {
   const expiresAt = new Date(Date.now() + (data.expires_in ?? 86400) * 1000)
 
   await prisma.marketplaceAppConfig.upsert({
-    where: { storeId_platform: { storeId, platform: "99FOOD" } },
+    where: { platform: "99FOOD" },
     create: {
-      storeId,
       platform: "99FOOD",
       accessToken: authToken,
       tokenExpiresAt: expiresAt,
