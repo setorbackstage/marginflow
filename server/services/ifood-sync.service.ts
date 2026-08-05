@@ -147,7 +147,7 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
         confirmedAt: new Date().toISOString(),
         items: mapped.items.map((item) => ({
           orderItemId: "",
-          productId: item.productId ?? null,
+          productId: null,
           productName: item.productName,
           quantity: item.quantity,
           modifierSummary: [],
