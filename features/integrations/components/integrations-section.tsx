@@ -26,6 +26,7 @@ const PLATFORM_LABEL: Record<string, string> = {
   IFOOD: "iFood",
   RAPPI: "Rappi",
   UBER_EATS: "Uber Eats",
+  99FOOD: "99Food",
 }
 
 const WEBHOOK_URL = "https://marginflow-os.vercel.app/api/webhooks/ifood"
