@@ -32,6 +32,12 @@ type PlatformMeta = {
   portalUrl: string
   devUrl: string
   devLabel: string
+  /** Label for the store-id field shown in the connect form */
+  fieldLabel: string
+  /** Placeholder for the store-id field */
+  fieldPlaceholder: string
+  /** Helper text explaining where credentials come from (env vars, not the form) */
+  fieldHint: string
 }
 
 const PLATFORMS: Record<string, PlatformMeta> = {
