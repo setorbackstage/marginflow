@@ -125,31 +125,6 @@ async function ingestNinetyNineFoodOrder(
       tx,
     )
 
-    // Marketplace orders arrive already paid/accepted by the platform. Publish
-    // `order.confirmed` so the ecosystem (kitchen ticket, stock consumption,
-    // printing, notifications, iFood sync) fires — without this, marketplace
-    // orders stayed stuck in PENDING forever (P0-01).
-    await eventBus.publish(
-      createEvent("order.confirmed", storeId, null, {
-        orderId: order.id,
-        orderNumber: order.number,
-        type: order.type,
-        orderNotes: order.notes ?? null,
-        confirmedAt: new Date().toISOString(),
-        items: mapped.items.map((item) => ({
-          orderItemId: "",
-          productId: null,
-          productName: item.productName,
-          quantity: item.quantity,
-          modifierSummary: [],
-          notes: item.notes ?? null,
-          unitPrice: item.unitTotal,
-          subtotal: item.subtotal,
-        })),
-      }),
-      tx,
-    )
-
     if (customerId) {
       await customerRepository.update(tx, customerId, {
         totalOrders: { increment: 1 },
@@ -159,6 +134,16 @@ async function ingestNinetyNineFoodOrder(
     }
 
     logger.info("99food.ingest.order_created", { storeId, orderId: order.id, externalId: mapped.externalId || externalId })
+
+    // Marketplace orders arrive already paid/accepted by the platform. Command the
+    // CONFIRMED transition (not just emit the event) so the Order itself moves out
+    // of PENDING and the ecosystem listeners (kitchen ticket, stock consumption,
+    // printing, notifications, iFood sync) fire. Without this, the order stayed
+    // PENDING forever (P0-01).
+    await orderService.updateStatus(tx, storeId, order.id, "CONFIRMED", {
+      triggeredByUserId: null,
+      notes: "Confirmado automaticamente (pedido de marketplace 99Food)",
+    })
   })
 }
 
