@@ -180,7 +180,6 @@ model Store {
   recipes                  Recipe[]
   stockMovements           StockMovement[]
   marketplaceIntegrations  MarketplaceIntegration[]
-  marketplaceAppConfigs   MarketplaceAppConfig[]
   notifications            Notification[]
   auditLogs                AuditLog[]
   pushSubscriptions        PushSubscription[]
@@ -1170,19 +1169,17 @@ model StockMovement {
 /// Application-level OAuth token cache for marketplace platforms using
 /// centralized auth (one credential set per store). Exactly one row per
 /// (store, platform) pair. Token is refreshed automatically before expiry.
+/// Application-level OAuth token cache for marketplace platforms using
+/// centralized auth (one credential set covers all stores). Exactly one row
+/// per platform. Token is refreshed automatically before expiry.
 model MarketplaceAppConfig {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  storeId        String    @map("store_id") @db.Uuid
   /// CHECK (platform IN ('IFOOD', 'RAPPI', 'UBER_EATS', '99FOOD'))
-  platform       String
+  platform       String    @unique
   accessToken    String?   @map("access_token")
   tokenExpiresAt DateTime? @map("token_expires_at") @db.Timestamptz(6)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  @@unique([storeId, platform])
-  @@index([storeId])
   @@map("marketplace_app_configs")
 }
 
