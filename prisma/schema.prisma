@@ -180,6 +180,7 @@ model Store {
   recipes                  Recipe[]
   stockMovements           StockMovement[]
   marketplaceIntegrations  MarketplaceIntegration[]
+  marketplaceAppConfigs   MarketplaceAppConfig[]
   notifications            Notification[]
   auditLogs                AuditLog[]
   pushSubscriptions        PushSubscription[]
