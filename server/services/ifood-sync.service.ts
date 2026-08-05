@@ -134,31 +134,6 @@ async function ingestIfoodOrder(storeId: string, ifoodOrderId: string): Promise<
       tx,
     )
 
-    // Marketplace orders arrive already paid/accepted by the platform. Publish
-    // `order.confirmed` so the ecosystem (kitchen ticket, stock consumption,
-    // printing, notifications, iFood sync) fires — without this, marketplace
-    // orders stayed stuck in PENDING forever (P0-01).
-    await eventBus.publish(
-      createEvent("order.confirmed", storeId, null, {
-        orderId: order.id,
-        orderNumber: order.number,
-        type: order.type,
-        orderNotes: order.notes ?? null,
-        confirmedAt: new Date().toISOString(),
-        items: mapped.items.map((item) => ({
-          orderItemId: "",
-          productId: null,
-          productName: item.productName,
-          quantity: item.quantity,
-          modifierSummary: [],
-          notes: item.notes ?? null,
-          unitPrice: item.unitTotal,
-          subtotal: item.subtotal,
-        })),
-      }),
-      tx,
-    )
-
     // ── Customer stats ────────────────────────────────────────────────────
     if (customerId) {
       await customerRepository.update(tx, customerId, {
