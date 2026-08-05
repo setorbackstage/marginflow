@@ -72,10 +72,22 @@ function OrderKanbanCard({ order, onClick }: { order: OrderListItem; onClick: ()
       {/* Order number + channel badge */}
       <div className="flex items-center justify-between gap-2">
         <span className="font-semibold">#{order.number}</span>
-        {order.channel === "MARKETPLACE" && (
+        {order.channel === "MARKETPLACE" && order.platform === "99FOOD" && (
+          <span className="inline-flex items-center gap-0.5 rounded-full bg-[#ff6a00]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#ff6a00] leading-none">
+            <Store className="size-2.5" />
+            99Food
+          </span>
+        )}
+        {order.channel === "MARKETPLACE" && order.platform === "IFOOD" && (
           <span className="inline-flex items-center gap-0.5 rounded-full bg-[#ea1d2c]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#ea1d2c] leading-none">
             <Store className="size-2.5" />
             iFood
+          </span>
+        )}
+        {order.channel === "MARKETPLACE" && order.platform !== "99FOOD" && order.platform !== "IFOOD" && (
+          <span className="inline-flex items-center gap-0.5 rounded-full bg-[#ea1d2c]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#ea1d2c] leading-none">
+            <Store className="size-2.5" />
+            Marketplace
           </span>
         )}
         {order.channel !== "MARKETPLACE" && (
@@ -361,10 +373,22 @@ export default function OrdersPage() {
                       <TableCell className="font-medium">
                         <span className="flex items-center gap-1.5">
                           #{order.number}
-                          {order.channel === "MARKETPLACE" && (
+                          {order.channel === "MARKETPLACE" && order.platform === "99FOOD" && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[#ff6a00]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#ff6a00] leading-none">
+                              <Store className="size-2.5" />
+                              99Food
+                            </span>
+                          )}
+                          {order.channel === "MARKETPLACE" && order.platform === "IFOOD" && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-[#ea1d2c]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#ea1d2c] leading-none">
                               <Store className="size-2.5" />
                               iFood
+                            </span>
+                          )}
+                          {order.channel === "MARKETPLACE" && order.platform !== "99FOOD" && order.platform !== "IFOOD" && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[#ea1d2c]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#ea1d2c] leading-none">
+                              <Store className="size-2.5" />
+                              Marketplace
                             </span>
                           )}
                         </span>
