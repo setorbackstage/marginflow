@@ -47,7 +47,7 @@ async function handleSignup(request: NextRequest): Promise<Response> {
     entityRef: result.user.email,
   })
   const response = created(toLoginResponse(result))
-  setRefreshTokenCookie(response, result.refreshToken)
+  setRefreshTokenCookie(response, result.refreshToken, request)
   return response
 }
 
