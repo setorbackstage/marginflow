@@ -1,7 +1,11 @@
 /**
  * In-process rate limiter using a sliding-window counter per key.
- * Suitable for single-instance and low-traffic scenarios.
- * Replace with Redis-backed solution for multi-instance deployments.
+ *
+ * ⚠️ LIMITAÇÃO CONHECIDA (VULN-003): este `Map` é por instância de processo.
+ * Na Vercel (serverless), cada invocação é efêmera e o estado NÃO persiste
+ * entre chamadas → não protege contra força bruta distribuída. É uma defesa
+ * best-effort. Para produção, usar Vercel Edge Rate Limiting ou backend
+ * compartilhado (Redis/Upstash/KV). Mantido para instâncias únicas/dev.
  */
 
 import type { NextRequest } from "next/server"
