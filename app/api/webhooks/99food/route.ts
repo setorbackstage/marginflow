@@ -13,30 +13,84 @@
  */
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { timingSafeEqual, createHash } from "node:crypto"
 import { processNinetyNineFoodEvents } from "@/server/services"
 import type { NinetyNineFoodWebhookEvent } from "@/server/integrations/ninetyNineFood"
-import { logger } from "@/server/lib"
+import { logger, logAudit } from "@/server/lib"
+import { prisma } from "@/server/db"
 import { env } from "@/config/env"
 
 // ---------------------------------------------------------------------------
 // Verificação de segredo compartilhado — header x-99food-webhook-secret.
-// Se NINETYNINEFOOD_WEBHOOK_SECRET não estiver configurado, a verificação é
-// pulada para manter compatibilidade retroativa com ambientes de desenvolvimento.
+//
+// SECURITY (VULN-001): a verificação NUNCA é pulada. Se a secret não está
+// configurada no servidor, o endpoint responde 503 (app não pronto) em vez
+// de aceitar eventos não autenticados. A comparação usa timingSafeEqual
+// sobre hashes de tamanho fixo para evitar timing attacks.
 // ---------------------------------------------------------------------------
 
-function verifyWebhookSecret(req: NextRequest): boolean {
-  if (!env.NINETYNINEFOOD_WEBHOOK_SECRET) return true
+function sha256Hex(value: string): string {
+  return createHash("sha256").update(value).digest("hex")
+}
+
+function verifyWebhookSecret(req: NextRequest): { ok: boolean; configured: boolean } {
+  const expected = env.NINETYNINEFOOD_WEBHOOK_SECRET
+  // Secret obrigatória: sem ela, o app não está pronto para receber webhooks.
+  if (!expected) {
+    return { ok: false, configured: false }
+  }
   const incoming = req.headers.get("x-99food-webhook-secret")
-  return incoming === env.NINETYNINEFOOD_WEBHOOK_SECRET
+  if (!incoming) {
+    return { ok: false, configured: true }
+  }
+  // Compara hashes SHA-256 (tamanho fixo) com timingSafeEqual.
+  const a = Buffer.from(sha256Hex(expected))
+  const b = Buffer.from(sha256Hex(incoming))
+  if (a.length !== b.length) return { ok: false, configured: true }
+  return { ok: timingSafeEqual(a, b), configured: true }
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  if (!verifyWebhookSecret(req)) {
-    logger.warn("99food.webhook.unauthorized", {
-      ip: req.headers.get("x-forwarded-for") ?? "unknown",
+  const result = verifyWebhookSecret(req)
+  if (!result.ok) {
+    const ip = req.headers.get("x-forwarded-for") ?? "unknown"
+    if (!result.configured) {
+      // Secret ausente no servidor: app não pronto. Nunca aceita eventos.
+      logger.error("99food.webhook.secret_not_configured", { ip })
+      void logAudit(prisma, {
+        storeId: "system",
+        userId: "system",
+        action: "webhook.rejected",
+        entityType: "Webhook",
+        entityId: "99food",
+        entityRef: "secret_not_configured",
+      })
+      return NextResponse.json(
+        { error: "Webhook authentication is not configured on the server." },
+        { status: 503 },
+      )
+    }
+    logger.warn("99food.webhook.unauthorized", { ip })
+    void logAudit(prisma, {
+      storeId: "system",
+      userId: "system",
+      action: "webhook.rejected",
+      entityType: "Webhook",
+      entityId: "99food",
+      entityRef: "invalid_secret",
     })
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 })
   }
+
+  // Audit: webhook recebido e autenticado.
+  void logAudit(prisma, {
+    storeId: "system",
+    userId: "system",
+    action: "webhook.received",
+    entityType: "Webhook",
+    entityId: "99food",
+    entityRef: "authenticated",
+  })
 
   let body: unknown
   try {
