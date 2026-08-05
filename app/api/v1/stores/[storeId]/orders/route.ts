@@ -56,6 +56,7 @@ function toOrderListItem(order: Awaited<ReturnType<typeof orderService.listBySto
     status: order.status,
     type: order.type,
     channel: order.channel,
+    platform: order.platform,
     customerId: order.customerId,
     customerName: order.customerName ?? order.customer?.name ?? null,
     customerPhone: order.customerPhone ?? order.customer?.phone ?? null,
