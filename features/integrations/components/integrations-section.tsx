@@ -42,6 +42,10 @@ const PLATFORMS: Record<string, PlatformMeta> = {
     portalUrl: "https://portal.ifood.com.br",
     devUrl: "https://developer.ifood.com.br",
     devLabel: "Portal do Desenvolvedor iFood",
+    // The app credentials (Client ID/Secret) live in env vars; the field below is just the store id used to route webhooks.
+    fieldLabel: "Merchant ID da loja",
+    fieldPlaceholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    fieldHint: "ID da sua loja no iFood (visível em Minha conta → Dados do negócio). As credenciais de app (Client ID/Secret) são configuradas pelo administrador do sistema.",
   },
   "99FOOD": {
     label: "99Food",
@@ -50,6 +54,9 @@ const PLATFORMS: Record<string, PlatformMeta> = {
     portalUrl: "https://partner.99app.com",
     devUrl: "https://developer.99app.com",
     devLabel: "Portal do Desenvolvedor 99Food",
+    fieldLabel: "App Shop ID da loja",
+    fieldPlaceholder: "id da loja na 99Food (app_shop_id)",
+    fieldHint: "ID da loja dentro do seu app na 99Food (app_shop_id). As credenciais de app (App ID/App Secret) são configuradas pelo administrador do sistema nas variáveis de ambiente.",
   },
   RAPPI: {
     label: "Rappi",
@@ -58,6 +65,9 @@ const PLATFORMS: Record<string, PlatformMeta> = {
     portalUrl: "https://restaurantes.rappi.com",
     devUrl: "https://developers.rappi.com",
     devLabel: "Portal do Desenvolvedor Rappi",
+    fieldLabel: "Merchant ID da loja",
+    fieldPlaceholder: "id da loja na Rappi",
+    fieldHint: "ID da sua loja na Rappi. As credenciais de app são configuradas pelo administrador do sistema.",
   },
   UBER_EATS: {
     label: "Uber Eats",
@@ -66,6 +76,9 @@ const PLATFORMS: Record<string, PlatformMeta> = {
     portalUrl: "https://restaurant.ubereats.com",
     devUrl: "https://developer.uber.com/docs/eats",
     devLabel: "Portal do Desenvolvedor Uber Eats",
+    fieldLabel: "Merchant ID da loja",
+    fieldPlaceholder: "id da loja no Uber Eats",
+    fieldHint: "ID da sua loja no Uber Eats. As credenciais de app são configuradas pelo administrador do sistema.",
   },
 }
 
@@ -119,7 +132,7 @@ function SetupGuide({ platform }: { platform: string }) {
           com a conta do seu restaurante.
         </li>
         <li>
-          Vá em <strong>Minha conta → Dados do negócio</strong>. O <strong>Merchant ID</strong> é o UUID exibido lá — copie e cole no campo abaixo.
+          Copie o {meta.fieldLabel ?? "Merchant ID"} exibido lá e cole no campo abaixo.
         </li>
         <li>
           Solicite ao administrador do sistema para registrar o URL de webhook no{" "}
@@ -138,6 +151,7 @@ function SetupGuide({ platform }: { platform: string }) {
           </div>
         </li>
       </ol>
+      {meta.fieldHint ? <p className="text-xs text-muted-foreground">{meta.fieldHint}</p> : null}
     </div>
   )
 }
@@ -282,12 +296,12 @@ function IntegrationCard({
           {canManage ? (
             <div>
               <Label htmlFor={`${platform}-merchant-id`} className="mb-1.5 text-xs">
-                Merchant ID do restaurante
+                {meta?.fieldLabel ?? "Merchant ID do restaurante"}
               </Label>
               <div className="flex gap-2">
                 <Input
                   id={`${platform}-merchant-id`}
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  placeholder={meta?.fieldPlaceholder ?? "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
                   value={merchantId}
                   onChange={(e) => setMerchantId(e.target.value)}
                   className="font-mono text-xs"
@@ -306,6 +320,9 @@ function IntegrationCard({
                   Conectar
                 </Button>
               </div>
+              {meta?.fieldHint ? (
+                <p className="mt-1.5 text-xs text-muted-foreground">{meta.fieldHint}</p>
+              ) : null}
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">Apenas gerentes e proprietários podem conectar integrações.</p>
