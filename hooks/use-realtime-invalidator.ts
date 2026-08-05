@@ -42,8 +42,15 @@ const TABLE_QUERY_KEYS: Record<string, (storeId: string) => readonly unknown[][]
  * invalidates TanStack Query caches on any INSERT/UPDATE/DELETE.
  *
  * Mount once at the app shell level — never in individual pages.
- * All polling intervals become safety-net fallbacks once this is active.
+ *
+ * Resilience: if the Realtime client is unavailable (missing env vars, WS
+ * blocked, project Realtime disabled), we fall back to a periodic polling
+ * invalidation so the UI still updates without a manual page refresh. This is
+ * intentional redundancy, not a workaround — Realtime is the low-latency signal,
+ * polling is the guaranteed one.
  */
+const FALLBACK_POLL_MS = 15_000
+
 export function useRealtimeInvalidator() {
   const storeId = useActiveStoreId()
   const queryClient = useQueryClient()
@@ -52,32 +59,37 @@ export function useRealtimeInvalidator() {
     if (!storeId) return
 
     const realtime = getRealtimeClient()
-    if (!realtime) return
 
-    // One channel per store — all table subscriptions multiplexed over one WS.
-    let channel = realtime.channel(`store-${storeId}`)
-
-    for (const [table, getKeys] of Object.entries(TABLE_QUERY_KEYS)) {
-      channel = channel.on(
-        "postgres_changes" as const,
-        {
-          event: "*",
-          schema: "public",
-          table,
-          filter: `store_id=eq.${storeId}`,
-        },
-        () => {
-          for (const key of getKeys(storeId)) {
-            queryClient.invalidateQueries({ queryKey: key })
-          }
-        },
-      )
+    // --- Realtime path ---
+    if (realtime) {
+      let channel = realtime.channel(`store-${storeId}`)
+      for (const [table, getKeys] of Object.entries(TABLE_QUERY_KEYS)) {
+        channel = channel.on(
+          "postgres_changes" as const,
+          { event: "*", schema: "public", table, filter: `store_id=eq.${storeId}` },
+          () => {
+            for (const key of getKeys(storeId)) {
+              queryClient.invalidateQueries({ queryKey: key })
+            }
+          },
+        )
+      }
+      channel.subscribe()
+      return () => {
+        realtime.removeChannel(channel)
+      }
     }
 
-    channel.subscribe()
-
-    return () => {
-      realtime.removeChannel(channel)
+    // --- Polling fallback (realtime unavailable) ---
+    const allKeys: unknown[][] = []
+    for (const getKeys of Object.values(TABLE_QUERY_KEYS)) {
+      for (const key of getKeys(storeId)) allKeys.push(key as unknown[])
     }
+    const timer = setInterval(() => {
+      for (const key of allKeys) {
+        queryClient.invalidateQueries({ queryKey: key })
+      }
+    }, FALLBACK_POLL_MS)
+    return () => clearInterval(timer)
   }, [storeId, queryClient])
 }
