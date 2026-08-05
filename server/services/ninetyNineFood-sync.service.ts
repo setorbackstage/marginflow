@@ -140,6 +140,8 @@ async function ingestNinetyNineFoodOrder(
           productId: item.productId ?? null,
           productName: item.productName,
           quantity: item.quantity,
+          modifierSummary: [],
+          notes: item.notes ?? null,
           unitPrice: item.unitTotal,
           subtotal: item.subtotal,
         })),
