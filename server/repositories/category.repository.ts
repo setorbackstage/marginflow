@@ -5,8 +5,13 @@ import type { PaginationParams } from "./pagination"
 
 /** Pure data access for the `categories` table. */
 export const categoryRepository = {
-  findById(db: DbClient, id: string): Promise<Category | null> {
-    return db.category.findUnique({ where: { id } })
+  /**
+   * Store isolation (defence in depth): when `storeId` is supplied the query
+   * filters by it at the DB level. The service layer still validates
+   * `category.storeId === storeId`.
+   */
+  findById(db: DbClient, id: string, storeId?: string): Promise<Category | null> {
+    return db.category.findUnique({ where: storeId ? { id, storeId } : { id } })
   },
 
   exists(db: DbClient, id: string): Promise<boolean> {

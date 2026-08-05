@@ -4,14 +4,20 @@ import type { Product, Prisma } from "../../generated/prisma/client"
 
 /** Pure data access for the `products` table. */
 export const productRepository = {
-  findById(db: DbClient, id: string): Promise<Product | null> {
-    return db.product.findUnique({ where: { id } })
+  /**
+   * Store isolation (defence in depth): when `storeId` is supplied the query
+   * filters by it at the DB level. The service layer still validates
+   * `product.storeId === storeId`, but filtering here prevents cross-tenant
+   * reads if the repository is ever called directly.
+   */
+  findById(db: DbClient, id: string, storeId?: string): Promise<Product | null> {
+    return db.product.findUnique({ where: storeId ? { id, storeId } : { id } })
   },
 
   /** API_SPEC.md `GET /products/:productId` — includes active Modifier Groups and their active Modifiers. */
-  findByIdWithModifierGroups(db: DbClient, id: string) {
+  findByIdWithModifierGroups(db: DbClient, id: string, storeId?: string) {
     return db.product.findUnique({
-      where: { id },
+      where: storeId ? { id, storeId } : { id },
       include: {
         modifierGroups: {
           where: { deletedAt: null },
@@ -75,8 +81,8 @@ export const productRepository = {
    * makes no judgment about which product `status` values count as "active";
    * that interpretation belongs to the Service.
    */
-  count(db: DbClient, where: Prisma.ProductWhereInput): Promise<number> {
-    return db.product.count({ where })
+  count(db: DbClient, where: Prisma.ProductWhereInput, storeId?: string): Promise<number> {
+    return db.product.count({ where: { ...(storeId ? { storeId } : {}), ...where } })
   },
 
   create(db: DbClient, data: Prisma.ProductCreateInput): Promise<Product> {

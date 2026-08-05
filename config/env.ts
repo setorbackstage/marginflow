@@ -36,6 +36,18 @@ const envSchema = z.object({
    * Passe no header `x-ifood-webhook-secret` ao registrar o endpoint no iFood.
    */
   IFOOD_WEBHOOK_SECRET: z.string().optional(),
+  /**
+   * 99Food open API configuration.
+   * NINETYNINEFOOD_APP_ID / NINETYNINEFOOD_APP_SECRET: credentials from the 99Food
+   *   partner portal (openapi.99food.com). Used to fetch the `auth_token`.
+   * NINETYNINEFOOD_WEBHOOK_SECRET: optional shared secret for webhook verification
+   *   (header `x-99food-webhook-secret`). If absent, verification is skipped.
+   * NINETYNINEFOOD_BASE_URL: API base (defaults to https://openapi.99food.com).
+   */
+  NINETYNINEFOOD_APP_ID: z.string().optional(),
+  NINETYNINEFOOD_APP_SECRET: z.string().optional(),
+  NINETYNINEFOOD_WEBHOOK_SECRET: z.string().optional(),
+  NINETYNINEFOOD_BASE_URL: z.string().optional(),
 })
 
 const parsed = envSchema.safeParse(process.env)

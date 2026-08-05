@@ -17,9 +17,14 @@ export const orderRepository = {
     return db.order.findUnique({ where: { id }, select: { id: true } }).then(Boolean)
   },
 
-  findByIdWithDetails(db: DbClient, id: string) {
+  /**
+   * Store isolation (defence in depth): when `storeId` is supplied the query
+   * filters by it at the DB level. The service layer still validates
+   * `order.storeId === storeId`.
+   */
+  findByIdWithDetails(db: DbClient, id: string, storeId?: string) {
     return db.order.findUnique({
-      where: { id },
+      where: storeId ? { id, storeId } : { id },
       include: {
         items: true,
         statusTransitions: { orderBy: { occurredAt: "desc" } },

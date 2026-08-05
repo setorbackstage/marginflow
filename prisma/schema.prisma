@@ -966,7 +966,7 @@ model Delivery {
   courierPhone       String?   @map("courier_phone")
   /// CHECK (courier_type IN ('INTERNAL', 'PLATFORM'))
   courierType        String?   @map("courier_type")
-  /// CHECK (platform IN ('IFOOD', 'RAPPI', 'UBER_EATS', 'LOGGI', 'OTHER'))
+  /// CHECK (platform IN ('IFOOD', 'RAPPI', 'UBER_EATS', 'LOGGI', 'OTHER', '99FOOD'))
   platform           String?
   platformDeliveryId String?   @map("platform_delivery_id")
   /// Immutable address snapshot copied from the Order at Delivery creation time.
@@ -1171,7 +1171,7 @@ model StockMovement {
 /// per platform. Token is refreshed automatically before expiry.
 model MarketplaceAppConfig {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  /// CHECK (platform IN ('IFOOD', 'RAPPI', 'UBER_EATS'))
+  /// CHECK (platform IN ('IFOOD', 'RAPPI', 'UBER_EATS', '99FOOD'))
   platform       String    @unique
   accessToken    String?   @map("access_token")
   tokenExpiresAt DateTime? @map("token_expires_at") @db.Timestamptz(6)
@@ -1190,7 +1190,7 @@ model MarketplaceAppConfig {
 model MarketplaceIntegration {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   storeId      String    @map("store_id") @db.Uuid
-  /// CHECK (platform IN ('IFOOD', 'RAPPI', 'UBER_EATS'))
+  /// CHECK (platform IN ('IFOOD', 'RAPPI', 'UBER_EATS', '99FOOD'))
   platform     String
   /// The restaurant's unique ID on the platform (e.g. iFood merchant UUID).
   merchantId   String    @map("merchant_id")
