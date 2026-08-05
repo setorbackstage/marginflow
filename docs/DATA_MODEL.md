@@ -1568,29 +1568,28 @@ The `orders` table is the highest-traffic table in the system. Every operational
 # Marketplace App Configs
 
 **Purpose**
-Caches the OAuth 2.0 access token for each delivery marketplace platform **per store**. Each (store, platform) pair holds its own access token, so a store's credentials are isolated to that store. This matches the 99Food `client_credentials` grant, where the token is scoped per connected shop.
+Caches the OAuth 2.0 access token for each delivery marketplace platform at the application level (not per-store). A single access token is shared across all stores for a given platform. This is the correct model for iFood's `client_credentials` grant — the credentials belong to the registered app, not to individual merchants.
 
-There is at most one row per (store, platform) pair.
+There is at most one row per platform. The `IFOOD` row is created automatically on the first token refresh.
 
 **Table name:** `marketplace_app_configs`
 
 **Primary Key:** `id UUID`
 
 **Unique Constraints**
-- `(store_id, platform)` — exactly one config per store + platform pair.
+- `platform` — exactly one config per platform.
 
 **Foreign Keys**
-- `store_id` → `stores.id` (ON DELETE CASCADE).
+- None. This is an application-level configuration table, not scoped to any store or account.
 
 **Indexes**
 - Primary key on `id` (automatic).
-- Unique index on `(store_id, platform)`.
+- Unique index on `platform`.
 
 | Column | Type | Nullable | Default | Constraints | Explanation |
 |---|---|---|---|---|---|
 | `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
-| `store_id` | UUID | No | — | NOT NULL, FK → stores.id, UNIQUE w/ platform | The store this config belongs to. |
-| `platform` | TEXT | No | — | NOT NULL, UNIQUE w/ store_id, CHECK IN ('IFOOD', 'RAPPI', 'UBER_EATS', '99FOOD') | The delivery marketplace platform. |
+| `platform` | TEXT | No | — | NOT NULL, UNIQUE, CHECK IN ('IFOOD', 'RAPPI', 'UBER_EATS', '99FOOD') | The delivery marketplace platform. |
 | `access_token` | TEXT | Yes | NULL | — | The current valid OAuth 2.0 access token. Null until the first refresh. |
 | `token_expires_at` | TIMESTAMPTZ | Yes | NULL | — | UTC expiry time of the access token. The service layer refreshes proactively 5 minutes before expiry. |
 | `updated_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of last token refresh. |
