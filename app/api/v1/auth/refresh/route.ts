@@ -23,7 +23,7 @@ async function handleRefresh(request: NextRequest): Promise<Response> {
   const result = await refreshTokenService.refresh(prisma, rawToken)
 
   const response = ok({ accessToken: result.accessToken })
-  setRefreshTokenCookie(response, result.refreshToken)
+  setRefreshTokenCookie(response, result.refreshToken, request)
   return response
 }
 
