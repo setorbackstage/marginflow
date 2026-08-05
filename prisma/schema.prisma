@@ -690,6 +690,9 @@ model Order {
   type              String
   /// CHECK (channel IN ('IN_STORE', 'PHONE', 'MARKETPLACE', 'WHATSAPP', 'KIOSK'))
   channel           String
+  /// Marketplace platform that originated the order (e.g. 'IFOOD', '99FOOD'). Null for non-marketplace orders.
+  /// Distinct from `channel` (always MARKETPLACE for marketplace orders) so the UI can tell origins apart.
+  platform          String?  @map("platform")
   tableNumber       String?   @map("table_number")
   /// Immutable snapshot captured at placement, null for DINE_IN/TAKEAWAY.
   /// Shape: { street, number, complement, neighborhood, city, state, postalCode, country, latitude, longitude }
