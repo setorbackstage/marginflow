@@ -138,7 +138,7 @@ async function ingestNinetyNineFoodOrder(
         confirmedAt: new Date().toISOString(),
         items: mapped.items.map((item) => ({
           orderItemId: "",
-          productId: item.productId ?? null,
+          productId: null,
           productName: item.productName,
           quantity: item.quantity,
           modifierSummary: [],
