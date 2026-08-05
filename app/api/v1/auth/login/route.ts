@@ -57,7 +57,7 @@ async function handleLogin(request: NextRequest): Promise<Response> {
   })
 
   const response = ok(toLoginResponse(result))
-  setRefreshTokenCookie(response, result.refreshToken)
+  setRefreshTokenCookie(response, result.refreshToken, request)
   return response
 }
 
