@@ -43,14 +43,13 @@ const TABLE_QUERY_KEYS: Record<string, (storeId: string) => readonly unknown[][]
  *
  * Mount once at the app shell level — never in individual pages.
  *
- * Resilience: if the Realtime client is unavailable (missing env vars, WS
- * blocked, project Realtime disabled), we fall back to a periodic polling
- * invalidation so the UI still updates without a manual page refresh. This is
- * intentional redundancy, not a workaround — Realtime is the low-latency signal,
- * polling is the guaranteed one.
+ * This is the ONLY update mechanism. There is no polling fallback: the root cause
+ * of "stale screens" was the Realtime client being null because
+ * NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY were empty on Vercel.
+ * Fixing those env vars (see .env.example) makes Realtime connect; no polling is
+ * needed. If the client is null we log a warning so the missing env var is obvious
+ * instead of silently degrading to a manual-refresh-only experience.
  */
-const FALLBACK_POLL_MS = 15_000
-
 export function useRealtimeInvalidator() {
   const storeId = useActiveStoreId()
   const queryClient = useQueryClient()
@@ -59,37 +58,31 @@ export function useRealtimeInvalidator() {
     if (!storeId) return
 
     const realtime = getRealtimeClient()
-
-    // --- Realtime path ---
-    if (realtime) {
-      let channel = realtime.channel(`store-${storeId}`)
-      for (const [table, getKeys] of Object.entries(TABLE_QUERY_KEYS)) {
-        channel = channel.on(
-          "postgres_changes" as const,
-          { event: "*", schema: "public", table, filter: `store_id=eq.${storeId}` },
-          () => {
-            for (const key of getKeys(storeId)) {
-              queryClient.invalidateQueries({ queryKey: key })
-            }
-          },
+    if (!realtime) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          "[realtime] client unavailable — check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY",
         )
       }
-      channel.subscribe()
-      return () => {
-        realtime.removeChannel(channel)
-      }
+      return
     }
 
-    // --- Polling fallback (realtime unavailable) ---
-    const allKeys: unknown[][] = []
-    for (const getKeys of Object.values(TABLE_QUERY_KEYS)) {
-      for (const key of getKeys(storeId)) allKeys.push(key as unknown[])
+    let channel = realtime.channel(`store-${storeId}`)
+    for (const [table, getKeys] of Object.entries(TABLE_QUERY_KEYS)) {
+      channel = channel.on(
+        "postgres_changes" as const,
+        { event: "*", schema: "public", table, filter: `store_id=eq.${storeId}` },
+        () => {
+          for (const key of getKeys(storeId)) {
+            queryClient.invalidateQueries({ queryKey: key })
+          }
+        },
+      )
     }
-    const timer = setInterval(() => {
-      for (const key of allKeys) {
-        queryClient.invalidateQueries({ queryKey: key })
-      }
-    }, FALLBACK_POLL_MS)
-    return () => clearInterval(timer)
+    channel.subscribe()
+
+    return () => {
+      realtime.removeChannel(channel)
+    }
   }, [storeId, queryClient])
 }
