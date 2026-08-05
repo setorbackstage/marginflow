@@ -47,6 +47,7 @@ export async function toOrderResponse(order: OrderWithDetails) {
     status: order.status,
     type: order.type,
     channel: order.channel,
+    platform: order.platform,
     customerId: order.customerId,
     customer: customer ? { id: customer.id, name: customer.name, phone: customer.phone } : null,
     tableNumber: order.tableNumber,
