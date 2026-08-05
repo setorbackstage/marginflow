@@ -22,14 +22,61 @@ const INTEGRATION_STATUS_CONFIG: Record<string, StatusConfig> = {
   ERROR:    { label: "Erro",    tone: "danger"  },
 }
 
-const PLATFORM_LABEL: Record<string, string> = {
-  IFOOD: "iFood",
-  RAPPI: "Rappi",
-  UBER_EATS: "Uber Eats",
-  "99FOOD": "99Food",
+type PlatformMeta = {
+  label: string
+  /** Tailwind classes for the icon chip background + icon color */
+  chip: string
+  /** Brand color used for accents */
+  accent: string
+  /** Setup guide links */
+  portalUrl: string
+  devUrl: string
+  devLabel: string
 }
 
-const WEBHOOK_URL = "https://marginflow-os.vercel.app/api/webhooks/ifood"
+const PLATFORMS: Record<string, PlatformMeta> = {
+  IFOOD: {
+    label: "iFood",
+    chip: "bg-[#ea1d2c]/10",
+    accent: "text-[#ea1d2c]",
+    portalUrl: "https://portal.ifood.com.br",
+    devUrl: "https://developer.ifood.com.br",
+    devLabel: "Portal do Desenvolvedor iFood",
+  },
+  "99FOOD": {
+    label: "99Food",
+    chip: "bg-[#ff6a00]/10",
+    accent: "text-[#ff6a00]",
+    portalUrl: "https://partner.99app.com",
+    devUrl: "https://developer.99app.com",
+    devLabel: "Portal do Desenvolvedor 99Food",
+  },
+  RAPPI: {
+    label: "Rappi",
+    chip: "bg-[#ff551a]/10",
+    accent: "text-[#ff551a]",
+    portalUrl: "https://restaurantes.rappi.com",
+    devUrl: "https://developers.rappi.com",
+    devLabel: "Portal do Desenvolvedor Rappi",
+  },
+  UBER_EATS: {
+    label: "Uber Eats",
+    chip: "bg-[#06c167]/10",
+    accent: "text-[#06c167]",
+    portalUrl: "https://restaurant.ubereats.com",
+    devUrl: "https://developer.uber.com/docs/eats",
+    devLabel: "Portal do Desenvolvedor Uber Eats",
+  },
+}
+
+/** Platforms the app knows how to render a card for (in display order) */
+const SUPPORTED_PLATFORMS = ["IFOOD", "99FOOD", "RAPPI", "UBER_EATS"] as const
+
+const BASE_URL = "https://marginflow-os.vercel.app"
+
+function webhookUrl(platform: string) {
+  return `${BASE_URL}/api/webhooks/${platform.toLowerCase()}`
+}
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = React.useState(false)
@@ -51,20 +98,22 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-function IfoodSetupGuide() {
+function SetupGuide({ platform }: { platform: string }) {
+  const meta = PLATFORMS[platform]
+  if (!meta) return null
   return (
     <div className="rounded-lg border border-dashed p-4 space-y-3 text-sm">
-      <p className="font-medium">Como conectar o iFood</p>
+      <p className="font-medium">Como conectar o {meta.label}</p>
       <ol className="list-decimal pl-4 space-y-2 text-muted-foreground">
         <li>
           Acesse o{" "}
           <a
-            href="https://portal.ifood.com.br"
+            href={meta.portalUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-0.5 text-foreground underline underline-offset-2"
           >
-            Portal do Parceiro iFood
+            Portal do Parceiro {meta.label}
             <ExternalLink className="size-3" />
           </a>{" "}
           com a conta do seu restaurante.
@@ -75,18 +124,17 @@ function IfoodSetupGuide() {
         <li>
           Solicite ao administrador do sistema para registrar o URL de webhook no{" "}
           <a
-            href="https://developer.ifood.com.br"
+            href={meta.devUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-0.5 text-foreground underline underline-offset-2"
           >
-            Portal do Desenvolvedor iFood
+            {meta.devLabel}
             <ExternalLink className="size-3" />
-          </a>
-          :
+          </a>:
           <div className="mt-1 flex items-center gap-1 rounded-md bg-muted px-2 py-1 font-mono text-xs">
-            <span className="flex-1 break-all">{WEBHOOK_URL}</span>
-            <CopyButton text={WEBHOOK_URL} />
+            <span className="flex-1 break-all">{webhookUrl(platform)}</span>
+            <CopyButton text={webhookUrl(platform)} />
           </div>
         </li>
       </ol>
@@ -94,10 +142,12 @@ function IfoodSetupGuide() {
   )
 }
 
-function IfoodIntegrationCard({
+function IntegrationCard({
+  platform,
   integration,
   canManage,
 }: {
+  platform: string
   integration: MarketplaceIntegration | null
   canManage: boolean
 }) {
@@ -109,6 +159,10 @@ function IfoodIntegrationCard({
   const [showGuide, setShowGuide] = React.useState(false)
   const [confirmOpen, setConfirmOpen] = React.useState(false)
 
+  const meta = PLATFORMS[platform]
+  const label = meta?.label ?? platform
+  const chip = meta?.chip ?? "bg-muted"
+  const accent = meta?.accent ?? "text-foreground"
   const isConnected = integration !== null
 
   return (
@@ -116,20 +170,20 @@ function IfoodIntegrationCard({
       {/* Header — always visible */}
       <div className="flex items-center justify-between gap-3 p-4">
         <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-[#ea1d2c]/10">
-            {isConnected ? <Plug className="size-5 text-[#ea1d2c]" /> : <PlugZap className="size-5 text-[#ea1d2c]" />}
+          <div className={`flex size-10 items-center justify-center rounded-lg ${chip}`}>
+            {isConnected ? <Plug className={`size-5 ${accent}`} /> : <PlugZap className={`size-5 ${accent}`} />}
           </div>
           <div>
-            <p className="text-sm font-medium">iFood</p>
+            <p className="text-sm font-medium">{label}</p>
             {isConnected ? (
-              <p className="font-mono text-xs text-muted-foreground">{integration.merchantId}</p>
+              <p className="font-mono text-xs text-muted-foreground">{integration!.merchantId}</p>
             ) : (
               <p className="text-xs text-muted-foreground">Não conectado</p>
             )}
           </div>
         </div>
         {isConnected ? (
-          <StatusBadge status={integration.status} config={INTEGRATION_STATUS_CONFIG} />
+          <StatusBadge status={integration!.status} config={INTEGRATION_STATUS_CONFIG} />
         ) : (
           <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground">
             Desconectado
@@ -140,16 +194,16 @@ function IfoodIntegrationCard({
       {/* Connected state: details */}
       {isConnected && (
         <>
-          {integration.errorMessage ? (
+          {integration!.errorMessage ? (
             <div className="px-4 py-3">
-              <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{integration.errorMessage}</p>
+              <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{integration!.errorMessage}</p>
             </div>
           ) : null}
 
-          {integration.isPaused ? (
+          {integration!.isPaused ? (
             <div className="px-4 py-3">
               <div className="rounded-md bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 px-3 py-2 text-xs text-yellow-800 dark:text-yellow-200">
-                Loja pausada no iFood — não está recebendo pedidos.
+                Loja pausada no {label} — não está recebendo pedidos.
               </div>
             </div>
           ) : null}
@@ -157,15 +211,15 @@ function IfoodIntegrationCard({
           <div className="px-4 py-3 space-y-1">
             <p className="text-xs font-medium text-muted-foreground">URL do Webhook</p>
             <div className="flex items-center gap-1 rounded-md bg-muted/50 px-2 py-1.5 font-mono text-xs text-muted-foreground">
-              <span className="flex-1 break-all">{WEBHOOK_URL}</span>
-              <CopyButton text={WEBHOOK_URL} />
+              <span className="flex-1 break-all">{webhookUrl(platform)}</span>
+              <CopyButton text={webhookUrl(platform)} />
             </div>
           </div>
 
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <p className="text-xs text-muted-foreground">
-              {integration.lastSyncAt
-                ? `Última sincronização: ${formatDateTime(integration.lastSyncAt)}`
+              {integration!.lastSyncAt
+                ? `Última sincronização: ${formatDateTime(integration!.lastSyncAt)}`
                 : "Aguardando primeiro pedido..."}
             </p>
             <div className="flex items-center gap-2">
@@ -174,8 +228,8 @@ function IfoodIntegrationCard({
                   variant="outline"
                   size="sm"
                   disabled={syncNow.isPending}
-                  onClick={() => syncNow.mutate("IFOOD")}
-                  title="Buscar eventos iFood pendentes agora"
+                  onClick={() => syncNow.mutate(platform)}
+                  title={`Buscar eventos ${label} pendentes agora`}
                 >
                   {syncNow.isPending ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                   Sincronizar
@@ -186,7 +240,7 @@ function IfoodIntegrationCard({
                   variant={integration.isPaused ? "default" : "outline"}
                   size="sm"
                   disabled={setPaused.isPending}
-                  onClick={() => setPaused.mutate({ platform: "IFOOD", paused: !integration.isPaused })}
+                  onClick={() => setPaused.mutate({ platform, paused: !integration.isPaused })}
                 >
                   {setPaused.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
                   {integration.isPaused ? "Reabrir loja" : "Pausar loja"}
@@ -204,11 +258,11 @@ function IfoodIntegrationCard({
             open={confirmOpen}
             onOpenChange={setConfirmOpen}
             title="Desconectar integração"
-            description="Tem certeza que deseja desconectar o iFood? Os pedidos já importados não serão removidos."
+            description={`Tem certeza que deseja desconectar o ${label}? Os pedidos já importados não serão removidos.`}
             confirmLabel="Desconectar"
             variant="destructive"
             isLoading={disconnect.isPending}
-            onConfirm={() => disconnect.mutate("IFOOD", { onSuccess: () => setConfirmOpen(false) })}
+            onConfirm={() => disconnect.mutate(platform, { onSuccess: () => setConfirmOpen(false) })}
           />
         </>
       )}
@@ -223,16 +277,16 @@ function IfoodIntegrationCard({
             {showGuide ? "Ocultar instruções" : "Como conectar?"}
           </button>
 
-          {showGuide ? <IfoodSetupGuide /> : null}
+          {showGuide ? <SetupGuide platform={platform} /> : null}
 
           {canManage ? (
             <div>
-              <Label htmlFor="ifood-merchant-id" className="mb-1.5 text-xs">
+              <Label htmlFor={`${platform}-merchant-id`} className="mb-1.5 text-xs">
                 Merchant ID do restaurante
               </Label>
               <div className="flex gap-2">
                 <Input
-                  id="ifood-merchant-id"
+                  id={`${platform}-merchant-id`}
                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                   value={merchantId}
                   onChange={(e) => setMerchantId(e.target.value)}
@@ -243,7 +297,7 @@ function IfoodIntegrationCard({
                   disabled={!merchantId.trim() || connect.isPending}
                   onClick={() => {
                     if (!merchantId.trim()) return
-                    connect.mutate({ platform: "IFOOD", merchantId: merchantId.trim() }, {
+                    connect.mutate({ platform, merchantId: merchantId.trim() }, {
                       onSuccess: () => setMerchantId(""),
                     })
                   }}
@@ -272,7 +326,13 @@ export function IntegrationsSection() {
   if (integrations.isLoading) return <Skeleton className="h-48 w-full" />
   if (integrations.isError) return <ErrorState error={integrations.error} onRetry={() => integrations.refetch()} />
 
-  const ifoodIntegration = integrations.data?.find((i) => i.platform === "IFOOD") ?? null
+  const data = integrations.data ?? []
+  const connectedByPlatform = new Map(data.map((i) => [i.platform, i]))
+
+  // Show every supported platform; connected ones get their data, others show the setup form.
+  const platformsToShow = SUPPORTED_PLATFORMS.filter(
+    (p) => connectedByPlatform.has(p) || !data.some((i) => i.platform === p),
+  )
 
   return (
     <Card>
@@ -282,8 +342,15 @@ export function IntegrationsSection() {
           Conecte sua loja a plataformas de delivery para receber pedidos automaticamente no MarginFlow.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <IfoodIntegrationCard integration={ifoodIntegration} canManage={canManage} />
+      <CardContent className="space-y-3">
+        {platformsToShow.map((platform) => (
+          <IntegrationCard
+            key={platform}
+            platform={platform}
+            integration={connectedByPlatform.get(platform) ?? null}
+            canManage={canManage}
+          />
+        ))}
       </CardContent>
     </Card>
   )
