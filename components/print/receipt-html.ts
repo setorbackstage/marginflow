@@ -10,6 +10,18 @@ const PAGE_WIDTH: Record<ReceiptFormat, string> = {
   A4: "210mm",
 }
 
+// SECURITY (VULN-009): every dynamic value that ends up inside the printed
+// HTML must be HTML-escaped. The receipt is rendered in a browser print window,
+// so an unescaped customer name / note / product could inject markup (XSS).
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
 function fmtCents(cents: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100)
 }
@@ -37,32 +49,33 @@ export function buildKitchenTicketHtml(order: OrderDetail, storeName: string, fo
   const charWidth = format === "THERMAL_58MM" ? 28 : format === "THERMAL_80MM" ? 40 : 48
   const sep = line("-", charWidth)
 
-  const typeLabel = ORDER_TYPE_LABEL[order.type] ?? order.type
-  const channelLabel = order.channel === "MARKETPLACE" ? "iFood" : (ORDER_CHANNEL_LABEL[order.channel] ?? order.channel)
+  const typeLabel = escapeHtml(ORDER_TYPE_LABEL[order.type] ?? order.type)
+  const rawChannel = order.channel === "MARKETPLACE" ? "iFood" : (ORDER_CHANNEL_LABEL[order.channel] ?? order.channel)
+  const channelLabel = escapeHtml(rawChannel)
 
   const locationLine = order.type === "DINE_IN" && order.tableNumber
-    ? `Mesa ${order.tableNumber}`
+    ? `Mesa ${escapeHtml(order.tableNumber)}`
     : order.type === "DELIVERY" && order.deliveryAddress
-      ? `${order.deliveryAddress.street}, ${order.deliveryAddress.number}${order.deliveryAddress.complement ? ` – ${order.deliveryAddress.complement}` : ""}`
+      ? `${escapeHtml(order.deliveryAddress.street)}, ${escapeHtml(order.deliveryAddress.number)}${order.deliveryAddress.complement ? ` – ${escapeHtml(order.deliveryAddress.complement)}` : ""}`
       : typeLabel
 
-  const customerLine = order.customer?.name ?? "Cliente avulso"
+  const customerLine = escapeHtml(order.customer?.name ?? "Cliente avulso")
 
   const itemsRows = order.items.map((item) => {
     const qty = `${item.quantity}x`
-    const nameRow = `${qty} ${item.productName}`
-    const modRows = item.selectedModifiers.map((m) => `  + ${m.name}`).join("\n")
-    const noteRow = item.notes ? `  Obs: ${item.notes}` : ""
+    const nameRow = `${qty} ${escapeHtml(item.productName)}`
+    const modRows = item.selectedModifiers.map((m) => `  + ${escapeHtml(m.name)}`).join("\n")
+    const noteRow = item.notes ? `  Obs: ${escapeHtml(item.notes)}` : ""
     return [nameRow, modRows, noteRow].filter(Boolean).join("\n")
   }).join("\n\n")
 
-  const notesBlock = order.notes ? `${sep}\nObs: ${order.notes}\n` : ""
+  const notesBlock = order.notes ? `${sep}\nObs: ${escapeHtml(order.notes)}\n` : ""
 
   const body = [
     line("=", charWidth),
     `*** COZINHA ***`.padStart(Math.floor((charWidth + 14) / 2)).padEnd(charWidth),
     line("=", charWidth),
-    `PEDIDO #${order.number}`,
+    `PEDIDO #${escapeHtml(String(order.number))}`,
     `${typeLabel} · ${channelLabel}`,
     locationLine,
     sep,
@@ -112,23 +125,23 @@ export function buildReceiptHtml(order: OrderDetail, storeName: string, format: 
   const charWidth = format === "THERMAL_58MM" ? 28 : format === "THERMAL_80MM" ? 40 : 48
   const sep = line("-", charWidth)
 
-  const typeLabel = ORDER_TYPE_LABEL[order.type] ?? order.type
-  const channelLabel = ORDER_CHANNEL_LABEL[order.channel] ?? order.channel
+  const typeLabel = escapeHtml(ORDER_TYPE_LABEL[order.type] ?? order.type)
+  const channelLabel = escapeHtml(ORDER_CHANNEL_LABEL[order.channel] ?? order.channel)
 
   const locationLine = order.type === "DINE_IN" && order.tableNumber
-    ? `Mesa ${order.tableNumber}`
+    ? `Mesa ${escapeHtml(order.tableNumber)}`
     : order.type === "DELIVERY" && order.deliveryAddress
-      ? `${order.deliveryAddress.street}, ${order.deliveryAddress.number}${order.deliveryAddress.complement ? ` – ${order.deliveryAddress.complement}` : ""}`
+      ? `${escapeHtml(order.deliveryAddress.street)}, ${escapeHtml(order.deliveryAddress.number)}${order.deliveryAddress.complement ? ` – ${escapeHtml(order.deliveryAddress.complement)}` : ""}`
       : typeLabel
 
   const customerLine = order.customer
-    ? `${order.customer.name}${order.customer.phone ? ` · ${order.customer.phone}` : ""}`
+    ? `${escapeHtml(order.customer.name)}${order.customer.phone ? ` · ${escapeHtml(order.customer.phone)}` : ""}`
     : "Cliente avulso"
 
   const itemsRows = order.items.map((item) => {
-    const baseRow = row(`${item.quantity}x ${item.productName}`, fmtCents(item.subtotal), charWidth)
-    const modRows = item.selectedModifiers.map((m) => `  + ${m.name}`).join("\n")
-    const noteRow = item.notes ? `  Obs: ${item.notes}` : ""
+    const baseRow = row(`${item.quantity}x ${escapeHtml(item.productName)}`, fmtCents(item.subtotal), charWidth)
+    const modRows = item.selectedModifiers.map((m) => `  + ${escapeHtml(m.name)}`).join("\n")
+    const noteRow = item.notes ? `  Obs: ${escapeHtml(item.notes)}` : ""
     return [baseRow, modRows, noteRow].filter(Boolean).join("\n")
   }).join("\n")
 
@@ -139,13 +152,15 @@ export function buildReceiptHtml(order: OrderDetail, storeName: string, format: 
     row("TOTAL", fmtCents(order.grandTotal), charWidth),
   ].filter(Boolean).join("\n")
 
-  const notesBlock = order.notes ? `${sep}\nObs: ${order.notes}\n` : ""
+  const notesBlock = order.notes ? `${sep}\nObs: ${escapeHtml(order.notes)}\n` : ""
+
+  const safeStoreName = escapeHtml(storeName)
 
   const body = [
     line("=", charWidth),
-    storeName.toUpperCase().padStart(Math.floor((charWidth + storeName.length) / 2)).padEnd(charWidth),
+    safeStoreName.toUpperCase().padStart(Math.floor((charWidth + safeStoreName.length) / 2)).padEnd(charWidth),
     line("=", charWidth),
-    `Pedido #${order.number} | ${fmtDateTime(order.createdAt)}`,
+    `Pedido #${escapeHtml(String(order.number))} | ${fmtDateTime(order.createdAt)}`,
     `${typeLabel} · ${channelLabel}`,
     locationLine,
     sep,
