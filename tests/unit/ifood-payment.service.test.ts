@@ -88,6 +88,7 @@ import {
   deliveryRepository,
 } from "@/server/repositories"
 import { deliveryService } from "@/server/services/delivery.service"
+import { orderService } from "@/server/services/order.service"
 import { eventBus } from "@/server/lib"
 import { mapIfoodOrder } from "@/server/integrations/ifood"
 import type { IfoodEvent } from "@/server/integrations/ifood"
@@ -270,5 +271,100 @@ describe("processIfoodEvents – COD payment confirmation on delivery (CONCLUDED
     expect(paymentRepository.update).not.toHaveBeenCalled()
     const events = (eventBus.publish as ReturnType<typeof vi.fn>).mock.calls.map((c) => (c[0] as { type: string }).type)
     expect(events).not.toContain("payment.paid")
+  })
+})
+
+describe("processIfoodEvents – lifecycle event handlers (CONFIRMED / PREPARING)", () => {
+  const MERCHANT_ID = "merchant-1"
+  const ORDER_ID = "order-1"
+
+  function buildEvent(fullCode: string): IfoodEvent {
+    return {
+      id: `event-${fullCode}`,
+      fullCode,
+      orderId: IFOOD_ORDER_ID,
+      merchantId: MERCHANT_ID,
+    } as IfoodEvent
+  }
+
+  beforeEach(() => {
+    ;(marketplaceIntegrationRepository.findByMerchantId as ReturnType<typeof vi.fn>).mockResolvedValue({
+      storeId: STORE_ID,
+      merchantId: MERCHANT_ID,
+    })
+    ;(deliveryRepository.findByOrderId as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+  })
+
+  it("CONFIRMED: syncs a PLACED order to CONFIRMED", async () => {
+    ;(orderRepository.findByExternalId as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: ORDER_ID,
+      status: "PLACED",
+    })
+
+    await ifoodSyncService.processIfoodEvents([buildEvent("CONFIRMED")])
+
+    expect(orderService.updateStatus).toHaveBeenCalledWith(
+      expect.anything(),
+      STORE_ID,
+      ORDER_ID,
+      "CONFIRMED",
+      expect.objectContaining({ notes: "Confirmado pelo iFood" }),
+    )
+  })
+
+  it("PREPARING: marks a CONFIRMED order as PREPARING", async () => {
+    ;(orderRepository.findByExternalId as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: ORDER_ID,
+      status: "CONFIRMED",
+    })
+
+    await ifoodSyncService.processIfoodEvents([buildEvent("PREPARING")])
+
+    expect(orderService.updateStatus).toHaveBeenCalledWith(
+      expect.anything(),
+      STORE_ID,
+      ORDER_ID,
+      "PREPARING",
+      expect.objectContaining({ notes: "Preparação iniciada (iFood)" }),
+    )
+  })
+
+  it("PREPARING (variant STARTED_PREPARATION) is also handled", async () => {
+    ;(orderRepository.findByExternalId as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: ORDER_ID,
+      status: "PLACED",
+    })
+
+    await ifoodSyncService.processIfoodEvents([buildEvent("STARTED_PREPARATION")])
+
+    expect(orderService.updateStatus).toHaveBeenCalledWith(
+      expect.anything(),
+      STORE_ID,
+      ORDER_ID,
+      "PREPARING",
+      expect.anything(),
+    )
+  })
+
+  it("unknown fullCode: only acknowledged, never mutates order status", async () => {
+    ;(orderRepository.findByExternalId as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: ORDER_ID,
+      status: "PLACED",
+    })
+
+    await ifoodSyncService.processIfoodEvents([buildEvent("SOME_FUTURE_EVENT")])
+
+    expect(orderService.updateStatus).not.toHaveBeenCalled()
+  })
+
+  it("CONFIRMED is skipped when the order is no longer PLACED (idempotent replay)", async () => {
+    ;(orderRepository.findByExternalId as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: ORDER_ID,
+      status: "CONCLUDED",
+    })
+
+    await ifoodSyncService.processIfoodEvents([buildEvent("CONFIRMED")])
+
+    expect(orderService.updateStatus).not.toHaveBeenCalled()
   })
 })
