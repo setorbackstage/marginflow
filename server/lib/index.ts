@@ -24,3 +24,5 @@ export { logAudit } from "./audit"
 export { rateLimit, getClientIp } from "./rate-limit"
 export { sendEmail } from "./email"
 export type { PasswordResetEmailData, InvitationEmailData } from "./email"
+// Carrega a camada de impressão (e registra o print-event-listener no eventBus).
+export * from "../printing"

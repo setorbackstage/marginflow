@@ -29,3 +29,23 @@ eventBus.on("kitchen_ticket.created", "print-listener:kitchen_ticket.created", a
     logger.warn("print-listener.kitchen_ticket.created", { error: String(err) })
   }
 })
+
+// ETAPA 9 — a impressão reage a eventos, nunca é chamada manualmente da UI.
+eventBus.on("order.cancelled", "print-listener:order.cancelled", async (event, db) => {
+  try {
+    const { orderId } = event.payload
+    await printJobService.createFromEvent(db, event.storeId, "order.cancelled", orderId)
+  } catch (err) {
+    logger.warn("print-listener.order.cancelled", { error: String(err) })
+  }
+})
+
+// O evento real de pagamento confirmado no domínio é `payment.paid`.
+eventBus.on("payment.paid", "print-listener:payment.paid", async (event, db) => {
+  try {
+    const { orderId } = event.payload
+    if (orderId) await printJobService.createFromEvent(db, event.storeId, "payment.received", orderId)
+  } catch (err) {
+    logger.warn("print-listener.payment.paid", { error: String(err) })
+  }
+})

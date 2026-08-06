@@ -3,6 +3,9 @@ import type { DbClient } from "../db"
 import { BadRequestError, NotFoundError } from "../lib/errors"
 import { printJobRepository } from "./print-job.repository"
 import { printRuleRepository } from "./print-rule.repository"
+import { getStorePrintConfig } from "./config"
+import { dispatchPrintJob } from "./dispatcher"
+import { mapTemplateTypeToDocumentType } from "./template"
 import type { PrintJobCreateInput, PrintJobFindManyOptions } from "./print-job.repository"
 
 export const printJobService = {
@@ -26,14 +29,20 @@ export const printJobService = {
     const rules = await printRuleRepository.findByEvent(db, storeId, event)
     const jobs = []
     for (const rule of rules) {
+      const documentType = mapTemplateTypeToDocumentType(rule.template?.type)
       const job = await printJobRepository.create(db, {
         storeId,
         printerId:  rule.printerId,
         templateId: rule.templateId,
         orderId:    orderId ?? undefined,
         type:       event.split(".")[0].toUpperCase() as string,
+        documentType: documentType ?? null,
+        provider:  (await getStorePrintConfig(db, storeId)).provider,
+        destination: rule.printerId,
         status:     "PENDING",
       })
+      // Dispara o dispatcher (processa ou delega ao bridge do cliente)
+      await dispatchPrintJob(db, job.id).catch(() => {})
       jobs.push(job)
     }
     return jobs
@@ -62,6 +71,10 @@ export const printJobService = {
   },
 
   async listPending(db: DbClient, storeId: string) {
-    return printJobRepository.findPending(db, storeId)
+    return printJobRepository.findMany(db, storeId, {
+      status: "PENDING",
+      page: 1,
+      limit: 50,
+    }).then((r) => r.items)
   },
 }

@@ -15,6 +15,7 @@ import {
   Loader2,
   Play,
   ExternalLink,
+  Wand2,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -28,6 +29,7 @@ import {
   useDeletePrinter,
   useDeletePrintRule,
   useQZTray,
+  PrintingSetupWizard,
   type QZTrayState,
   PRINTER_TYPE_LABEL,
   PRINTER_INTERFACE_LABEL,
@@ -573,12 +575,18 @@ function TemplatesTab({ canEdit }: { canEdit: boolean }) {
 export default function PrintingPage() {
   const canEdit = useCan("settings:edit")
   const qz = useQZTray()
+  const [wizardOpen, setWizardOpen] = React.useState(false)
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="MarginFlow Print"
         description="Gerencie impressoras, templates e a fila de impressão da sua loja."
+        actions={
+          <Button variant="outline" size="sm" onClick={() => setWizardOpen(true)}>
+            <Wand2 className="size-4" /> Assistente de configuração
+          </Button>
+        }
       />
 
       <PrintServiceStatus qz={qz} />
@@ -612,6 +620,8 @@ export default function PrintingPage() {
           <TemplatesTab canEdit={canEdit} />
         </TabsContent>
       </Tabs>
+
+      <PrintingSetupWizard open={wizardOpen} onOpenChange={setWizardOpen} />
     </div>
   )
 }

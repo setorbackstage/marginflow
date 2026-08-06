@@ -15,35 +15,13 @@ export interface QZTrayState {
   testPrint:    (printerName: string) => Promise<void>
 }
 
-declare global {
-  interface Window {
-    qz?: {
-      websocket: {
-        connect:            (config?: object) => Promise<void>
-        disconnect:         () => Promise<void>
-        isActive:           () => boolean
-        setClosedCallbacks: (cb: () => void) => void
-        setErrorCallbacks:  (cb: (err: unknown) => void) => void
-      }
-      printers: {
-        find:       (name?: string) => Promise<string | string[]>
-        getDefault: () => Promise<string>
-      }
-      configs: {
-        create: (printer: string, options?: object) => object
-      }
-      print: (config: object, data: object[]) => Promise<void>
-    }
-  }
-}
-
 // Módulo-level: garante que apenas UM <script> seja injetado em toda a sessão,
 // mesmo que useQZTray seja chamado em múltiplos componentes simultaneamente.
 let scriptPromise: Promise<void> | null = null
 
 function loadQZScript(): Promise<void> {
-  // Script já carregado com sucesso — reutiliza window.qz diretamente
-  if (window.qz) return Promise.resolve()
+  // Script já carregado com sucesso — reutiliza (window as any).qz diretamente
+  if ((window as any).qz) return Promise.resolve()
 
   // Há uma carga em andamento — aguarda a mesma promise
   if (scriptPromise) return scriptPromise
@@ -87,15 +65,15 @@ export function useQZTray(): QZTrayState {
     try {
       await loadQZScript()
 
-      if (!window.qz) {
+      if (!(window as any).qz) {
         throw new Error(
           "MarginFlow Print Service carregado, mas o QZ Tray não foi detectado. " +
           "Certifique-se de que o aplicativo QZ Tray está aberto no seu computador.",
         )
       }
 
-      window.qz.websocket.setClosedCallbacks(() => setStatus("disconnected"))
-      window.qz.websocket.setErrorCallbacks((err: unknown) => {
+      (window as any).qz.websocket.setClosedCallbacks(() => setStatus("disconnected"))
+      (window as any).qz.websocket.setErrorCallbacks((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err)
         setError(
           msg.toLowerCase().includes("refused") || msg.toLowerCase().includes("websocket")
@@ -105,7 +83,7 @@ export function useQZTray(): QZTrayState {
         setStatus("error")
       })
 
-      await window.qz.websocket.connect()
+      await (window as any).qz.websocket.connect()
       setStatus("connected")
       setError(null)
     } catch (err) {
@@ -119,25 +97,25 @@ export function useQZTray(): QZTrayState {
   }, [])
 
   const disconnect = React.useCallback(async () => {
-    if (window.qz?.websocket.isActive()) {
-      await window.qz.websocket.disconnect()
+    if ((window as any).qz?.websocket.isActive()) {
+      await (window as any).qz.websocket.disconnect()
     }
     setStatus("disconnected")
     setError(null)
   }, [])
 
   const listPrinters = React.useCallback(async (): Promise<string[]> => {
-    if (!window.qz) return []
-    const result = await window.qz.printers.find()
+    if (!(window as any).qz) return []
+    const result = await (window as any).qz.printers.find()
     const list = Array.isArray(result) ? result : [result]
     setPrinters(list)
     return list
   }, [])
 
   const print = React.useCallback(async (printerName: string, data: string[]) => {
-    if (!window.qz) throw new Error("MarginFlow Print Service não conectado.")
-    const config = window.qz.configs.create(printerName)
-    await window.qz.print(config, data.map((d) => ({ type: "raw", format: "plain", data: d })))
+    if (!(window as any).qz) throw new Error("MarginFlow Print Service não conectado.")
+    const config = (window as any).qz.configs.create(printerName)
+    await (window as any).qz.print(config, data.map((d) => ({ type: "raw", format: "plain", data: d })))
   }, [])
 
   const testPrint = React.useCallback(async (printerName: string) => {

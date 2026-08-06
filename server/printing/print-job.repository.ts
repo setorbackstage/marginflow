@@ -7,8 +7,12 @@ export interface PrintJobCreateInput {
   templateId?: string | null
   orderId?: string | null
   type: string
+  documentType?: string | null
+  provider?: string | null
+  destination?: string | null
   content?: string | null
   status?: string
+  nextAttemptAt?: Date | null
 }
 
 export interface PrintJobFindManyOptions {
@@ -24,14 +28,18 @@ export interface PrintJobFindManyOptions {
 export const printJobRepository = {
   create(db: DbClient, data: PrintJobCreateInput) {
     return db.printJob.create({ data: {
-      storeId:    data.storeId,
-      printerId:  data.printerId,
-      templateId: data.templateId ?? undefined,
-      orderId:    data.orderId ?? undefined,
-      type:       data.type,
-      content:    data.content ?? undefined,
-      status:     data.status ?? "PENDING",
-    }})
+      storeId:      data.storeId,
+      printerId:    data.printerId,
+      templateId:   data.templateId ?? undefined,
+      orderId:      data.orderId ?? undefined,
+      type:         data.type,
+      documentType: data.documentType ?? undefined,
+      provider:     data.provider ?? undefined,
+      destination:  data.destination ?? undefined,
+      content:      data.content ?? undefined,
+      status:       data.status ?? "PENDING",
+      nextAttemptAt: data.nextAttemptAt ?? undefined,
+    } })
   },
 
   async findMany(db: DbClient, storeId: string, opts: PrintJobFindManyOptions = {}) {
@@ -78,6 +86,22 @@ export const printJobRepository = {
         ...(status === "PRINTED" ? { printedAt: new Date() } : {}),
       },
     })
+  },
+
+  updateContent(db: DbClient, id: string, content: string) {
+    return db.printJob.update({ where: { id }, data: { content } })
+  },
+
+  /** Agenda uma nova tentativa (RETRYING) com backoff. */
+  setRetry(db: DbClient, id: string, nextAttemptAt: Date | null, error?: string | null) {
+    return db.printJob.update({
+      where: { id },
+      data: { status: "RETRYING", nextAttemptAt, error: error ?? null },
+    })
+  },
+
+  cancel(db: DbClient, id: string) {
+    return db.printJob.update({ where: { id }, data: { status: "CANCELLED" } })
   },
 
   incrementAttempts(db: DbClient, id: string) {

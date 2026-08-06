@@ -50,4 +50,10 @@ export const printingApi = {
     api.patch<PrintJob>(`/stores/${storeId}/print-jobs/${jobId}`, { action, error }),
   listPendingJobs: (storeId: string): Promise<PrintJob[]> =>
     api.get<PrintJob[]>(`/stores/${storeId}/print-jobs/pending`),
+
+  // Store print config (provider / printers / options)
+  getConfig: (storeId: string): Promise<Record<string, unknown>> =>
+    api.get<Record<string, unknown>>(`/stores/${storeId}/printing/config`),
+  saveConfig: (storeId: string, data: Record<string, unknown>): Promise<{ ok: boolean }> =>
+    api.put<{ ok: boolean }>(`/stores/${storeId}/printing/config`, data),
 }

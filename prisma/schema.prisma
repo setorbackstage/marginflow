@@ -227,6 +227,9 @@ model StoreSettings {
   description             String?
   instagramHandle         String?  @map("instagram_handle")
   whatsappNumber          String?  @map("whatsapp_number")
+  /// Configuração completa de impressão da loja (ETAPA 6): provider, vias,
+  /// largura, margens, fonte, logo, QR Code, rodapé, mensagem, tipos habilitados.
+  printConfig             Json?    @map("print_config") @db.JsonB
   updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -1368,6 +1371,8 @@ model PrintRule {
 }
 
 /// A single print request — acts as both a queue entry and a history record.
+/// Status (fila): PENDING → PROCESSING → PRINTED | FAILED | CANCELLED | RETRYING
+/// Nada é perdido: todo job termina em PRINTED, FAILED ou CANCELLED.
 model PrintJob {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   storeId    String    @map("store_id") @db.Uuid
@@ -1376,14 +1381,25 @@ model PrintJob {
   orderId    String?   @map("order_id") @db.Uuid
   /// CHECK (type IN ('ORDER','RECEIPT','CANCELLATION','LABEL','KITCHEN','DELIVERY','TEST'))
   type       String
-  /// Rendered content to send to the printer (plain text / ESC-POS)
+  /// Documento lógico (mapeia para template): KITCHEN_TICKET, CASHIER_RECEIPT, DELIVERY_RECEIPT, REPRINT, TEST, CANCELLATION
+  documentType String? @map("document_type")
+  /// Provider usado/esperado (QZ_TRAY, PRINTER_AGENT, ESC_POS_TCP, CLOUD_PRINT)
+  provider   String?
+  /// Destino (id da impressora no provider / bridge)
+  destination String?
+  /// Rendered content to send to the printer (HTML / ESC-POS)
   content    String?
-  /// CHECK (status IN ('PENDING','SENDING','PRINTED','ERROR','CANCELLED'))
+  /// CHECK (status IN ('PENDING','PROCESSING','PRINTED','RETRYING','FAILED','CANCELLED'))
   status     String    @default("PENDING")
   attempts   Int       @default(0)
+  /// Erro da última tentativa (e acumulado em `error` legado)
+  lastError  String?   @map("last_error")
   error      String?
+  /// Quando a próxima tentativa deve ocorrer (retry inteligente)
+  nextAttemptAt DateTime? @map("next_attempt_at") @db.Timestamptz(6)
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   printedAt  DateTime? @map("printed_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   store    Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
   printer  Printer        @relation(fields: [printerId], references: [id], onDelete: Restrict)

@@ -106,3 +106,23 @@ export function useDeletePrintRule() {
     },
   })
 }
+
+// Store print config (provider/printers/options)
+export function usePrintConfig() {
+  const storeId = useActiveStoreId()
+  return useQuery({
+    queryKey: ["stores", storeId, "printing-config"],
+    queryFn: () => printingApi.getConfig(storeId),
+  })
+}
+
+export function useSavePrintConfig() {
+  const storeId = useActiveStoreId()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => printingApi.saveConfig(storeId, data),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["stores", storeId, "printing-config"] })
+    },
+  })
+}
