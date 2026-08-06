@@ -14,6 +14,7 @@ import {
   Printer,
   Settings,
   Plug,
+  Webhook,
 } from "lucide-react"
 
 import type { NavGroup } from "@/types/navigation"
@@ -55,6 +56,7 @@ export const navGroups: NavGroup[] = [
     label: "Sistema",
     items: [
       { title: "Integrações",   url: "/integrations", icon: Plug    },
+      { title: "Webhooks",      url: "/settings/webhooks", icon: Webhook },
       { title: "Impressão",     url: "/printing",      icon: Printer },
       { title: "Configurações", url: "/settings",      icon: Settings },
     ],
