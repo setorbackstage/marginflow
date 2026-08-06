@@ -341,6 +341,36 @@ export async function processIfoodEvents(events: IfoodEvent[]): Promise<void> {
           }
         }
       }
+      else if (event.fullCode === "CONFIRMED") {
+        // iFood confirmed the order (or acknowledged our auto-confirm)
+        const integration = await marketplaceIntegrationRepository.findByMerchantId(prisma, "IFOOD", event.merchantId)
+        if (integration) {
+          const { storeId } = integration
+          const order = await orderRepository.findByExternalId(prisma, storeId, event.orderId)
+          if (order && order.status === "PLACED") {
+            await orderService.updateStatus(prisma, storeId, order.id, "CONFIRMED", {
+              triggeredByUserId: null,
+              notes: "Confirmado pelo iFood",
+            })
+            logger.info("ifood.events.order_confirmed_by_ifood", { storeId, orderId: order.id })
+          }
+        }
+      } else if (event.fullCode === "PREPARING" || event.fullCode === "STARTED_PREPARATION") {
+        // iFood marked the order as being prepared
+        const integration = await marketplaceIntegrationRepository.findByMerchantId(prisma, "IFOOD", event.merchantId)
+        if (integration) {
+          const { storeId } = integration
+          const order = await orderRepository.findByExternalId(prisma, storeId, event.orderId)
+          if (order && (order.status === "CONFIRMED" || order.status === "PLACED")) {
+            await orderService.updateStatus(prisma, storeId, order.id, "PREPARING", {
+              triggeredByUserId: null,
+              notes: "Preparação iniciada (iFood)",
+            })
+            logger.info("ifood.events.order_preparing", { storeId, orderId: order.id })
+          }
+        }
+      }
+
       // For all other event types we just acknowledge — status changes originate
       // from our own UI and are synced outbound via domain event listeners below.
       toAcknowledge.push(event.id)
