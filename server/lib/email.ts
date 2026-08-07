@@ -25,6 +25,20 @@ export interface SendEmailResult {
 
 const DEFAULT_FROM = process.env.MAIL_FROM ?? "MarginFlow <no-reply@marginflow.app>"
 
+export interface PasswordResetEmailData {
+  userName: string
+  resetUrl: string
+  expiresInMinutes: number
+}
+
+export interface InvitationEmailData {
+  invitedName: string
+  storeName: string
+  roleName: string
+  inviteUrl: string
+  expiresAt: Date | string
+}
+
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) {
