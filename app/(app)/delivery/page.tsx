@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { EmptyState, ErrorState, KanbanColumn, KanbanCard, KanbanBoard, StatusBadge } from "@/components/shared"
 import { formatRelative } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -48,6 +49,11 @@ function minutesSince(isoDate: string): number {
 }
 
 const URGENT_MINUTES_THRESHOLD = 30
+
+function nextInfo(status: DeliveryStatus): { nextStatus?: DeliveryStatus; actionLabel?: string } {
+  const col = COLUMNS.find((c) => c.status === status)
+  return { nextStatus: col?.nextStatus, actionLabel: col?.actionLabel }
+}
 
 function DeliveryCard({
   delivery,
@@ -216,6 +222,20 @@ export default function DeliveryPage() {
 
   const allDeliveries = deliveries.data?.items ?? []
 
+  const courierGroups = React.useMemo(() => {
+    const map = new Map<string, Delivery[]>()
+    for (const d of allDeliveries) {
+      const key = d.courierName?.trim() || "___none"
+      const arr = map.get(key) ?? []
+      arr.push(d)
+      map.set(key, arr)
+    }
+    return Array.from(map.entries()).map(([name, items]) => ({
+      name: name === "___none" ? "Sem entregador" : name,
+      items,
+    }))
+  }, [allDeliveries])
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Entregas" description="Painel de despacho — atualiza em tempo real." />
@@ -229,48 +249,85 @@ export default function DeliveryPage() {
       ) : deliveries.isError ? (
         <ErrorState error={deliveries.error} onRetry={() => deliveries.refetch()} />
       ) : allDeliveries.length > 0 ? (
-        <KanbanBoard
-          onCardDrop={handleCardDrop}
-          renderOverlay={(id) => {
-            const d = allDeliveries.find((x) => x.id === id)
-            if (!d) return null
-            return (
-              <KanbanCard className="w-64 shadow-xl">
-                <p className="font-semibold">Pedido #{d.orderNumber}</p>
-                <p className="text-xs text-muted-foreground">{d.deliveryAddress.neighborhood}</p>
-              </KanbanCard>
-            )
-          }}
-        >
-          <div className="flex gap-4 overflow-x-auto pb-2">
-            {COLUMNS.map((column) => {
-              const colDeliveries = allDeliveries.filter((d) => d.status === column.status)
-              return (
-                <KanbanColumn
-                  key={column.status}
-                  title={column.title}
-                  count={colDeliveries.length}
-                  droppableId={column.status}
-                  accentColor={column.accent}
-                >
-                  {colDeliveries.map((delivery) => (
-                    <DeliveryCard
-                      key={delivery.id}
-                      delivery={delivery}
-                      customerName={ordersById.get(delivery.orderId)?.customer?.name ?? null}
-                      customerPhone={ordersById.get(delivery.orderId)?.customer?.phone ?? null}
-                      nextStatus={column.nextStatus}
-                      actionLabel={column.actionLabel}
-                    />
-                  ))}
-                  {colDeliveries.length === 0 ? (
-                    <p className="px-1 py-8 text-center text-xs text-muted-foreground">Sem entregas aqui</p>
-                  ) : null}
-                </KanbanColumn>
-              )
-            })}
-          </div>
-        </KanbanBoard>
+        <Tabs defaultValue="kanban" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="kanban">Kanban</TabsTrigger>
+            <TabsTrigger value="courier">Por entregador</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="kanban">
+            <KanbanBoard
+              onCardDrop={handleCardDrop}
+              renderOverlay={(id) => {
+                const d = allDeliveries.find((x) => x.id === id)
+                if (!d) return null
+                return (
+                  <KanbanCard className="w-64 shadow-xl">
+                    <p className="font-semibold">Pedido #{d.orderNumber}</p>
+                    <p className="text-xs text-muted-foreground">{d.deliveryAddress.neighborhood}</p>
+                  </KanbanCard>
+                )
+              }}
+            >
+              <div className="flex gap-4 overflow-x-auto pb-2">
+                {COLUMNS.map((column) => {
+                  const colDeliveries = allDeliveries.filter((d) => d.status === column.status)
+                  return (
+                    <KanbanColumn
+                      key={column.status}
+                      title={column.title}
+                      count={colDeliveries.length}
+                      droppableId={column.status}
+                      accentColor={column.accent}
+                    >
+                      {colDeliveries.map((delivery) => (
+                        <DeliveryCard
+                          key={delivery.id}
+                          delivery={delivery}
+                          customerName={ordersById.get(delivery.orderId)?.customer?.name ?? null}
+                          customerPhone={ordersById.get(delivery.orderId)?.customer?.phone ?? null}
+                          nextStatus={column.nextStatus}
+                          actionLabel={column.actionLabel}
+                        />
+                      ))}
+                      {colDeliveries.length === 0 ? (
+                        <p className="px-1 py-8 text-center text-xs text-muted-foreground">Sem entregas aqui</p>
+                      ) : null}
+                    </KanbanColumn>
+                  )
+                })}
+              </div>
+            </KanbanBoard>
+          </TabsContent>
+
+          <TabsContent value="courier">
+            <div className="space-y-6">
+              {courierGroups.map((group) => (
+                <div key={group.name} className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold">{group.name}</h3>
+                    <Badge variant="secondary">{group.items.length}</Badge>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {group.items.map((delivery) => {
+                      const { nextStatus, actionLabel } = nextInfo(delivery.status)
+                      return (
+                        <DeliveryCard
+                          key={delivery.id}
+                          delivery={delivery}
+                          customerName={ordersById.get(delivery.orderId)?.customer?.name ?? null}
+                          customerPhone={ordersById.get(delivery.orderId)?.customer?.phone ?? null}
+                          nextStatus={nextStatus}
+                          actionLabel={actionLabel}
+                        />
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
       ) : (
         <EmptyState
           icon={Truck}

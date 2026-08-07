@@ -20,6 +20,7 @@ import { GlobalSearch } from "@/components/app-shell/global-search"
 import { NavUser } from "@/components/app-shell/nav-user"
 import { Notifications } from "@/components/app-shell/notifications"
 import { ThemeToggle } from "@/components/app-shell/theme-toggle"
+import { RestaurantSwitcher } from "@/components/app-shell/restaurant-switcher"
 
 function RefreshButton() {
   const queryClient = useQueryClient()
@@ -65,6 +66,8 @@ export function TopBar({
           </BreadcrumbList>
         </Breadcrumb>
       </div>
+
+      <RestaurantSwitcher />
 
       <div className="hidden md:block">
         <GlobalSearch onNavigate={onNavigate} />
