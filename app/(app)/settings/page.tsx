@@ -29,7 +29,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ErrorState, PhoneInput, ImageUploadInput } from "@/components/shared"
+import { ErrorState, PhoneInput, ImageUploadInput, SettingsSaveBar } from "@/components/shared"
 import { SharePanel } from "@/features/public-menu"
 import { IntegrationsSection } from "@/features/integrations"
 import { useSyncedState } from "@/hooks"
@@ -82,6 +82,8 @@ function BrandingSection() {
 
   const isPending = updateStore.isPending || updateSettings.isPending
   const canSave = canEdit || canEditSettings
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm)
+  const resetForm = () => setForm(initialForm)
 
   const handleSave = () => {
     if (canEdit)
@@ -234,6 +236,7 @@ function BrandingSection() {
               Salvar
             </Button>
           ) : null}
+          <SettingsSaveBar isDirty={isDirty} isPending={isPending} onSave={handleSave} onDiscard={resetForm} />
         </CardContent>
       </Card>
       <SharePanel slug={store.data.slug} />
@@ -252,6 +255,8 @@ function StoreInfoSection() {
   const [{ phone, email }, setForm] = useSyncedState(initialForm)
   const setPhone = (phone: string) => setForm((f) => ({ ...f, phone }))
   const setEmail = (email: string) => setForm((f) => ({ ...f, email }))
+  const isDirty = JSON.stringify({ phone, email }) !== JSON.stringify(initialForm)
+  const resetForm = () => setForm(initialForm)
 
   if (store.isLoading) return <Skeleton className="h-48 w-full" />
   if (store.isError || !store.data)
@@ -304,6 +309,7 @@ function StoreInfoSection() {
             Salvar
           </Button>
         ) : null}
+        <SettingsSaveBar isDirty={isDirty} isPending={update.isPending} onSave={() => update.mutate({ phone, email })} onDiscard={resetForm} />
       </CardContent>
     </Card>
   )
@@ -326,6 +332,9 @@ function OperatingHoursSection() {
   const [schedule, setSchedule] = useSyncedState<WeeklySchedule>(
     (store.data?.operatingHours as WeeklySchedule | null) ?? DEFAULT_SCHEDULE,
   )
+  const initialSchedule = (store.data?.operatingHours as WeeklySchedule | null) ?? DEFAULT_SCHEDULE
+  const isDirty = JSON.stringify(schedule) !== JSON.stringify(initialSchedule)
+  const resetSchedule = () => setSchedule(initialSchedule)
 
   if (store.isLoading) return <Skeleton className="h-64 w-full" />
 
@@ -409,6 +418,7 @@ function OperatingHoursSection() {
             Salvar horários
           </Button>
         ) : null}
+        <SettingsSaveBar isDirty={isDirty} isPending={update.isPending} onSave={() => update.mutate({ operatingHours: schedule })} onDiscard={resetSchedule} />
       </CardContent>
     </Card>
   )
@@ -485,6 +495,15 @@ function ApprovalPasswordSection() {
     confirmApprovalPassword.length > 0 && newApprovalPassword !== confirmApprovalPassword
   const canSubmit =
     currentPassword.length > 0 && newApprovalPassword.length >= 8 && !mismatch
+  const isDirty =
+    currentPassword.length > 0 ||
+    newApprovalPassword.length > 0 ||
+    confirmApprovalPassword.length > 0
+  const resetForm = () => {
+    setCurrentPassword("")
+    setNewApprovalPassword("")
+    setConfirmApprovalPassword("")
+  }
 
   const handleSubmit = () => {
     setApprovalPassword.mutate(
@@ -561,6 +580,7 @@ function ApprovalPasswordSection() {
           ) : null}
           Salvar senha de aprovação
         </Button>
+        <SettingsSaveBar isDirty={isDirty} isPending={setApprovalPassword.isPending} onSave={handleSubmit} onDiscard={resetForm} />
       </CardContent>
     </Card>
   )

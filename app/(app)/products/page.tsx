@@ -255,7 +255,7 @@ export default function ProductsPage() {
                   </TableHeader>
                   <TableBody>
                     {products.data.items.map((product) => (
-                      <TableRow key={product.id}>
+                      <TableRow key={product.id} className="group transition-colors hover:bg-muted/50">
                         <TableCell>
                           {product.imageUrl ? (
                             <div className="relative size-10 overflow-hidden rounded-lg border">

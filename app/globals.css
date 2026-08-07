@@ -145,13 +145,20 @@
 @layer base {
   /* Hover sutil nas linhas de tabela (sensação de "sistema vivo") */
   tbody tr {
-    @apply transition-colors;
+    @apply transition-colors duration-200;
   }
   tbody tr:hover {
-    @apply bg-muted/40;
+    @apply bg-muted/50;
   }
-  /* Item de navegação ativo: barra vertical verde na borda esquerda */
+  /* Links do menu da sidebar transicionam suavemente */
+  [data-sidebar="menu-button"] {
+    @apply transition-colors duration-200;
+  }
+  /* Item de navegação ativo: barra vertical verde + ícone verde */
   [data-sidebar-active="true"] {
-    @apply border-l-2 border-primary shadow-sm;
+    @apply border-l-2 border-primary rounded-l-none bg-sidebar-accent text-sidebar-accent-foreground;
+  }
+  [data-sidebar-active="true"] svg {
+    @apply text-primary;
   }
 }
