@@ -360,7 +360,7 @@ export function IntegrationsSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Marketplaces</CardTitle>
+        <CardTitle className="text-sm">Plataformas de delivery</CardTitle>
         <CardDescription>
           Conecte sua loja a plataformas de delivery para receber pedidos automaticamente no MarginFlow.
         </CardDescription>
