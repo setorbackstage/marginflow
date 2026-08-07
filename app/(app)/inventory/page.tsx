@@ -30,6 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { EmptyState, ErrorState, StatusBadge, PaginationBar, SearchBar, ConfirmDialog, LastUpdated } from "@/components/shared"
+import { InlineStockEditor } from "@/features/inventory/components/inline-stock-editor"
 import { formatCents, formatDateTime } from "@/lib/format"
 import { useDebouncedValue } from "@/hooks"
 import { cn } from "@/lib/utils"
@@ -155,15 +156,8 @@ function IngredientsTab({
                     <TableCell className="text-muted-foreground">
                       {ingredient.category ? <Badge variant="secondary">{ingredient.category}</Badge> : "—"}
                     </TableCell>
-                    <TableCell
-                      className={cn(
-                        "tabular-nums",
-                        ingredient.currentStock < 0 && "font-semibold text-destructive",
-                        ingredient.isLowStock && ingredient.currentStock >= 0 && "font-medium text-amber-600 dark:text-amber-500",
-                      )}
-                    >
-                      {formatQuantity(ingredient.currentStock, ingredient.unit)}
-                      {ingredient.isLowStock ? <TriangleAlert className="ml-1.5 inline size-3.5 align-[-2px]" /> : null}
+                    <TableCell className="tabular-nums">
+                      <InlineStockEditor ingredient={ingredient} />
                     </TableCell>
                     <TableCell className="tabular-nums text-muted-foreground">
                       {ingredient.minStock !== null ? formatQuantity(ingredient.minStock, ingredient.unit) : "—"}
