@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Users, MoreHorizontal, Eye, Pencil, Download, UserCheck, TrendingUp, AlertTriangle, Star, WhatsApp } from "lucide-react"
+import { Plus, Users, MoreHorizontal, Eye, Pencil, Download, UserCheck, TrendingUp, AlertTriangle, Star, MessageCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 
@@ -177,10 +177,11 @@ export default function CustomersPage() {
               <SelectItem key={value} value={value}>{label}</SelectItem>
             ))}
           </SelectContent>
-        </Select>
-      </div>
+          </Select>
+          </div>
+          </div>
 
-      {customers.isLoading ? (
+          {customers.isLoading ? (
         <div className="space-y-2">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
@@ -219,7 +220,7 @@ export default function CustomersPage() {
                         onClick={(e) => e.stopPropagation()}
                         className="inline-flex items-center gap-1 hover:text-emerald-500"
                       >
-                        <WhatsApp className="size-3.5" />
+                        <MessageCircle className="size-3.5" />
                         {customer.phone}
                       </a>
                     </TableCell>
@@ -254,7 +255,8 @@ export default function CustomersPage() {
                           ) : null}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </TableCell>
+                      </div>
+                      </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
