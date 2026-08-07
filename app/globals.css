@@ -108,7 +108,7 @@
   --chart-3: oklch(0.72 0.16 145);
   --chart-4: oklch(0.78 0.15 75);
   --chart-5: oklch(0.68 0.2 25);
-  --sidebar: oklch(0.185 0.004 265);
+  --sidebar: oklch(0.13 0.004 265);
   --sidebar-foreground: oklch(0.965 0 0);
   --sidebar-primary: oklch(0.7 0.15 155);
   --sidebar-primary-foreground: oklch(0.99 0 0);
@@ -137,4 +137,21 @@
   }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { @apply rounded-full bg-border; }
+}
+
+/* Profundidade no dark mode: a sidebar fica um tom mais escura que a área
+   principal (já tratado no token --sidebar). Reforça a "caixa" lógica da
+   navegação e dá hover vivo nas linhas de tabela e no item ativo. */
+@layer base {
+  /* Hover sutil nas linhas de tabela (sensação de "sistema vivo") */
+  tbody tr {
+    @apply transition-colors;
+  }
+  tbody tr:hover {
+    @apply bg-muted/40;
+  }
+  /* Item de navegação ativo: barra vertical verde na borda esquerda */
+  [data-sidebar-active="true"] {
+    @apply border-l-2 border-primary shadow-sm;
+  }
 }

@@ -44,10 +44,11 @@ export function AppSidebar({
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
-                      isActive={isActive}
-                      tooltip={item.title}
-                      onClick={() => onNavigate(item.url, item.title)}
-                    >
+                        isActive={isActive}
+                        data-sidebar-active={isActive}
+                        tooltip={item.title}
+                        onClick={() => onNavigate(item.url, item.title)}
+                      >
                       <item.icon />
                       <span>{item.title}</span>
                     </SidebarMenuButton>

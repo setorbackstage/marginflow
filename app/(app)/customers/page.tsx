@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Users, MoreHorizontal, Eye, Pencil, Download, UserCheck, TrendingUp, AlertTriangle, Star } from "lucide-react"
+import { Plus, Users, MoreHorizontal, Eye, Pencil, Download, UserCheck, TrendingUp, AlertTriangle, Star, WhatsApp } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 
@@ -34,21 +34,29 @@ const STATUS_FILTER_LABEL: Record<string, string> = {
 // ─── CRM Segment card ─────────────────────────────────────────────────────────
 
 function SegmentCard({
-  label, value, icon: Icon, className,
+  label, value, icon: Icon, className, accent,
 }: {
   label: string
   value: number | undefined
   icon: React.ElementType
   className?: string
+  accent?: "risk" | "new" | "frequent"
 }) {
+  const accentClass = accent === "risk"
+    ? "bg-red-500/10 text-red-600 dark:text-red-400"
+    : accent === "new"
+      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+      : accent === "frequent"
+        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+        : "bg-muted text-muted-foreground"
   return (
-    <div className={cn("flex items-center gap-3 rounded-xl border bg-background p-4", className)}>
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-        <Icon className="size-4 text-muted-foreground" />
+    <div className={cn("flex items-center gap-3 rounded-xl border bg-card p-3", className)}>
+      <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", accentClass)}>
+        <Icon className="size-4" />
       </div>
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-lg font-semibold tabular-nums">{value ?? "—"}</p>
+        <p className="text-xl font-semibold tabular-nums leading-tight">{value ?? "—"}</p>
       </div>
     </div>
   )
@@ -150,18 +158,20 @@ export default function CustomersPage() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <SegmentCard label="Total"        value={segments.data?.total}      icon={Users}         />
         <SegmentCard label="Ativos"       value={segments.data?.active}     icon={UserCheck}     />
-        <SegmentCard label="Novos (30d)"  value={segments.data?.newLast30}  icon={TrendingUp}    />
-        <SegmentCard label="Frequentes"   value={segments.data?.frequent}   icon={Star}          />
-        <SegmentCard label="Em risco"     value={segments.data?.atRisk}     icon={AlertTriangle} />
+        <SegmentCard label="Novos (30d)"  value={segments.data?.newLast30}  icon={TrendingUp}    accent="new" />
+        <SegmentCard label="Frequentes"   value={segments.data?.frequent}   icon={Star}          accent="frequent" />
+        <SegmentCard label="Em risco"     value={segments.data?.atRisk}     icon={AlertTriangle} accent="risk" />
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <SearchBar value={searchInput} onChange={handleSearchChange} placeholder="Buscar por nome ou telefone..." />
-        <Select value={statusFilter} onValueChange={handleFilterChange}>
-          <SelectTrigger className="w-44">
-            <SelectValue />
-          </SelectTrigger>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Status:</span>
+          <Select value={statusFilter} onValueChange={handleFilterChange}>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
           <SelectContent>
             {Object.entries(STATUS_FILTER_LABEL).map(([value, label]) => (
               <SelectItem key={value} value={value}>{label}</SelectItem>
@@ -183,13 +193,13 @@ export default function CustomersPage() {
           <div className="rounded-xl border">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Pedidos</TableHead>
-                  <TableHead>Total gasto</TableHead>
-                  <TableHead>Último pedido</TableHead>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableHead className="h-9 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Cliente</TableHead>
+                  <TableHead className="h-9 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Telefone</TableHead>
+                  <TableHead className="h-9 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</TableHead>
+                  <TableHead className="h-9 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Pedidos</TableHead>
+                  <TableHead className="h-9 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Total gasto</TableHead>
+                  <TableHead className="h-9 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Último pedido</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -197,11 +207,22 @@ export default function CustomersPage() {
                 {customers.data.items.map((customer: CustomerListItem) => (
                   <TableRow
                     key={customer.id}
-                    className="cursor-pointer"
+                    className="group cursor-pointer"
                     onClick={() => router.push(`/customers/${customer.id}`)}
                   >
                     <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{customer.phone}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      <a
+                        href={`https://wa.me/${customer.phone.replace(/\D/g, "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 hover:text-emerald-500"
+                      >
+                        <WhatsApp className="size-3.5" />
+                        {customer.phone}
+                      </a>
+                    </TableCell>
                     <TableCell>
                       <StatusBadge status={customer.status} config={CUSTOMER_STATUS_CONFIG} />
                     </TableCell>
@@ -209,10 +230,11 @@ export default function CustomersPage() {
                     <TableCell className="tabular-nums">{formatCents(customer.totalSpent)}</TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(customer.lastOrderAt)}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Ações do cliente" />}>
-                          <MoreHorizontal />
-                        </DropdownMenuTrigger>
+                      <div className="flex justify-end opacity-0 transition-opacity group-hover:opacity-100">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Ações do cliente" />}>
+                            <MoreHorizontal />
+                          </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuItem onClick={() => router.push(`/customers/${customer.id}`)}>
                             <Eye data-icon="inline-start" />

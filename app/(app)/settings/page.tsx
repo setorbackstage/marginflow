@@ -867,17 +867,17 @@ export default function SettingsPage() {
         description="Gerencie os dados, horários e equipe da sua loja."
       />
 
-      <Tabs defaultValue="branding">
-        <TabsList>
-          <TabsTrigger value="branding">Marca</TabsTrigger>
-          <TabsTrigger value="store">Loja</TabsTrigger>
-          <TabsTrigger value="hours">Horários</TabsTrigger>
-          <TabsTrigger value="operations">Operação</TabsTrigger>
-          <TabsTrigger value="team">Equipe</TabsTrigger>
-          <TabsTrigger value="print">Impressão</TabsTrigger>
-          <TabsTrigger value="sounds">Sons</TabsTrigger>
-          <TabsTrigger value="integrations">Integrações</TabsTrigger>
-          {isOwnerOrManagerAnywhere ? <TabsTrigger value="security">Segurança</TabsTrigger> : null}
+      <Tabs defaultValue="branding" className="grid grid-cols-1 gap-6 md:grid-cols-[220px_1fr]">
+        <TabsList className="h-auto flex-row flex-wrap justify-start gap-1 bg-transparent p-0 md:flex-col md:flex-nowrap">
+          <TabsTrigger value="branding" className="justify-start">Marca</TabsTrigger>
+          <TabsTrigger value="store" className="justify-start">Loja</TabsTrigger>
+          <TabsTrigger value="hours" className="justify-start">Horários</TabsTrigger>
+          <TabsTrigger value="operations" className="justify-start">Operação</TabsTrigger>
+          <TabsTrigger value="team" className="justify-start">Equipe</TabsTrigger>
+          <TabsTrigger value="print" className="justify-start">Impressão</TabsTrigger>
+          <TabsTrigger value="sounds" className="justify-start">Sons</TabsTrigger>
+          <TabsTrigger value="integrations" className="justify-start">Integrações</TabsTrigger>
+          {isOwnerOrManagerAnywhere ? <TabsTrigger value="security" className="justify-start">Segurança</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="branding" className="mt-4">
           <BrandingSection />

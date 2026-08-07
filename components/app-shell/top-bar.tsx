@@ -55,7 +55,7 @@ export function TopBar({
                 onClick={() => onNavigate("/", "Dashboard")}
                 className="cursor-pointer"
               >
-                <Image src="/logo-mark.png" alt="MarginFlow OS" width={20} height={20} className="dark:invert" />
+                <Image src="/logo-mark.svg" alt="MarginFlow OS" width={20} height={20} className="dark:invert-0" unoptimized />
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator className="hidden sm:block" />
