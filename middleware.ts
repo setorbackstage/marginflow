@@ -58,6 +58,6 @@ export const config = {
    * são excluídos para não impactar performance de assets.
    */
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.png|manifest\\.webmanifest|openapi\\.yaml|\\.(?:svg|png|jpg|jpeg|webp|ico|gif)$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.png|manifest\\.webmanifest|openapi\\.yaml|.*\\.(?:svg|png|jpg|jpeg|webp|ico|gif)$).*)",
   ],
 }
