@@ -21,7 +21,7 @@ export const ORDER_TYPE_LABEL: Record<string, string> = {
 export const ORDER_CHANNEL_LABEL: Record<string, string> = {
   IN_STORE: "Presencial",
   PHONE: "Telefone",
-  MARKETPLACE: "Marketplace",
+  MARKETPLACE: "Plataforma",
   WHATSAPP: "WhatsApp",
   KIOSK: "Totem",
 }

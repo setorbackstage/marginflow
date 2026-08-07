@@ -87,7 +87,7 @@ function OrderKanbanCard({ order, onClick }: { order: OrderListItem; onClick: ()
         {order.channel === "MARKETPLACE" && order.platform !== "99FOOD" && order.platform !== "IFOOD" && (
           <span className="inline-flex items-center gap-0.5 rounded-full bg-[#ea1d2c]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#ea1d2c] leading-none">
             <Store className="size-2.5" />
-            Marketplace
+            Plataforma
           </span>
         )}
         {order.channel !== "MARKETPLACE" && (
@@ -388,7 +388,7 @@ export default function OrdersPage() {
                           {order.channel === "MARKETPLACE" && order.platform !== "99FOOD" && order.platform !== "IFOOD" && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-[#ea1d2c]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#ea1d2c] leading-none">
                               <Store className="size-2.5" />
-                              Marketplace
+                              Plataforma
                             </span>
                           )}
                         </span>

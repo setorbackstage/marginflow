@@ -2,19 +2,19 @@ import {
   LayoutDashboard,
   ReceiptText,
   ChefHat,
+  Truck,
   Package,
   BookOpenText,
   Boxes,
-  Users,
-  Truck,
+  UsersRound,
+  BellRing,
+  BarChart3,
   Wallet,
-  ClipboardList,
-  BarChart2,
-  Bell,
-  Printer,
-  Settings,
+  ScrollText,
   Plug,
   Webhook,
+  Printer,
+  Settings2,
 } from "lucide-react"
 
 import type { NavGroup } from "@/types/navigation"
@@ -40,25 +40,30 @@ export const navGroups: NavGroup[] = [
   {
     label: "Relacionamento",
     items: [
-      { title: "Clientes",       url: "/customers",     icon: Users },
-      { title: "Notificações",   url: "/notifications", icon: Bell  },
+      { title: "Clientes", url: "/customers", icon: UsersRound },
+      { title: "Notificações", url: "/notifications", icon: BellRing },
     ],
   },
   {
     label: "Análises",
     items: [
-      { title: "Relatórios", url: "/reports", icon: BarChart2 },
+      { title: "Relatórios", url: "/reports", icon: BarChart3 },
       { title: "Financeiro", url: "/finance", icon: Wallet },
-      { title: "Auditoria",  url: "/audit",   icon: ClipboardList },
+      { title: "Auditoria", url: "/audit", icon: ScrollText },
     ],
   },
   {
-    label: "Sistema",
+    label: "Integrações",
     items: [
-      { title: "Integrações",   url: "/integrations", icon: Plug    },
-      { title: "Webhooks",      url: "/settings/webhooks", icon: Webhook },
-      { title: "Impressão",     url: "/printing",      icon: Printer },
-      { title: "Configurações", url: "/settings",      icon: Settings },
+      { title: "Marketplaces", url: "/integrations", icon: Plug },
+      { title: "Webhooks", url: "/settings/webhooks", icon: Webhook },
+      { title: "Impressão", url: "/printing", icon: Printer },
+    ],
+  },
+  {
+    label: "Conta",
+    items: [
+      { title: "Configurações", url: "/settings", icon: Settings2 },
     ],
   },
 ]

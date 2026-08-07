@@ -95,10 +95,10 @@ const createMovementSchema = z
   })
   .superRefine((value, ctx) => {
     if (value.type === "ADJUSTMENT" && !value.direction) {
-      ctx.addIssue({ code: "custom", path: ["direction"], message: "direction is required for ADJUSTMENT" })
+      ctx.addIssue({ code: "custom", path: ["direction"], message: "o campo direction é obrigatório para ADJUSTMENT" })
     }
     if ((value.type === "ADJUSTMENT" || value.type === "LOSS") && !value.reason) {
-      ctx.addIssue({ code: "custom", path: ["reason"], message: "reason is required for ADJUSTMENT and LOSS" })
+      ctx.addIssue({ code: "custom", path: ["reason"], message: "o campo reason é obrigatório para ADJUSTMENT e LOSS" })
     }
   })
 

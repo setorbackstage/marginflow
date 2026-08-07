@@ -1,185 +1,130 @@
 import "server-only"
-import { Resend } from "resend"
-import { env } from "@/config/env"
-import { logger } from "./logger"
 
-// ---------------------------------------------------------------------------
-// Cliente
-// ---------------------------------------------------------------------------
+/**
+ * Envio de e-mails transacionais via Resend.
+ * Usa a Resend REST API diretamente (sem SDK externo) para evitar dependências extras.
+ * A chave RESEND_API_KEY deve estar configurada nas env vars da Vercel.
+ */
 
-let _resend: Resend | null = null
+const RESEND_API_URL = "https://api.resend.com/emails"
 
-function getResend(): Resend | null {
-  if (!env.RESEND_API_KEY) return null
-  if (!_resend) _resend = new Resend(env.RESEND_API_KEY)
-  return _resend
-}
-
-// ---------------------------------------------------------------------------
-// Send helper — loga em desenvolvimento, envia em produção.
-// Nunca lança — falhas de e-mail nunca devem bloquear a operação principal.
-// ---------------------------------------------------------------------------
-
-interface SendOptions {
+export interface SendEmailInput {
   to: string | string[]
   subject: string
   html: string
+  text?: string
+  from?: string
   replyTo?: string
 }
 
-export async function sendEmail(opts: SendOptions): Promise<void> {
-  const resend = getResend()
+export interface SendEmailResult {
+  id: string | null
+  ok: boolean
+  error?: string
+}
 
-  if (!resend) {
-    // Dev fallback — exibe o e-mail no console para que possamos testar
-    // sem precisar de uma conta Resend.
-    logger.info("email.send.dev_fallback", {
-      to: opts.to,
-      subject: opts.subject,
-      note: "Configure RESEND_API_KEY para enviar e-mails reais.",
+const DEFAULT_FROM = process.env.MAIL_FROM ?? "MarginFlow <no-reply@marginflow.app>"
+
+export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) {
+    console.warn("[email] RESEND_API_KEY não configurada — e-mail não enviado")
+    return { id: null, ok: false, error: "RESEND_API_KEY ausente" }
+  }
+
+  try {
+    const res = await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: input.from ?? DEFAULT_FROM,
+        to: input.to,
+        subject: input.subject,
+        html: input.html,
+        text: input.text,
+        reply_to: input.replyTo,
+      }),
     })
-    return
+
+    const data = (await res.json().catch(() => ({}))) as {
+      id?: string
+      message?: string
+    }
+
+    if (!res.ok) {
+      console.error("[email] falha Resend:", res.status, data)
+      return { id: null, ok: false, error: data.message ?? `HTTP ${res.status}` }
+    }
+
+    return { id: data.id ?? null, ok: true }
+  } catch (err) {
+    console.error("[email] erro inesperado:", err)
+    return { id: null, ok: false, error: String(err) }
   }
+}
 
-  const { error } = await resend.emails.send({
-    from: env.RESEND_FROM_EMAIL,
-    to: opts.to,
-    subject: opts.subject,
-    html: opts.html,
-    ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
-  })
+/* ---------- Templates ---------- */
 
-  if (error) {
-    logger.error("email.send.failed", { to: opts.to, subject: opts.subject, error })
-  } else {
-    logger.info("email.send.ok", { to: opts.to, subject: opts.subject })
+export function welcomeEmail(name: string, storeName: string): { subject: string; html: string; text: string } {
+  return {
+    subject: `Bem-vindo ao MarginFlow OS — ${storeName}`,
+    text: `Olá ${name},\n\nSua loja "${storeName}" foi criada com sucesso no MarginFlow OS.\nAcesse o painel e comece a gerenciar seus pedidos, cozinha e entregas.\n\nAbraços,\nEquipe MarginFlow`,
+    html: `
+      <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a1a">
+        <h1 style="color:#0e9f6e;margin-bottom:8px">Bem-vindo ao MarginFlow OS</h1>
+        <p>Olá <strong>${name}</strong>,</p>
+        <p>Sua loja <strong>${storeName}</strong> foi criada com sucesso.</p>
+        <p>Acesse o painel e comece a gerenciar pedidos, cozinha, entregas e muito mais.</p>
+        <p style="margin-top:24px">Abraços,<br><strong>Equipe MarginFlow</strong></p>
+      </div>`,
   }
 }
 
-// ---------------------------------------------------------------------------
-// Templates HTML
-// ---------------------------------------------------------------------------
-
-const APP_NAME = "MarginFlow OS"
-const BRAND_COLOR = "#6366f1"
-
-/** Wrapper base de todos os e-mails — reforça branding consistente. */
-function baseTemplate(title: string, content: string): string {
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${title}</title>
-</head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 0;">
-    <tr>
-      <td align="center">
-        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);">
-          <!-- Header -->
-          <tr>
-            <td style="background:${BRAND_COLOR};padding:28px 40px;">
-              <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.5px;">${APP_NAME}</span>
-            </td>
-          </tr>
-          <!-- Body -->
-          <tr>
-            <td style="padding:40px;">
-              ${content}
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
-              <p style="margin:0;color:#6b7280;font-size:12px;line-height:1.5;">
-                Este e-mail foi enviado pelo ${APP_NAME}. Se você não solicitou esta ação, ignore esta mensagem.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`
-}
-
-function button(href: string, label: string): string {
-  return `<a href="${href}" style="display:inline-block;background:${BRAND_COLOR};color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:600;margin:24px 0;">${label}</a>`
-}
-
-function fallbackLink(href: string): string {
-  return `<p style="margin:16px 0 0;font-size:13px;color:#6b7280;">
-    Se o botão não funcionar, copie e cole este link no navegador:<br/>
-    <a href="${href}" style="color:${BRAND_COLOR};word-break:break-all;">${href}</a>
-  </p>`
-}
-
-// ---------------------------------------------------------------------------
-// Templates concretos
-// ---------------------------------------------------------------------------
-
-export interface PasswordResetEmailData {
+/** Assinatura esperada por password-auth.service.ts */
+export function passwordResetTemplate(input: {
   userName: string
   resetUrl: string
   expiresInMinutes: number
+}): { subject: string; html: string; text: string } {
+  const { userName, resetUrl, expiresInMinutes } = input
+  return {
+    subject: "Redefinir senha — MarginFlow OS",
+    text: `Olá ${userName},\n\nRecebemos um pedido para redefinir sua senha. Clique no link abaixo (válido por ${expiresInMinutes} minutos):\n${resetUrl}\n\nSe não foi você, ignore este e-mail.`,
+    html: `
+      <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a1a">
+        <h1 style="color:#0e9f6e">Redefinir senha</h1>
+        <p>Olá <strong>${userName}</strong>,</p>
+        <p>Recebemos um pedido para redefinir sua senha. Clique no botão abaixo (válido por ${expiresInMinutes} minutos):</p>
+        <p style="margin:24px 0">
+          <a href="${resetUrl}" style="background:#0e9f6e;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Redefinir senha</a>
+        </p>
+        <p style="color:#666;font-size:13px">Se não foi você, ignore este e-mail.</p>
+      </div>`,
+  }
 }
 
-export function passwordResetTemplate({ userName, resetUrl, expiresInMinutes }: PasswordResetEmailData): string {
-  const firstName = userName.split(" ")[0]
-  return baseTemplate(
-    "Redefinição de senha — " + APP_NAME,
-    `<h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827;">Redefinir sua senha</h1>
-    <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6;">
-      Olá, ${firstName}! Recebemos uma solicitação para redefinir a senha da sua conta no ${APP_NAME}.
-    </p>
-    ${button(resetUrl, "Redefinir senha")}
-    <p style="margin:16px 0 0;font-size:14px;color:#6b7280;line-height:1.5;">
-      Este link expira em <strong>${expiresInMinutes} minutos</strong>. Após isso, você precisará solicitar um novo link.
-    </p>
-    ${fallbackLink(resetUrl)}`,
-  )
-}
-
-export interface InvitationEmailData {
+/** Assinatura esperada por notification.service.ts */
+export function invitationTemplate(input: {
   invitedName: string
   storeName: string
   roleName: string
-  invitedByName?: string
   inviteUrl: string
-  expiresAt: string
-}
-
-const ROLE_LABEL: Record<string, string> = {
-  OWNER: "Proprietário",
-  MANAGER: "Gerente",
-  CASHIER: "Caixa",
-  KITCHEN_ATTENDANT: "Cozinheiro",
-  DELIVERY_COORDINATOR: "Entregador",
-  ANALYST: "Analista",
-}
-
-export function invitationTemplate({ invitedName, storeName, roleName, invitedByName, inviteUrl, expiresAt }: InvitationEmailData): string {
-  const firstName = invitedName.split(" ")[0]
-  const roleLabel = ROLE_LABEL[roleName] ?? roleName
-  const expDate = new Date(expiresAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
-  const byLine = invitedByName ? ` por <strong>${invitedByName}</strong>` : ""
-
-  return baseTemplate(
-    `Convite para ${storeName} — ${APP_NAME}`,
-    `<h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827;">Você foi convidado!</h1>
-    <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6;">
-      Olá, ${firstName}! Você foi convidado${byLine} para fazer parte da equipe de
-      <strong>${storeName}</strong> no ${APP_NAME} com o papel de <strong>${roleLabel}</strong>.
-    </p>
-    <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6;">
-      Clique no botão abaixo para criar sua senha e começar a usar o sistema:
-    </p>
-    ${button(inviteUrl, "Aceitar convite")}
-    <p style="margin:16px 0 0;font-size:14px;color:#6b7280;line-height:1.5;">
-      Este convite expira em <strong>${expDate}</strong>.
-    </p>
-    ${fallbackLink(inviteUrl)}`,
-  )
+  expiresAt: Date | string
+}): { subject: string; html: string; text: string } {
+  const { invitedName, storeName, roleName, inviteUrl } = input
+  return {
+    subject: `Você foi convidado para ${storeName} no MarginFlow OS`,
+    text: `${invitedName}, você foi convidado(a) para participar da loja "${storeName}" como ${roleName}.\nAcesse: ${inviteUrl}`,
+    html: `
+      <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a1a">
+        <h1 style="color:#0e9f6e">Convite para o MarginFlow OS</h1>
+        <p><strong>${invitedName}</strong>, você foi convidado(a) para participar da loja <strong>${storeName}</strong> como <strong>${roleName}</strong>.</p>
+        <p style="margin:24px 0">
+          <a href="${inviteUrl}" style="background:#0e9f6e;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Aceitar convite</a>
+        </p>
+      </div>`,
+  }
 }

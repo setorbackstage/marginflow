@@ -68,7 +68,7 @@ export default function SignupPage() {
     <div className="flex min-h-svh items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-3 text-center">
-          <Image src="/logo-full.png" alt="MarginFlow OS" width={220} height={56} className="dark:invert" priority />
+          <Image src="/logo.svg" alt="MarginFlow OS" width={220} height={56} className="dark:invert" priority unoptimized />
           <p className="text-sm text-muted-foreground">Crie a conta da sua loja em poucos minutos</p>
         </div>
 

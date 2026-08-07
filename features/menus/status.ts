@@ -9,6 +9,6 @@ export const MENU_STATUS_CONFIG: Record<string, StatusConfig> = {
 export const MENU_CHANNEL_LABEL: Record<string, string> = {
   DELIVERY: "Delivery",
   IN_STORE: "Presencial",
-  MARKETPLACE: "Marketplace",
+  MARKETPLACE: "Plataforma",
   KIOSK: "Totem",
 }

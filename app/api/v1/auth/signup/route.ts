@@ -2,8 +2,9 @@ import "server-only"
 import type { NextRequest } from "next/server"
 import { prisma } from "@/server/db"
 import { signupService } from "@/server/services"
-import { signupSchema, parseJsonBody, hashPassword, logAudit } from "@/server/lib"
-import {compose, withErrorHandling, withRequestContext, created, setRefreshTokenCookie, withRateLimit} from "@/server/lib/http"
+import { signupSchema, parseJsonBody, hashPassword, logAudit, logger } from "@/server/lib"
+import { compose, withErrorHandling, withRequestContext, withRateLimit, ok, created } from "@/server/lib/http"
+import { sendEmail, welcomeEmail } from "@/server/lib/email"
 import { rateLimit, getClientIp } from "@/server/lib/rate-limit"
 import { toLoginResponse } from "../_auth-response"
 
@@ -45,6 +46,13 @@ async function handleSignup(request: NextRequest): Promise<Response> {
     entityType: "User",
     entityId: result.user.id,
     entityRef: result.user.email,
+  })
+  // E-mail de boas-vindas (fire-and-forget — nunca bloqueia o signup)
+  void sendEmail({
+    to: result.user.email,
+    ...welcomeEmail(result.user.name, input.storeName),
+  }).then((r) => {
+    if (!r.ok) logger.warn("signup.welcome_email_failed", { error: r.error, email: result.user.email })
   })
   const response = created(toLoginResponse(result))
   setRefreshTokenCookie(response, result.refreshToken, request)
