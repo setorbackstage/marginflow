@@ -39,8 +39,7 @@ export const passwordAuthService = {
 
     void sendEmail({
       to: user.email,
-      subject: "Redefinição de senha — MarginFlow OS",
-      html: passwordResetTemplate({ userName: user.name, resetUrl, expiresInMinutes: RESET_TTL_MINUTES }),
+      ...passwordResetTemplate({ userName: user.name, resetUrl, expiresInMinutes: RESET_TTL_MINUTES }),
     })
 
     logger.info("password_auth.forgot_password.token_issued", { userId: user.id, expiresAt: expiresAt.toISOString() })

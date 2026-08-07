@@ -183,8 +183,7 @@ eventBus.on("membership.invited", "email-service:membership.invited", async (eve
     const inviteUrl = `${appUrl}/accept-invitation?token=${invitationToken}`
     void sendEmail({
       to: invitedEmail,
-      subject: `Convite para ${storeName} — MarginFlow OS`,
-      html: invitationTemplate({ invitedName, storeName, roleName, inviteUrl, expiresAt }),
+      ...invitationTemplate({ invitedName, storeName, roleName, inviteUrl, expiresAt }),
     })
   } catch (err) {
     logger.warn("email-service.membership.invited", { error: String(err) })
