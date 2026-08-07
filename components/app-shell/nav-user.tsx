@@ -5,6 +5,7 @@ import {
   LogOut,
   Settings,
   User,
+  LifeBuoy,
   Loader2,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -80,6 +81,10 @@ export function NavUser() {
           <DropdownMenuItem className="gap-2" onClick={() => router.push("/settings")}>
             <Settings />
             Configurações
+          </DropdownMenuItem>
+          <DropdownMenuItem className="gap-2" onClick={() => router.push("/support")}>
+            <LifeBuoy />
+            Suporte
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
