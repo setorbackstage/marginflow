@@ -1,1 +1,75 @@
-IyBNYXJnaW5GbG93IE9TCgoqKlByb2R1Y3Rpb24gYnVpbGQgcGlwZWxpbmU6IEdpdEh1YiBBY3Rpb25zIOKGkiBWZXJjZWwqKgoKIyMgRGV2ZWxvcG1lbnQKCmBgYGJhc2gKcG5wbSBpbnN0YWxsCnBucG0gZGV2CmBgYAoKPiBMb2NhbCBkZXZlbG9wbWVudCAoV1NMMikgcnVucyB0aGUgZGV2IHNlcnZlciAoYG5leHQgZGV2YCkuIFRoZSBkZXYgc2VydmVyIHVzZXMgVHVyYm9wYWNrIGRldiBtb2RlLCB3aGljaCBkb2VzIE5PVCBsb2FkIHRoZSBTV0MgbmF0aXZlIGJpbmFyeSBhbmQgd29ya3MgY29ycmVjdGx5LgoKIyMgUHJvZHVjdGlvbiBCdWlsZAoKPiAqKuKaoO+4jyBgbnBtIHJ1biBidWlsZGAgLyBgcG5wbSBidWlsZGAgaXMgTk9UIHN1cHBvcnRlZCBvbiB0aGlzIG1hY2hpbmUuKioKPgo+IFRoZSBBTUQgRlgtODMwMCBDUFUgbGFja3MgQVZYMiBpbnN0cnVjdGlvbnMuIFRoZSBOZXh0LmpzIFNXQyBjb21waWxlciBiaW5hcnkgKGBAbmV4dC9zd2NgKSBpcyBjb21waWxlZCB3aXRoIEFWWDIgYW5kIGNyYXNoZXMgd2l0aCBgQnVzIGVycm9yIChTSUdCVVMpYCBiZWZvcmUgYW55IGNvbXBpbGF0aW9uIHN0YXJ0cy4gVGhpcyBpcyBhIGhhcmR3YXJlIGxpbWl0YXRpb24g4oCUIG5vdCBhIGNvZGUgaXNzdWUuCj4KPiAqKlByb2R1Y3Rpb24gYnVpbGRzIHJ1biBpbiBHaXRIdWIgQWN0aW9ucyoqIG9uIGB1YnVudHUtbGF0ZXN0YCBydW5uZXJzICh3aGljaCBoYXZlIG1vZGVybiBDUFVzIHdpdGggZnVsbCBBVlgyIHN1cHBvcnQpLgoKIyMjIENJL0NEIEZsb3cKCjEuICoqUHVzaCB0byBgbWFpbmAqKiDihpIgR2l0SHViIEFjdGlvbnMgd29ya2Zsb3cgYC5naXRodWIvd29ya2Zsb3dzL2NpLnltbGAgcnVuczoKICAgLSBgcG5wbSBpbnN0YWxsIC0tZnJvemVuLWxvY2tmaWxlYAogICAtIGBwbnBtIGxpbnRgCiAgIC0gYHBucG0gdGVzdGAKICAgLSBgcG5wbSBidWlsZGAgKG9uIFVidW50dSDigJQgYnVpbGRzIHN1Y2Nlc3NmdWxseSkKICAgLSBgcG5wbSB0c3ggc2NyaXB0cy9jaGVjay1hcGktZG9jcy1wYXJpdHkudHNgCjIuICoqVmVyY2VsKiogYXV0by1kZXBsb3lzIG9uIG1lcmdlIHRvIGBtYWluYCB2aWEgYHZlcmNlbC5qc29uYCBjb25maWcKCiMjIyBXaHkgbm90IGZpeCBpdCBsb2NhbGx5PwoKfCBBdHRlbXB0IHwgUmVzdWx0IHwKfC0tLS0tLS0tLXwtLS0tLS0tLXwKfCBgQHN3Yy9jb3JlYCBpbnN0YWxsIHwgRG9lc24ndCBoZWxwIOKAlCBOZXh0LmpzIDE2IHVzZXMgaXRzIG93biBgQG5leHQvc3djYCBiaW5hcnkgfAp8IGBAc3djL3dhc21gIGluc3RhbGwgfCBVbnVzZWQgYnkgTmV4dC5qcyB8CnwgYC0td2VicGFja2AgLyBgLS1uby1zb3VyY2VtYXAtdHJhZGVvZmZgIHwgU2FtZSBTSUdCVVMgfAp8IGAtLXR1cmJvYCAvIGAtLXR1cmJvcGFja2AgfCBTYW1lIFNJR0JVUyB8CnwgYFNXQ19VU0VfTE9DQUxfQ0xJUD0xYCB8IFNhbWUgU0lHQlVTIHwKfCBgTk9ERV9PUFRJT05TPS0tbWF4LW9sZC1zcGFjZS1zaXplPSpgIHwgU2FtZSBTSUdCVVMgKG5vdCBhIG1lbW9yeSBpc3N1ZSkgfAp8IFN0YW5kYWxvbmUgU1dDIENMSSB8IE5vdCBpbnRlZ3JhdGVkIHdpdGggTmV4dC5qcyAxNiB8CgpUaGUgcm9vdCBjYXVzZSBpcyB0aGUgKipuYXRpdmUgYC5ub2RlYCBhZGRvbioqIGBAbmV4dC9zd2MtbGludXgteDY0LWdudS9uZXh0LXN3Yy5saW51eC14NjQtZ251Lm5vZGVgIHdoaWNoIGNvbnRhaW5zIEFWWDIgaW5zdHJ1Y3Rpb25zLiBObyBlbnZpcm9ubWVudCB2YXJpYWJsZSBvciBmbGFnIGNhbiBjaGFuZ2UgdGhlIGNvbXBpbGVkIGJpbmFyeSdzIGluc3RydWN0aW9uIHNldC4KCiMjIFByb2plY3QgU3RydWN0dXJlCgotICoqRnJhbWV3b3JrOioqIE5leHQuanMgMTYuMi42IC8gUmVhY3QgMTkgLyBUeXBlU2NyaXB0IDUuNy4zCi0gKipQTToqKiBwbnBtCi0gKipPUk06KiogUHJpc21hIDcuOCArIFBvc3RncmVTUUwgKGxvY2FsIERvY2tlciAvIFN1cGFiYXNlIHByb2QpCi0gKipEZXBsb3ltZW50OioqIFZlcmNlbCAoYXV0by1kZXBsb3kgb24gbWVyZ2UpCi0gKipJbnRlZ3JhdGlvbnM6KiogaUZvb2QsIDk5Rm9vZCwgT3BlbkRlbGl2ZXJ5CgojIyBFbnZpcm9ubWVudCBWYXJpYWJsZXMKClNlZSBgLmVudi5leGFtcGxlYCBmb3IgcmVxdWlyZWQgdmFyaWFibGVzLiBUaGUgYnVpbGQgbmVlZHMgYERBVEFCQVNFX1VSTGAsIGBTVVBBQkFTRV8qYCwgYW5kIGBKV1RfKmAgKGR1bW15IHZhbHVlcyBhcmUgc2V0IGluIENJKS4KCiMjIFRlc3RpbmcKCmBgYGJhc2gKcG5wbSB0ZXN0CnBucG0gdGVzdDp3YXRjaApwbnBtIHRlc3Q6Y292ZXJhZ2UKYGBgCgotLS0KCiMjIEZvciBGdXR1cmUgRGV2ZWxvcGVycwoKSWYgeW91J3JlIG9uIGEgbWFjaGluZSB3aXRob3V0IEFWWDIgKG9yIGdldCBgQnVzIGVycm9yYCBkdXJpbmcgYG5leHQgYnVpbGRgKToKCjEuICoqVXNlIGBwbnBtIGRldmAgZm9yIGxvY2FsIGRldmVsb3BtZW50Kiog4oCUIGl0IHdvcmtzIGZpbmUKMi4gKipQdXNoIHRvIGEgYnJhbmNoIGFuZCBvcGVuIGEgUFIqKiDigJQgQ0kgd2lsbCBydW4gdGhlIGJ1aWxkIG9uIFVidW50dQozLiAqKkRvIE5PVCBzcGVuZCB0aW1lIG9uIGxvY2FsIFNXQyB3b3JrYXJvdW5kcyoqIOKAlCB0aGV5IGRvbid0IHdvcmssIHRoZSBiaW5hcnkgaXMgY29tcGlsZWQgd2l0aCBBVlgyCjQuICoqVG8gdmVyaWZ5IGEgYnVpbGQgd2lsbCBwYXNzOioqIGNoZWNrIHRoZSBHaXRIdWIgQWN0aW9ucyBydW4gZm9yIHlvdXIgY29tbWl0
+# MarginFlow OS
+
+**Production build pipeline: GitHub Actions → Vercel**
+
+## Development
+
+```bash
+pnpm install
+pnpm dev
+```
+
+> Local development (WSL2) runs the dev server (`next dev`). The dev server uses Turbopack dev mode, which does NOT load the SWC native binary and works correctly.
+
+## Production Build
+
+> **⚠️ `npm run build` / `pnpm build` is NOT supported on this machine.**
+>
+> The AMD FX-8300 CPU lacks AVX2 instructions. The Next.js SWC compiler binary (`@next/swc`) is compiled with AVX2 and crashes with `Bus error (SIGBUS)` before any compilation starts. This is a hardware limitation — not a code issue.
+>
+> **Production builds run in GitHub Actions** on `ubuntu-latest` runners (which have modern CPUs with full AVX2 support).
+
+### CI/CD Flow
+
+1. **Push to `main`** → GitHub Actions workflow `.github/workflows/ci.yml` runs:
+   - `pnpm install --frozen-lockfile`
+   - `pnpm lint`
+   - `pnpm test`
+   - `pnpm build` (on Ubuntu — builds successfully)
+   - `pnpm tsx scripts/check-api-docs-parity.ts`
+2. **Vercel** auto-deploys on merge to `main` via `vercel.json` config
+
+### Why not fix it locally?
+
+| Attempt | Result |
+|---------|--------|
+| `@swc/core` install | Doesn't help — Next.js 16 uses its own `@next/swc` binary |
+| `@swc/wasm` install | Unused by Next.js |
+| `--webpack` / `--no-sourcemap-tradeoff` | Same SIGBUS |
+| `--turbo` / `--turbopack` | Same SIGBUS |
+| `SWC_USE_LOCAL_CLIP=1` | Same SIGBUS |
+| `NODE_OPTIONS=--max-old-space-size=*` | Same SIGBUS (not a memory issue) |
+| Standalone SWC CLI | Not integrated with Next.js 16 |
+
+The root cause is the **native `.node` addon** `@next/swc-linux-x64-gnu/next-swc.linux-x64-gnu.node` which contains AVX2 instructions. No environment variable or flag can change the compiled binary's instruction set.
+
+## Project Structure
+
+- **Framework:** Next.js 16.2.6 / React 19 / TypeScript 5.7.3
+- **PM:** pnpm
+- **ORM:** Prisma 7.8 + PostgreSQL (local Docker / Supabase prod)
+- **Deployment:** Vercel (auto-deploy on merge)
+- **Integrations:** iFood, 99Food, OpenDelivery
+
+## Environment Variables
+
+See `.env.example` for required variables. The build needs `DATABASE_URL`, `SUPABASE_*`, and `JWT_*` (dummy values are set in CI).
+
+## Testing
+
+```bash
+pnpm test
+pnpm test:watch
+pnpm test:coverage
+```
+
+---
+
+## For Future Developers
+
+If you're on a machine without AVX2 (or get `Bus error` during `next build`):
+
+1. **Use `pnpm dev` for local development** — it works fine
+2. **Push to a branch and open a PR** — CI will run the build on Ubuntu
+3. **Do NOT spend time on local SWC workarounds** — they don't work, the binary is compiled with AVX2
+4. **To verify a build will pass:** check the GitHub Actions run for your commit
