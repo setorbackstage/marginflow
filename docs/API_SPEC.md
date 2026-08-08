@@ -3649,6 +3649,259 @@ GET /api/v1/stores/str_01HXYZ789/reports/overview?dateFrom=2025-07-01&dateTo=202
 
 ---
 
+---
+
+# Authentication — Change Password
+
+## PATCH /api/v1/stores/:storeId/auth/me/change-password
+
+Updates the password for the currently authenticated user. Requires the old password for verification.
+
+**Request Body**
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `old_password` | string | Yes | The user's current password. |
+| `new_password` | string | Yes | The new password. Must be at least 8 characters. |
+
+**Response**: `200 OK` with updated user session info.
+
+---
+
+# Public Store Lookup
+
+## GET /api/v1/stores/:storeId/alerts/check
+
+Checks for any active alert conditions on the store (low stock, offline marketplaces, etc.) and returns the alert list. This is a read-only endpoint that performs no state mutations.
+
+**Response**: `200 OK` with array of alert objects.
+
+---
+
+# Audit
+
+## GET /api/v1/stores/:storeId/audit
+
+Returns a paginated list of audit log entries for the store. Supports filtering by action type, entity type, and date range.
+
+**Query Parameters**
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `limit` | number | No | Page size (default 50, max 200). |
+| `cursor` | string | No | Cursor for pagination. |
+| `action` | string | No | Filter by action (e.g. "product.created"). |
+
+**Response**: `200 OK` with array of audit log entries.
+
+---
+
+# Customer Segments
+
+## GET /api/v1/stores/:storeId/customers/segments
+
+Returns the computed customer segmentation for the store — groups of customers categorized by behavior (VIP, at-risk, new, lapsed) based on order frequency and total spend.
+
+**Response**: `200 OK` with segment definitions and customer counts.
+
+---
+
+# Inventory Adjustments
+
+## POST /api/v1/stores/:storeId/inventory/adjustments
+
+Creates a manual stock adjustment for one or more ingredients. Used when physical counts don't match system records (spoilage, miscount, transfer errors). Each adjustment records the ingredient, quantity delta, and a reason.
+
+**Request Body**
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `ingredients` | array | Yes | Array of `{ ingredient_id, quantity_delta, reason }`. |
+| `reason` | string | Yes | Free-text reason for the adjustment. |
+| `note` | string | No | Additional context. |
+
+**Response**: `201 Created` with the adjustment record(s).
+
+---
+
+# Notifications
+
+## GET /api/v1/stores/:storeId/notifications
+
+Returns a paginated list of notifications for the store, ordered by most recent first. Includes both user-scoped and store-wide notifications.
+
+**Query Parameters**
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `limit` | number | No | Page size (default 50). |
+| `cursor` | string | No | Pagination cursor. |
+| `unread_only` | boolean | No | If true, returns only unread notifications. |
+
+**Response**: `200 OK` with notification array.
+
+## GET /api/v1/stores/:storeId/notifications/:notificationId
+
+Returns a single notification by ID. The notification is scoped to the store — only notifications belonging to this store are accessible.
+
+**Response**: `200 OK` with the notification object.
+
+## POST /api/v1/stores/:storeId/notifications/read-all
+
+Marks all unread notifications for the store as read. Sets `read_at` to the current timestamp for all unread notification records belonging to the store.
+
+**Response**: `200 OK` with count of notifications marked as read.
+
+---
+
+# Printing — Print Jobs
+
+## GET /api/v1/stores/:storeId/print-jobs
+
+Returns a paginated list of print jobs for the store, ordered by most recent first.
+
+**Query Parameters**
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `status` | string | No | Filter by status. |
+| `limit` | number | No | Page size. |
+
+**Response**: `200 OK` with print job array.
+
+## GET /api/v1/stores/:storeId/print-jobs/:jobId
+
+Returns a single print job by ID.
+
+**Response**: `200 OK` with the print job object, or `404 Not Found` if the job doesn't exist.
+
+## GET /api/v1/stores/:storeId/print-jobs/pending
+
+Returns the list of print jobs currently in `PENDING` or `PROCESSING` status, ordered by creation time. Used by the printing agent to fetch jobs to process.
+
+**Response**: `200 OK` with array of pending print jobs.
+
+---
+
+# Printing — Print Rules
+
+## GET /api/v1/stores/:storeId/print-rules
+
+Returns a list of print rules for the store. Each rule maps a domain event to a printer + template combination, optionally filtered by sector.
+
+**Response**: `200 OK` with print rule array.
+
+## GET /api/v1/stores/:storeId/print-rules/:ruleId
+
+Returns a single print rule by ID.
+
+**Response**: `200 OK` with the print rule object.
+
+---
+
+# Printing — Print Templates
+
+## GET /api/v1/stores/:storeId/print-templates
+
+Returns a list of print templates for the store, optionally filtered by type.
+
+**Query Parameters**
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `type` | string | No | Filter by document type. |
+
+**Response**: `200 OK` with print template array.
+
+## GET /api/v1/stores/:storeId/print-templates/:templateId
+
+Returns a single print template by ID.
+
+**Response**: `200 OK` with the template object.
+
+---
+
+# Printing — Printers
+
+## GET /api/v1/stores/:storeId/printers
+
+Returns a list of printers registered for the store, including their type, interface, and connection status.
+
+**Response**: `200 OK` with printer array.
+
+## GET /api/v1/stores/:storeId/printers/:printerId
+
+Returns a single printer by ID.
+
+**Response**: `200 OK` with the printer object.
+
+---
+
+# Printing — Configuration
+
+## GET /api/v1/stores/:storeId/printing/config
+
+Returns the complete printing configuration for the store — all printers, templates, and rules in a single response. Used by the frontend to render the printing management UI.
+
+**Response**: `200 OK` with the consolidated printing configuration.
+
+## POST /api/v1/stores/:storeId/printing/test
+
+Sends a test print to the specified printer using the specified template. Validates printer connectivity and template rendering.
+
+**Request Body**
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `printer_id` | UUID | Yes | The printer to test. |
+| `template_id` | UUID | No | Optional template to use. |
+
+**Response**: `200 OK` or `400 Bad Request` with error details if the print fails.
+
+---
+
+# Push Subscriptions
+
+## GET /api/v1/stores/:storeId/push-subscriptions
+
+Returns a list of Web Push subscriptions for the store, scoped to the authenticated user.
+
+**Response**: `200 OK` with subscription array.
+
+## GET /api/v1/stores/:storeId/push-subscriptions/:subscriptionId
+
+Returns a single push subscription by ID.
+
+**Response**: `200 OK` with the subscription object.
+
+---
+
+# Store Upload
+
+## POST /api/v1/stores/:storeId/upload
+
+Uploads a file (image, document, etc.) to the store's file storage. Returns a URL that can be used for avatar uploads, category images, etc.
+
+**Request Body** (multipart/form-data)
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `file` | file | Yes | The file to upload. |
+| `purpose` | string | Yes | Intended use: "avatar", "category_image", etc. |
+
+**Response**: `201 Created` with `{ url: string }`.
+
+---
+
+# Webhooks
+
+## GET /api/v1/stores/:storeId/webhooks
+
+Returns a list of outbound webhook subscriptions for the store.
+
+**Response**: `200 OK` with webhook array.
+
+## GET /api/v1/stores/:storeId/webhooks/:webhookId
+
+Returns a single webhook subscription by ID.
+
+**Response**: `200 OK` with the webhook object, or `404 Not Found`.
+
+
+---
+
 # Marketplace Integrations
 
 ## GET /api/v1/stores/:storeId/integrations
