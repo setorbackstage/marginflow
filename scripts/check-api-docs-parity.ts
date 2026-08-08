@@ -100,6 +100,14 @@ const MODEL_DOC_HEADING: Record<string, string> = {
   StockMovement: "Stock Movements",
   MarketplaceAppConfig: "Marketplace App Configs",
   MarketplaceIntegration: "Marketplace Integrations",
+  Notification: "Notifications",
+  PushSubscription: "Push Subscriptions",
+  AuditLog: "Audit Logs",
+  Printer: "Printers",
+  PrintTemplate: "Print Templates",
+  PrintRule: "Print Rules",
+  PrintJob: "Print Jobs",
+  WebhookEndpoint: "Webhook Endpoints",
 }
 
 const undocumentedModels = models.filter((m) => {
