@@ -77,7 +77,7 @@ function TicketCard({
     <KanbanCard
       draggableId={canUpdate ? ticket.id : undefined}
       draggableData={{ status: ticket.status }}
-      className={cn(isDragging && "opacity-40", isUrgent && "border-amber-400/60")}
+      className={cn("card-hover", isDragging && "opacity-40", isUrgent && "border-amber-400/60")}
     >
       {/* Header: order number + channel + timer */}
       <div className="flex items-start justify-between gap-2">
@@ -196,7 +196,7 @@ export default function KitchenPage() {
           const t = allTickets.find((x) => x.id === id)
           if (!t) return null
           return (
-            <KanbanCard className="w-72 shadow-xl">
+            <KanbanCard className="w-72 shadow-xl card-hover">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-semibold">#{t.orderNumber}</p>
                 <TicketTimer minutes={t.minutesInQueue} />
