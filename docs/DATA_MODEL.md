@@ -1637,6 +1637,256 @@ This is the operational connection record. The OAuth token for making API calls 
 
 ---
 
+# Notifications
+
+**Purpose**
+User-facing events surfaced in the platform notification center. Each notification is store-scoped and optionally linked to a user. Read status is tracked via `read_at`.
+
+**Table name:** `notifications`
+**Primary Key:** `id UUID`
+
+**Foreign Keys**
+- `store_id → stores.id` (CASCADE on delete)
+- `user_id → users.id` (SET NULL on delete)
+
+**Indexes**
+- Primary key on `id`.
+- Index on `(store_id, created_at DESC)`.
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `store_id` | UUID | No | — | NOT NULL, FK → stores.id CASCADE | The store. |
+| `user_id` | UUID | Yes | NULL | FK → users.id SET NULL | Optional user context. |
+| `type` | TEXT | No | — | NOT NULL, CHECK IN ('NEW_ORDER', 'ORDER_CANCELLED', 'PAYMENT_RECEIVED', 'PAYMENT_REFUNDED', 'DELIVERY_FAILED', 'STOCK_LOW', 'KITCHEN_READY', 'SYSTEM') | Notification category. |
+| `title` | TEXT | No | — | NOT NULL | Short title. |
+| `body` | TEXT | No | — | NOT NULL | Full message. |
+| `link` | TEXT | Yes | NULL | — | Optional deep-link path. |
+| `metadata` | JSONB | No | `'{}'` | NOT NULL | Extra context JSON. |
+| `read_at` | TIMESTAMPTZ | Yes | NULL | — | Set when read. NULL = unread. |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp. |
+
+---
+
+# Push Subscriptions
+
+**Purpose**
+Web Push subscriptions for browser push notifications. Scoped to user + store + browser endpoint.
+
+**Table name:** `push_subscriptions`
+**Primary Key:** `id UUID`
+
+**Foreign Keys**
+- `store_id → stores.id` (CASCADE on delete)
+- `user_id → users.id` (CASCADE on delete)
+
+**Indexes**
+- Primary key on `id`.
+- Unique index on `(user_id, endpoint)`.
+- Index on `store_id`.
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `store_id` | UUID | No | — | NOT NULL, FK → stores.id CASCADE | The store. |
+| `user_id` | UUID | No | — | NOT NULL, FK → users.id CASCADE | The user. |
+| `endpoint` | TEXT | No | — | NOT NULL | Push endpoint URL from browser. |
+| `p256dh` | TEXT | No | — | NOT NULL | ECDH public key (base64url). |
+| `auth` | TEXT | No | — | NOT NULL | Authentication secret (base64url). |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp. |
+
+---
+
+# Audit Logs
+
+**Purpose**
+Immutable record of user-initiated state changes. Captures actor, entity type, entity ID, action verb, and JSON metadata. Never deleted — permanent compliance trail.
+
+**Table name:** `audit_logs`
+**Primary Key:** `id UUID`
+
+**Foreign Keys**
+- `store_id → stores.id` (CASCADE on delete)
+- `user_id → users.id` (SET NULL on delete)
+
+**Indexes**
+- Primary key on `id`.
+- Index on `(store_id, created_at DESC)`.
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `store_id` | UUID | No | — | NOT NULL, FK → stores.id CASCADE | The store. |
+| `user_id` | UUID | Yes | NULL | FK → users.id SET NULL | Actor user. Null for system. |
+| `action` | TEXT | No | — | NOT NULL | Format: "entity.verb", e.g. "product.created". |
+| `entity_type` | TEXT | No | — | NOT NULL | Pascal-case entity name. |
+| `entity_id` | UUID | Yes | NULL | — | PK of affected entity. |
+| `entity_ref` | TEXT | Yes | NULL | — | Human-readable ref. |
+| `meta` | JSONB | Yes | NULL | — | Extra context (diff, reason). |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp. |
+
+---
+
+# Printers
+
+**Purpose**
+Physical or virtual printers for receipt, kitchen ticket, label, and cancellation printing. Each printer has a connection interface and may be marked as default.
+
+**Table name:** `printers`
+**Primary Key:** `id UUID`
+
+**Foreign Keys**
+- `store_id → stores.id` (CASCADE on delete)
+
+**Indexes**
+- Primary key on `id`.
+- Index on `store_id`.
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `store_id` | UUID | No | — | NOT NULL, FK → stores.id CASCADE | The store. |
+| `name` | TEXT | No | — | NOT NULL | Printer name, e.g. "Cozinha Principal". |
+| `type` | TEXT | No | `'GENERAL'` | NOT NULL, CHECK IN ('KITCHEN', 'BAR', 'CONFECTIONERY', 'CASHIER', 'FISCAL', 'DELIVERY', 'EXPEDITION', 'GENERAL') | Physical role. |
+| `model` | TEXT | Yes | NULL | — | Printer model string. |
+| `interface` | TEXT | No | `'NETWORK'` | NOT NULL, CHECK IN ('USB', 'NETWORK', 'BLUETOOTH', 'SERIAL', 'VIRTUAL') | Connection interface. |
+| `address` | TEXT | Yes | NULL | — | Network address or device path. |
+| `is_default` | BOOLEAN | No | `false` | NOT NULL | Default for its type. |
+| `is_active` | BOOLEAN | No | `true` | NOT NULL | Whether enabled. |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp. |
+| `updated_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of last modification. |
+
+---
+
+# Print Templates
+
+**Purpose**
+Reusable layout templates for printable documents. Stores a JSON layout descriptor defining visual elements.
+
+**Table name:** `print_templates`
+**Primary Key:** `id UUID`
+
+**Foreign Keys**
+- `store_id → stores.id` (CASCADE on delete)
+
+**Indexes**
+- Primary key on `id`.
+- Index on `(store_id, type)`.
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `store_id` | UUID | No | — | NOT NULL, FK → stores.id CASCADE | The store. |
+| `name` | TEXT | No | — | NOT NULL | Template name. |
+| `type` | TEXT | No | — | NOT NULL, CHECK IN ('ORDER', 'RECEIPT', 'CANCELLATION', 'LABEL', 'KITCHEN', 'DELIVERY', 'TEST') | Document type. |
+| `layout` | JSONB | No | `'{}'` | NOT NULL | JSON layout descriptor. |
+| `is_active` | BOOLEAN | No | `true` | NOT NULL | Whether enabled. |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp. |
+| `updated_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of last modification. |
+
+---
+
+# Print Rules
+
+**Purpose**
+Event-triggered rules that route print jobs to specific printers using specific templates. Listens for domain events, optionally filters by sector.
+
+**Table name:** `print_rules`
+**Primary Key:** `id UUID`
+
+**Foreign Keys**
+- `store_id → stores.id` (CASCADE on delete)
+- `printer_id → printers.id` (CASCADE on delete)
+- `template_id → print_templates.id` (CASCADE on delete)
+
+**Indexes**
+- Primary key on `id`.
+- Index on `(store_id, event)`.
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `store_id` | UUID | No | — | NOT NULL, FK → stores.id CASCADE | The store. |
+| `printer_id` | UUID | No | — | NOT NULL, FK → printers.id CASCADE | Target printer. |
+| `template_id` | UUID | No | — | NOT NULL, FK → print_templates.id CASCADE | Template to render. |
+| `event` | TEXT | No | — | NOT NULL | Domain event, e.g. "order.confirmed". |
+| `sector` | TEXT | Yes | NULL | — | Optional sector filter. |
+| `is_active` | BOOLEAN | No | `true` | NOT NULL | Whether enabled. |
+| `sort_order` | INTEGER | No | `0` | NOT NULL | Fire order. |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp. |
+| `updated_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of last modification. |
+
+---
+
+# Print Jobs
+
+**Purpose**
+Queued print jobs dispatched to a printer. References printer, optional template and order, stores rendered content, tracks status with retry logic.
+
+**Table name:** `print_jobs`
+**Primary Key:** `id UUID`
+
+**Foreign Keys**
+- `store_id → stores.id` (CASCADE on delete)
+- `printer_id → printers.id` (RESTRICT on delete)
+- `template_id → print_templates.id` (SET NULL on delete)
+
+**Indexes**
+- Primary key on `id`.
+- Index on `(store_id, created_at DESC)`.
+- Index on `(store_id, status)`.
+- Index on `(printer_id, status)`.
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `store_id` | UUID | No | — | NOT NULL, FK → stores.id CASCADE | The store. |
+| `printer_id` | UUID | No | — | NOT NULL, FK → printers.id RESTRICT | Target printer. |
+| `template_id` | UUID | Yes | NULL | FK → print_templates.id SET NULL | Template used. |
+| `order_id` | UUID | Yes | NULL | — | Order that triggered this job. |
+| `type` | TEXT | No | — | NOT NULL, CHECK IN ('ORDER', 'RECEIPT', 'CANCELLATION', 'LABEL', 'KITCHEN', 'DELIVERY', 'TEST') | Document type. |
+| `document_type` | TEXT | Yes | NULL | — | Logical document type. |
+| `provider` | TEXT | Yes | NULL | — | Provider: QZ_TRAY, PRINTER_AGENT, ESC_POS_TCP, CLOUD_PRINT. |
+| `destination` | TEXT | Yes | NULL | — | Destination identifier. |
+| `content` | TEXT | Yes | NULL | — | Rendered content (HTML / ESC-POS). |
+| `status` | TEXT | No | `'PENDING'` | NOT NULL, CHECK IN ('PENDING', 'PROCESSING', 'PRINTED', 'RETRYING', 'FAILED', 'CANCELLED') | Job status. |
+| `attempts` | INTEGER | No | `0` | NOT NULL | Print attempts made. |
+| `last_error` | TEXT | Yes | NULL | — | Last attempt error. |
+| `error` | TEXT | Yes | NULL | — | Legacy error field. |
+| `next_attempt_at` | TIMESTAMPTZ | Yes | NULL | — | Next retry timestamp. |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp. |
+| `printed_at` | TIMESTAMPTZ | Yes | NULL | — | Successfully printed timestamp. |
+| `updated_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of last modification. |
+
+---
+
+# Webhook Endpoints
+
+**Purpose**
+Outbound webhook subscriptions for real-time event notifications. HMAC-SHA256 signing secret for payload verification.
+
+**Table name:** `webhook_endpoints`
+**Primary Key:** `id UUID`
+
+**Foreign Keys**
+- `store_id → stores.id` (CASCADE on delete)
+
+**Indexes**
+- Primary key on `id`.
+- Index on `store_id`.
+
+| Column | Type | Nullable | Default | Constraints | Explanation |
+|---|---|---|---|---|---|
+| `id` | UUID | No | `gen_random_uuid()` | PK | Unique identifier. |
+| `store_id` | UUID | No | — | NOT NULL, FK → stores.id CASCADE | The store. |
+| `url` | TEXT | No | — | NOT NULL | Webhook delivery URL. |
+| `secret` | TEXT | No | — | NOT NULL | HMAC-SHA256 signing secret. NEVER in API responses. |
+| `events` | TEXT[] | No | `'{}'` | NOT NULL | Subscribed event types. Empty = all. |
+| `is_active` | BOOLEAN | No | `true` | NOT NULL | Whether enabled. |
+| `created_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp. |
+| `updated_at` | TIMESTAMPTZ | No | `now()` | NOT NULL | UTC timestamp of last modification. |
+
+---
 # Future Scalability
 
 ## How This Schema Evolves Without Breaking Existing Data
