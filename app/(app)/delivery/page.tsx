@@ -84,10 +84,10 @@ function DeliveryCard({
 
   return (
     <>
-      <KanbanCard className="card-hover"
+      <KanbanCard
         draggableId={canUpdate ? delivery.id : undefined}
         draggableData={{ status: delivery.status }}
-        className={cn(isUrgent && "border-destructive/50")}
+        className={cn("card-hover", isUrgent && "border-destructive/50")}
       >
         <div className="flex items-start justify-between gap-2">
           <p className="font-semibold">Pedido #{delivery.orderNumber}</p>
