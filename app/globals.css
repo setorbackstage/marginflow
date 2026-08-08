@@ -85,11 +85,17 @@
 
 .dark {
   color-scheme: dark;
-  --background: oklch(0.16 0.004 265);
+  /* Layer 0: Fundo geral (#09090b) */
+  --background: oklch(0.058 0 0);
   --foreground: oklch(0.965 0 0);
-  --card: oklch(0.196 0.004 265);
+  /* Layer 1: Sidebar & Header (#121215 — 1 tom mais claro que background + borda 1px) */
+  --sidebar: oklch(0.104 0.004 265);
+  --sidebar-foreground: oklch(0.965 0 0);
+  --sidebar-border: oklch(1 0 0 / 6%);
+  /* Layer 2: Cards, Tabela, Modais (#18181b) */
+  --card: oklch(0.139 0.004 265);
   --card-foreground: oklch(0.965 0 0);
-  --popover: oklch(0.205 0.004 265);
+  --popover: oklch(0.139 0.004 265);
   --popover-foreground: oklch(0.965 0 0);
   --primary: oklch(0.7 0.15 155);
   --primary-foreground: oklch(0.99 0 0);
@@ -100,21 +106,18 @@
   --accent: oklch(0.25 0.04 155);
   --accent-foreground: oklch(0.92 0.04 155);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 12%);
+  --border: oklch(1 0 0 / 7%);
+  --input: oklch(1 0 0 / 10%);
   --ring: oklch(0.7 0.15 155);
   --chart-1: oklch(0.7 0.15 155);
   --chart-2: oklch(0.7 0.14 195);
   --chart-3: oklch(0.72 0.16 145);
   --chart-4: oklch(0.78 0.15 75);
   --chart-5: oklch(0.68 0.2 25);
-  --sidebar: oklch(0.13 0.004 265);
-  --sidebar-foreground: oklch(0.965 0 0);
   --sidebar-primary: oklch(0.7 0.15 155);
   --sidebar-primary-foreground: oklch(0.99 0 0);
   --sidebar-accent: oklch(0.25 0.04 155);
   --sidebar-accent-foreground: oklch(0.92 0.04 155);
-  --sidebar-border: oklch(1 0 0 / 9%);
   --sidebar-ring: oklch(0.7 0.15 155);
 }
 
@@ -162,3 +165,35 @@
     @apply text-primary;
   }
 }
+
+/* Micro-interações globais — sensação de sistema "vivo" */
+@layer base {
+  /* Botões: transição suave em todos os botões */
+  button, .btn {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  /* Cards: elevação sutil no hover */
+  .card-hover:hover {
+    @apply scale-[1.01] shadow-lg;
+  }
+  /* Modais: backdrop blur */
+  .modal-backdrop {
+    @apply bg-black/60 backdrop-blur-sm;
+  }
+  /* Tabelas: hover nas linhas */
+  tbody tr {
+    @apply transition-colors duration-200;
+  }
+  tbody tr:hover {
+    @apply bg-muted/50;
+  }
+}
+
+/* Sticky Save Bar — barra flutuante de salvamento */
+.sticky-save-bar {
+  @apply fixed bottom-4 left-1/2 -translate-x-1/2 z-50
+         bg-card border border-border rounded-lg shadow-lg
+         flex items-center gap-3 px-4 py-3
+         transition-all duration-200 ease-in-out;
+}
+
