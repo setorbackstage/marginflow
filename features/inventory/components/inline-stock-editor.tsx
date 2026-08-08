@@ -1,1 +1,114 @@
-InVzZSBjbGllbnQiCgppbXBvcnQgKiBhcyBSZWFjdCBmcm9tICJyZWFjdCIKaW1wb3J0IHsgUGVuY2lsLCBDaGVjaywgVHJpYW5nbGVBbGVydCB9IGZyb20gImx1Y2lkZS1yZWFjdCIKCmltcG9ydCB7IHVzZUNyZWF0ZU1vdmVtZW50IH0gZnJvbSAiQC9mZWF0dXJlcy9pbnZlbnRvcnkiCmltcG9ydCB0eXBlIHsgSW5ncmVkaWVudCB9IGZyb20gIkAvZmVhdHVyZXMvaW52ZW50b3J5L3R5cGVzIgppbXBvcnQgeyBCdXR0b24gfSBmcm9tICJAL2NvbXBvbmVudHMvdWkvYnV0dG9uIgppbXBvcnQgeyBJbnB1dCB9IGZyb20gIkAvY29tcG9uZW50cy91aS9pbnB1dCIKaW1wb3J0IHsgUG9wb3ZlciwgUG9wb3ZlckNvbnRlbnQsIFBvcG92ZXJUcmlnZ2VyIH0gZnJvbSAiQC9jb21wb25lbnRzL3VpL3BvcG92ZXIiCmltcG9ydCB7IGZvcm1hdFF1YW50aXR5IH0gZnJvbSAiQC9mZWF0dXJlcy9pbnZlbnRvcnkiCgovKioKICogSW5saW5lIHN0b2NrIGFkanVzdG1lbnQ6IGNsaWNrIHRoZSBiYWxhbmNlIHRvIG9wZW4gYSBxdWljayBlZGl0b3IuCiAqIFNhdmVzIHZpYSBhbiBBREpVU1RNRU5UIG1vdmVtZW50IChuZXcgYmFsYW5jZSAtIGN1cnJlbnQgYmFsYW5jZSkuCiAqLwpleHBvcnQgZnVuY3Rpb24gSW5saW5lU3RvY2tFZGl0b3IoeyBpbmdyZWRpZW50IH06IHsgaW5ncmVkaWVudDogSW5ncmVkaWVudCB9KSB7CiAgY29uc3QgY3JlYXRlID0gdXNlQ3JlYXRlTW92ZW1lbnQoKQogIGNvbnN0IFtvcGVuLCBzZXRPcGVuXSA9IFJlYWN0LnVzZVN0YXRlKGZhbHNlKQoKICAvLyBVc2Uga2V5LWNoYW5nZSB0byByZXNldCB2YWx1ZSBvbiBpbmdyZWRpZW50IGNoYW5nZSDigJQgYXZvaWRzIGNhbGxpbmcKICAvLyBzZXRTdGF0ZSBpbnNpZGUgdXNlRWZmZWN0IChyZWFjdC1ob29rcy9zZXQtc3RhdGUtaW4tZWZmZWN0IGxpbnQgZXJyb3IpLgogIGNvbnN0IFt2YWx1ZSwgc2V0VmFsdWVdID0gUmVhY3QudXNlU3RhdGUoU3RyaW5nKGluZ3JlZGllbnQuY3VycmVudFN0b2NrKSkKCiAgY29uc3QgaGFuZGxlT3BlbkNoYW5nZSA9IChpc09wZW46IGJvb2xlYW4pID0+IHsKICAgIGlmIChpc09wZW4pIHNldFZhbHVlKFN0cmluZyhpbmdyZWRpZW50LmN1cnJlbnRTdG9jaykpCiAgICBzZXRPcGVuKGlzT3BlbikKICB9CgogIGNvbnN0IGhhbmRsZUFwcGx5ID0gKCkgPT4gewogICAgY29uc3QgbmV4dCA9IE51bWJlcih2YWx1ZSkKICAgIGlmIChOdW1iZXIuaXNOYU4obmV4dCkgfHwgbmV4dCA9PT0gaW5ncmVkaWVudC5jdXJyZW50U3RvY2spIHsKICAgICAgc2V0T3BlbihmYWxzZSkKICAgICAgcmV0dXJuCiAgICB9CiAgICBjb25zdCBkZWx0YSA9IG5leHQgLSBpbmdyZWRpZW50LmN1cnJlbnRTdG9jawogICAgY3JlYXRlLm11dGF0ZSgKICAgICAgewogICAgICAgIGluZ3JlZGllbnRJZDogaW5ncmVkaWVudC5pZCwKICAgICAgICB0eXBlOiAiQURKVVNUTUVOVCIsCiAgICAgICAgZGlyZWN0aW9uOiBkZWx0YSA+IDAgPyAiSU5DUkVBU0UiIDogIkRFQ1JFQVNFIiwKICAgICAgICBxdWFudGl0eTogTWF0aC5hYnMoZGVsdGEpLAogICAgICAgIHJlYXNvbjogIkFqdXN0ZSByw6FwaWRvIHBlbGEgdGFiZWxhIiwKICAgICAgfSwKICAgICAgewogICAgICAgIG9uU3VjY2VzczogKCkgPT4gc2V0T3BlbihmYWxzZSksCiAgICAgIH0sCiAgICApCiAgfQoKICByZXR1cm4gKAogICAgPFBvcG92ZXIgb3Blbj17b3Blbn0gb25PcGVuQ2hhbmdlPXtoYW5kbGVPcGVuQ2hhbmdlfT4KICAgICAgPFBvcG92ZXJUcmlnZ2VyCiAgICAgICAgcmVuZGVyPXsKICAgICAgICAgIDxidXR0b24KICAgICAgICAgICAgdHlwZT0iYnV0dG9uIgogICAgICAgICAgICBjbGFzc05hbWU9Imdyb3VwL3N0b2NrIGlubGluZS1mbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41IHJvdW5kZWQtbWQgcHgtMS41IHB5LTAuNSB0ZXh0LWxlZnQgdGFidWxhci1udW1zIHRyYW5zaXRpb24tY29sb3JzIGhvdmVyOmJnLW11dGVkIgogICAgICAgICAgICBhcmlhLWxhYmVsPSJBanVzdGFyIHNhbGRvIgogICAgICAgICAgPgogICAgICAgICAgICA8c3BhbgogICAgICAgICAgICAgIGNsYXNzTmFtZT17Y25CYWRnZShpbmdyZWRpZW50KX0KICAgICAgICAgICAgPgogICAgICAgICAgICAgIHtmb3JtYXRRdWFudGl0eShpbmdyZWRpZW50LmN1cnJlbnRTdG9jaywgaW5ncmVkaWVudC51bml0KX0KICAgICAgICAgICAgPC9zcGFuPgogICAgICAgICAgICB7aW5ncmVkaWVudC5pc0xvd1N0b2NrID8gKAogICAgICAgICAgICAgIDxUcmlhbmdsZUFsZXJ0IGNsYXNzTmFtZT0iaW5saW5lIHNpemUtMy41IGFsaWduLVstMnB4XSB0ZXh0LWFtYmVyLTYwMCBkYXJrOnRleHQtYW1iZXItNTAwIiAvPgogICAgICAgICAgICApIDogbnVsbH0KICAgICAgICAgICAgPFBlbmNpbCBjbGFzc05hbWU9InNpemUtMyBvcGFjaXR5LTAgdHJhbnNpdGlvbi1vcGFjaXR5IGdyb3VwLWhvdmVyL3N0b2NrOm9wYWNpdHktMTAwIiAvPgogICAgICAgICAgPC9idXR0b24+CiAgICAgICAgfQogICAgICAvPgogICAgICA8UG9wb3ZlckNvbnRlbnQgY2xhc3NOYW1lPSJ3LTU2IHNwYWNlLXktMiIgYWxpZ249InN0YXJ0Ij4KICAgICAgICA8cCBjbGFzc05hbWU9InRleHQteHMgZm9udC1tZWRpdW0gdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIj4KICAgICAgICAgIEFqdXN0YXIgc2FsZG8gZGUge2luZ3JlZGllbnQubmFtZX0KICAgICAgICA8L3A+CiAgICAgICAgPGRpdiBjbGFzc05hbWU9ImZsZXggaXRlbXMtY2VudGVyIGdhcC0yIj4KICAgICAgICAgIDxJbnB1dAogICAgICAgICAgICB0eXBlPSJudW1iZXIiCiAgICAgICAgICAgIHN0ZXA9ImFueSIKICAgICAgICAgICAgdmFsdWU9e3ZhbHVlfQogICAgICAgICAgICBhdXRvRm9jdXMKICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRWYWx1ZShlLnRhcmdldC52YWx1ZSl9CiAgICAgICAgICAgIG9uS2V5RG93bj17KGUpID0+IHsKICAgICAgICAgICAgICBpZiAoZS5rZXkgPT09ICJFbnRlciIpIGhhbmRsZUFwcGx5KCkKICAgICAgICAgICAgICBpZiAoZS5rZXkgPT09ICJFc2NhcGUiKSBzZXRPcGVuKGZhbHNlKQogICAgICAgICAgICB9fQogICAgICAgICAgICBjbGFzc05hbWU9InRhYnVsYXItbnVtcyIKICAgICAgICAgIC8+CiAgICAgICAgICA8QnV0dG9uIHNpemU9Imljb24tc20iIG9uQ2xpY2s9e2hhbmRsZUFwcGx5fSBkaXNhYmxlZD17Y3JlYXRlLmlzUGVuZGluZ30+CiAgICAgICAgICAgIHtjcmVhdGUuaXNQZW5kaW5nID8gPENoZWNrIGNsYXNzTmFtZT0iYW5pbWF0ZS1zcGluIiAvPiA6IDxDaGVjayAvPn0KICAgICAgICAgIDwvQnV0dG9uPgogICAgICAgIDwvZGl2PgogICAgICAgIDxwIGNsYXNzTmFtZT0idGV4dC1bMC43cmVtXSB0ZXh0LW11dGVkLWZvcmVncm91bmQiPgogICAgICAgICAgU2FsZG8gYXR1YWw6IHtmb3JtYXRRdWFudGl0eShpbmdyZWRpZW50LmN1cnJlbnRTdG9jaywgaW5ncmVkaWVudC51bml0KX0KICAgICAgICA8L3A+CiAgICAgIDwvUG9wb3ZlckNvbnRlbnQ+CiAgICA8L1BvcG92ZXI+CiAgKQp9CgpmdW5jdGlvbiBjbkJhZGdlKGluZ3JlZGllbnQ6IEluZ3JlZGllbnQpOiBzdHJpbmcgewogIHJldHVybiBjbigKICAgICJ0YWJ1bGFyLW51bXMiLAogICAgaW5ncmVkaWVudC5jdXJyZW50U3RvY2sgPCAwICYmICJmb250LXNlbWlib2xkIHRleHQtZGVzdHJ1Y3RpdmUiLAogICAgaW5ncmVkaWVudC5pc0xvd1N0b2NrICYmCiAgICAgIGluZ3JlZGllbnQuY3VycmVudFN0b2NrID49IDAgJiYKICAgICAgImZvbnQtbWVkaXVtIHRleHQtYW1iZXItNjAwIGRhcms6dGV4dC1hbWJlci01MDAiLAogICkKfQoKLy8gbG9jYWwgY24gdG8gYXZvaWQgZXh0cmEgaW1wb3J0IGNodXJuCmZ1bmN0aW9uIGNuKC4uLmNsYXNzZXM6IEFycmF5PHN0cmluZyB8IGZhbHNlIHwgbnVsbCB8IHVuZGVmaW5lZD4pOiBzdHJpbmcgewogIHJldHVybiBjbGFzc2VzLmZpbHRlcihCb29sZWFuKS5qb2luKCIgIikKfQo=
+"use client"
+
+import * as React from "react"
+import { Pencil, Check, TriangleAlert } from "lucide-react"
+
+import { useCreateMovement } from "@/features/inventory"
+import type { Ingredient } from "@/features/inventory/types"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { formatQuantity } from "@/features/inventory"
+
+/**
+ * Inline stock adjustment: click the balance to open a quick editor.
+ * Saves via an ADJUSTMENT movement (new balance - current balance).
+ */
+export function InlineStockEditor({ ingredient }: { ingredient: Ingredient }) {
+  const create = useCreateMovement()
+  const [open, setOpen] = React.useState(false)
+
+  // Use key-change to reset value on ingredient change — avoids calling
+  // setState inside useEffect (react-hooks/set-state-in-effect lint error).
+  const [value, setValue] = React.useState(String(ingredient.currentStock))
+
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) setValue(String(ingredient.currentStock))
+    setOpen(isOpen)
+  }
+
+  const handleApply = () => {
+    const next = Number(value)
+    if (Number.isNaN(next) || next === ingredient.currentStock) {
+      setOpen(false)
+      return
+    }
+    const delta = next - ingredient.currentStock
+    create.mutate(
+      {
+        ingredientId: ingredient.id,
+        type: "ADJUSTMENT",
+        direction: delta > 0 ? "INCREASE" : "DECREASE",
+        quantity: Math.abs(delta),
+        reason: "Ajuste rápido pela tabela",
+      },
+      {
+        onSuccess: () => setOpen(false),
+      },
+    )
+  }
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            className="group/stock inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left tabular-nums transition-colors hover:bg-muted"
+            aria-label="Ajustar saldo"
+          >
+            <span
+              className={cnBadge(ingredient)}
+            >
+              {formatQuantity(ingredient.currentStock, ingredient.unit)}
+            </span>
+            {ingredient.isLowStock ? (
+              <TriangleAlert className="inline size-3.5 align-[-2px] text-amber-600 dark:text-amber-500" />
+            ) : null}
+            <Pencil className="size-3 opacity-0 transition-opacity group-hover/stock:opacity-100" />
+          </button>
+        }
+      />
+      <PopoverContent className="w-56 space-y-2" align="start">
+        <p className="text-xs font-medium text-muted-foreground">
+          Ajustar saldo de {ingredient.name}
+        </p>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            step="any"
+            value={value}
+            autoFocus
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleApply()
+              if (e.key === "Escape") setOpen(false)
+            }}
+            className="tabular-nums"
+          />
+          <Button size="icon-sm" onClick={handleApply} disabled={create.isPending}>
+            {create.isPending ? <Check className="animate-spin" /> : <Check />}
+          </Button>
+        </div>
+        <p className="text-[0.7rem] text-muted-foreground">
+          Saldo atual: {formatQuantity(ingredient.currentStock, ingredient.unit)}
+        </p>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function cnBadge(ingredient: Ingredient): string {
+  return cn(
+    "tabular-nums",
+    ingredient.currentStock < 0 && "font-semibold text-destructive",
+    ingredient.isLowStock &&
+      ingredient.currentStock >= 0 &&
+      "font-medium text-amber-600 dark:text-amber-500",
+  )
+}
+
+// local cn to avoid extra import churn
+function cn(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(" ")
+}
