@@ -3651,9 +3651,19 @@ GET /api/v1/stores/str_01HXYZ789/reports/overview?dateFrom=2025-07-01&dateTo=202
 
 ---
 
+# Public Store Lookup
+
+## GET /api/v1/public/stores/:slug
+
+Returns a single store's public profile by slug — used by the landing page and multi-tenant routing. Only returns non-sensitive store info (name, type, currency, timezone, logo_url).
+
+**Response**: `200 OK` with store profile object, or `404 Not Found`.
+
+---
+
 # Authentication — Change Password
 
-## PATCH /api/v1/stores/:storeId/auth/me/change-password
+## PATCH /api/v1/auth/me/change-password
 
 Updates the password for the currently authenticated user. Requires the old password for verification.
 
