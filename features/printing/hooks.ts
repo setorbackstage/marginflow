@@ -107,6 +107,63 @@ export function useDeletePrintRule() {
   })
 }
 
+export function useCreatePrintTemplate() {
+  const storeId = useActiveStoreId()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Parameters<typeof printingApi.createTemplate>[1]) =>
+      printingApi.createTemplate(storeId, data),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["stores", storeId, "print-templates"] })
+    },
+  })
+}
+
+export function useUpdatePrintTemplate() {
+  const storeId = useActiveStoreId()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      templateId,
+      data,
+    }: {
+      templateId: string
+      data: Parameters<typeof printingApi.updateTemplate>[2]
+    }) => printingApi.updateTemplate(storeId, templateId, data),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["stores", storeId, "print-templates"] })
+    },
+  })
+}
+
+export function useDeletePrintTemplate() {
+  const storeId = useActiveStoreId()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (templateId: string) => printingApi.deleteTemplate(storeId, templateId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["stores", storeId, "print-templates"] })
+    },
+  })
+}
+
+export function useUpdatePrintRule() {
+  const storeId = useActiveStoreId()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      ruleId,
+      data,
+    }: {
+      ruleId: string
+      data: Parameters<typeof printingApi.updateRule>[2]
+    }) => printingApi.updateRule(storeId, ruleId, data),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["stores", storeId, "print-rules"] })
+    },
+  })
+}
+
 // Store print config (provider/printers/options)
 export function usePrintConfig() {
   const storeId = useActiveStoreId()
