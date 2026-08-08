@@ -357,7 +357,7 @@ export default function OrdersPage() {
             <div className="rounded-xl border">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="transition-colors duration-200">
                     <TableHead>Pedido</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Tipo</TableHead>
