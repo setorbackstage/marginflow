@@ -84,7 +84,7 @@ function DeliveryCard({
 
   return (
     <>
-      <KanbanCard
+      <KanbanCard className="card-hover"
         draggableId={canUpdate ? delivery.id : undefined}
         draggableData={{ status: delivery.status }}
         className={cn(isUrgent && "border-destructive/50")}
